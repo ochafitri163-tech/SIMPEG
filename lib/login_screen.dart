@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/user_role.dart';
 import 'screens/dirut/dashboard_dirut_screen.dart';
 import 'screens/kadiv/dashboard_kadiv_screen.dart';
@@ -45,6 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// Mengubah NIK menjadi email samaran, karena Supabase Auth
+  /// mewajibkan format email untuk sign in.
+  String _emailFromNik(String nik) => '$nik@simpeg.internal';
+
   Future<void> _login() async {
     if (_nikController.text.isEmpty || _passwordController.text.isEmpty) {
       _showSnackBar('NIK dan Kata Sandi wajib diisi', Colors.red);
@@ -58,45 +63,66 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulasi proses login
-    await Future.delayed(const Duration(seconds: 2));
+    final nik = _nikController.text.trim();
 
-    final account = findDemoAccount(
-      _nikController.text.trim(),
-      _passwordController.text,
-    );
+    try {
+      // 1. Login ke Supabase Auth
+      final authResponse =
+          await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailFromNik(nik),
+        password: _passwordController.text,
+      );
 
-    setState(() => _isLoading = false);
+      final userId = authResponse.user?.id;
+      if (userId == null) {
+        throw const AuthException('Login gagal, silakan coba lagi');
+      }
 
-    if (!mounted) return;
+      // 2. Ambil data profil pegawai dari tabel 'pegawai'
+      final data = await Supabase.instance.client
+          .from('pegawai')
+          .select()
+          .eq('id', userId)
+          .single();
 
-    if (account == null) {
-      _showSnackBar('NIK atau Kata Sandi salah', Colors.red);
+      final user = AppUser(
+        nik: data['nik'] as String,
+        name: data['name'] as String,
+        jabatan: data['jabatan'] as String,
+        unitKerja: data['unit_kerja'] as String,
+        unitKerjaSingkat: data['unit_kerja_singkat'] as String,
+        golongan: data['golongan'] as String,
+        golonganDetail: data['golongan_detail'] as String?,
+        role: UserRole.values.byName(data['role'] as String),
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
+      );
+    } on AuthException catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      _showSnackBar(_translateAuthError(e.message), Colors.red);
       _refreshCaptcha();
-      return;
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      _showSnackBar('Terjadi kesalahan, silakan coba lagi', Colors.red);
+      _refreshCaptcha();
     }
-
-    final user = AppUser(
-      nik: account.nik,
-      name: account.name,
-      jabatan: account.jabatan,
-      unitKerja: account.unitKerja,
-      unitKerjaSingkat: account.unitKerjaSingkat,
-      golongan: account.golongan,
-      golonganDetail:
-          account.golonganDetail.isNotEmpty ? account.golonganDetail : null,
-      role: account.role,
-    );
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
-    );
   }
 
-  /// Menentukan dashboard tujuan berdasarkan role user yang berhasil login.
-  /// Ini adalah bagian dari "routing per-role": tiap role hanya diarahkan
-  /// ke dashboard miliknya sendiri, dan dashboard tersebut membungkus diri
-  /// dengan `RoleGuard` sebagai lapisan proteksi tambahan.
+  String _translateAuthError(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('invalid login credentials')) {
+      return 'NIK atau Kata Sandi salah';
+    }
+    return 'Login gagal: $message';
+  }
+
   Widget _dashboardForRole(AppUser user) {
     switch (user.role) {
       case UserRole.pegawai:
@@ -133,12 +159,8 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: const Color(0xFFEAF4FB),
       body: Stack(
         children: [
-          // Background gelombang air (asset asli PERUMDAM Tirta Darma Ayu)
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/bg_air.jpg',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/bg_air.jpg', fit: BoxFit.cover),
           ),
           SafeArea(
             child: SingleChildScrollView(
@@ -151,8 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   _buildHeader(isSmallScreen),
                   const SizedBox(height: 26),
-
-                  // Card Login
                   Container(
                     constraints: const BoxConstraints(maxWidth: 420),
                     width: double.infinity,
@@ -208,8 +228,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Kotak kode keamanan (captcha)
                         GestureDetector(
                           onTap: _refreshCaptcha,
                           child: Container(
@@ -248,7 +266,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           inputType: TextInputType.number,
                         ),
                         const SizedBox(height: 22),
-
                         _buildLoginButton(),
                         const SizedBox(height: 18),
                         Center(
@@ -268,13 +285,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 22),
                   Text(
                     '@copyright IT PERUMDAM Tirta Darma Ayu 2026',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 11.5,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
                   ),
                   const SizedBox(height: 16),
-                  // Bagian demo accounts TELAH DIHAPUS
                 ],
               ),
             ),
@@ -306,7 +319,6 @@ class _LoginScreenState extends State<LoginScreen> {
             'assets/images/logo.png',
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              // Fallback jika asset logo belum ditambahkan ke pubspec.yaml
               return Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -314,11 +326,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     colors: [Color(0xFF00B4DB), _accent],
                   ),
                 ),
-                child: const Icon(
-                  Icons.water_drop_rounded,
-                  color: Colors.white,
-                  size: 40,
-                ),
+                child: const Icon(Icons.water_drop_rounded,
+                    color: Colors.white, size: 40),
               );
             },
           ),
@@ -328,19 +337,13 @@ class _LoginScreenState extends State<LoginScreen> {
           'Simpeg Mobile Ver.3',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: _navy,
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
-          ),
+              color: _navy, fontSize: 19, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 2),
         Text(
           'PERUMDAM Tirta Darma Ayu',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Colors.grey[700], fontSize: 13),
         ),
       ],
     );
@@ -356,9 +359,8 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: _accent,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           disabledBackgroundColor: _accent.withOpacity(0.5),
         ),
         child: _isLoading
@@ -373,17 +375,14 @@ class _LoginScreenState extends State<LoginScreen> {
             : const Text(
                 'MASUK',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                ),
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5),
               ),
       ),
     );
   }
 
-  /// Field bergaya "label di atas kotak input", meniru referensi tampilan
-  /// login SIMPEG V.3 (label tebal di atas, kotak input polos di bawah).
   Widget _buildLabeledField({
     required String label,
     required TextEditingController controller,
@@ -399,10 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: _navy,
-          ),
+              fontSize: 13, fontWeight: FontWeight.bold, color: _navy),
         ),
         const SizedBox(height: 8),
         Container(
@@ -422,10 +418,8 @@ class _LoginScreenState extends State<LoginScreen> {
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 16,
-              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             ),
           ),
         ),

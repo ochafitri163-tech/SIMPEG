@@ -195,7 +195,7 @@ class _SwitchRow extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: FeatureScaffold.accent,
+            activeThumbColor: FeatureScaffold.accent,
           ),
         ],
       ),

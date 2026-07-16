@@ -466,7 +466,7 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
     final doc = pw.Document();
     final navyColor = PdfColor.fromInt(0xFF0D2C6E);
     final greyColor = PdfColor.fromInt(0xFF8C97A6);
-    final statusColor = PdfColor.fromInt(p.status.color.value);
+    final statusColor = PdfColor.fromInt(p.status.color.toARGB32());
 
     doc.addPage(
       pw.MultiPage(
@@ -546,7 +546,7 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           pw.SizedBox(height: 4),
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-            columnWidths: const {
+            columnWidths: {
               0: pw.FlexColumnWidth(2.4),
               1: pw.FlexColumnWidth(2.2),
               2: pw.FlexColumnWidth(1.6),

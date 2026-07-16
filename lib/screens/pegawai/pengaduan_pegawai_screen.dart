@@ -30,31 +30,46 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   static const Color hintGrey = Color(0xFF9AA5B1);
 
   static const List<String> _kategoriOptions = [
-    'Fasilitas Kerja',
-    'Lingkungan Kerja',
-    'Atasan / Pimpinan',
-    'Rekan Kerja',
-    'Gaji & Tunjangan',
-    'Kebijakan Perusahaan',
-    'Lainnya',
+    'Pelanggaran Administrasi',
+    'Pelanggaran Teknik',
   ];
+
+  /// Catatan/penjelasan singkat untuk membantu pegawai menentukan kategori
+  /// pengaduan yang tepat. Ditampilkan di bawah setiap pilihan pada bottom
+  /// sheet "Pilih Kategori", dan juga sebagai ringkasan di bawah field
+  /// setelah kategori dipilih.
+  static const Map<String, String> _kategoriNotes = {
+    'Pelanggaran Administrasi':
+        'Mencakup masalah SDM/kepegawaian internal, seperti: keterlambatan '
+        'atau ketidakhadiran kerja, pelanggaran jam kerja, hasil setoran/'
+        'pendapatan yang tidak disetorkan atau tidak sesuai (masalah '
+        'keuangan), penyalahgunaan wewenang atau fasilitas kantor, '
+        'ketidaksesuaian data kepegawaian, serta pelanggaran kedisiplinan '
+        'dan kode etik pegawai lainnya.',
+    'Pelanggaran Teknik':
+        'Mencakup masalah pekerjaan teknis/lapangan, seperti: ukuran atau '
+        'spesifikasi pekerjaan tidak sesuai (contoh: panjang pipa yang '
+        'terpasang di lapangan tidak sama dengan yang tercatat pada '
+        'laporan), kualitas material/pemasangan tidak sesuai standar '
+        '(SNI/SOP), kesalahan pencatatan meter air atau data teknis, '
+        'pekerjaan tidak sesuai gambar teknis (as-built drawing), '
+        'keterlambatan penyelesaian pekerjaan teknis, kerusakan sarana/'
+        'prasarana produksi dan distribusi air yang tidak dilaporkan, '
+        'serta pelanggaran prosedur keselamatan kerja (K3) di lapangan.',
+  };
 
   final _judulController = TextEditingController();
   final _deskripsiController = TextEditingController();
-  final _kategoriLainnyaController = TextEditingController();
 
   String? _kategori;
   final List<_FotoLampiran> _fotoLampiran = [];
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
 
-  bool get _isKategoriLainnya => _kategori == 'Lainnya';
-
   @override
   void dispose() {
     _judulController.dispose();
     _deskripsiController.dispose();
-    _kategoriLainnyaController.dispose();
     super.dispose();
   }
 
@@ -106,18 +121,49 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                       padding: EdgeInsets.zero,
                       children: [
                         for (final k in _kategoriOptions)
-                          ListTile(
-                            title: Text(
-                              k,
-                              style: const TextStyle(
-                                  fontSize: 13.5, color: labelDark),
-                            ),
-                            trailing: _kategori == k
-                                ? const Icon(Icons.check_rounded,
-                                    color: accent, size: 20)
-                                : null,
+                          InkWell(
                             onTap: () => Navigator.pop(context, k),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          k,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: labelDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _kategoriNotes[k] ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            height: 1.4,
+                                            color: hintGrey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (_kategori == k) ...[
+                                    const SizedBox(width: 10),
+                                    const Icon(Icons.check_rounded,
+                                        color: accent, size: 20),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
+                        const SizedBox(height: 6),
                       ],
                     ),
                   ),
@@ -132,8 +178,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     if (selected == null) return;
 
     setState(() => _kategori = selected);
-    // Kategori "Lainnya" dipilih -> kotak input di bawah akan otomatis
-    // muncul (lihat build()) agar pegawai bisa mengetik kategorinya sendiri.
+    // Ringkasan notes kategori akan otomatis muncul di bawah field
+    // (lihat build()) sesuai kategori yang dipilih.
   }
 
   Future<void> _pilihSumberFoto() async {
@@ -201,10 +247,6 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       _showSnack('Silakan pilih kategori pengaduan.', red);
       return;
     }
-    if (_isKategoriLainnya && _kategoriLainnyaController.text.trim().isEmpty) {
-      _showSnack('Silakan ketik kategori pengaduan kamu.', red);
-      return;
-    }
     if (_judulController.text.trim().isEmpty) {
       _showSnack('Judul singkat tidak boleh kosong.', red);
       return;
@@ -214,9 +256,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       return;
     }
 
-    final kategoriFinal = _isKategoriLainnya
-        ? _kategoriLainnyaController.text.trim()
-        : _kategori!;
+    final kategoriFinal = _kategori!;
 
     setState(() => _isSubmitting = true);
 
@@ -281,12 +321,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 _buildFieldLabel('Kategori'),
                 const SizedBox(height: 8),
                 _buildKategoriField(),
-                if (_isKategoriLainnya) ...[
+                if (_kategori != null) ...[
                   const SizedBox(height: 10),
-                  _buildTextField(
-                    controller: _kategoriLainnyaController,
-                    hint: 'Ketik kategori pengaduan kamu...',
-                  ),
+                  _buildKategoriNoteBox(_kategori!),
                 ],
                 const SizedBox(height: 18),
                 _buildFieldLabel('Judul Singkat'),
@@ -415,6 +452,40 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 color: hintGrey, size: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Kotak kecil berisi penjelasan/notes dari kategori yang sedang dipilih,
+  /// supaya pegawai bisa memastikan pengaduannya sudah masuk kategori yang
+  /// tepat sebelum mengirim.
+  Widget _buildKategoriNoteBox(String kategori) {
+    final note = _kategoriNotes[kategori];
+    if (note == null) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              note,
+              style: const TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                color: labelDark,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
