@@ -2,11 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/user_role.dart';
-import 'screens/dashboard_dirut_screen.dart';
-import 'screens/dashboard_kadiv_screen.dart';
-import 'screens/dashboard_kspi_screen.dart';
-import 'screens/dashboard_tpdpk_screen.dart';
-import 'screens/pegawai_dashboard.dart';
+import 'screens/dirut/dashboard_dirut_screen.dart';
+import 'screens/kadiv/dashboard_kadiv_screen.dart';
+import 'screens/kspi/dashboard_kspi_screen.dart';
+import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
+import 'screens/pegawai/pegawai_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

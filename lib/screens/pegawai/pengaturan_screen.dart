@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Pengaturan — preferensi aplikasi (notifikasi, tampilan, bahasa)
 /// dan info aplikasi. Sebagian pengaturan masih dummy (belum tersambung ke

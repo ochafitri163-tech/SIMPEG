@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/pegawai_data.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pegawai_data.dart';
+import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Absensi — ringkasan kehadiran bulan berjalan (Hadir / Telat /
 /// Izin) dalam bentuk kartu statistik, mengikuti palet & pola desain

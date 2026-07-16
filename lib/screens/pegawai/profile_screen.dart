@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../login_screen.dart';
-import '../models/user_role.dart';
+import '../../login_screen.dart';
+import '../../models/user_role.dart';
 import 'absensi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';

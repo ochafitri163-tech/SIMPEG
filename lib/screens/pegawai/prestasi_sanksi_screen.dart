@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/pegawai_data.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pegawai_data.dart';
+import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Prestasi & Sanksi — gabungan riwayat penghargaan/prestasi
 /// (belum ada data) dan catatan sanksi/disiplin pegawai, ditampilkan

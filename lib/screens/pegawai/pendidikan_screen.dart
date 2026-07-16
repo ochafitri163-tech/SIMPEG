@@ -5,7 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/pegawai_data.dart';
+import '../../models/pegawai_data.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
 /// Halaman Pendidikan — riwayat jenjang pendidikan pegawai, ditutup dengan

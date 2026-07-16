@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/pegawai_data.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pegawai_data.dart';
+import '../../widgets/feature_scaffold.dart';
 
 class SanksiScreen extends StatelessWidget {
   const SanksiScreen({super.key});

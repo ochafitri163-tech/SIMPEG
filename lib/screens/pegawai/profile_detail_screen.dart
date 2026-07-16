@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/user_role.dart';
+import '../../models/user_role.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';

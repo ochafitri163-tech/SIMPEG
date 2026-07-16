@@ -8,8 +8,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/pengaduan_model.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pengaduan_model.dart';
+import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Detail Pengaduan — menampilkan informasi lengkap satu
 /// pengaduan: identitas pelapor, isi laporan, status saat ini, riwayat

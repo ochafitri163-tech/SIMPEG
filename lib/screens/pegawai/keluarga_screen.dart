@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/pegawai_data.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pegawai_data.dart';
+import '../../widgets/feature_scaffold.dart';
 
 class KeluargaScreen extends StatelessWidget {
   const KeluargaScreen({super.key});

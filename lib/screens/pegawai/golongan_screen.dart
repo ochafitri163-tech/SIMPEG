@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
-import '../models/pegawai_data.dart';
-import '../widgets/feature_scaffold.dart';
+import '../../models/pegawai_data.dart';
+import '../../widgets/feature_scaffold.dart';
 
-class JabatanScreen extends StatelessWidget {
-  const JabatanScreen({super.key});
+class GolonganScreen extends StatelessWidget {
+  const GolonganScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return FeatureScaffold(
-      title: 'Jabatan & Golongan',
-      subtitle: 'Riwayat jabatan dan unit kerja',
-      icon: Icons.work_rounded,
-      child: dummyJabatan.isEmpty
-          ? const EmptyState(message: 'Belum ada data jabatan')
+      title: 'Riwayat Golongan',
+      subtitle: 'Riwayat kenaikan golongan/pangkat',
+      icon: Icons.military_tech_rounded,
+      child: dummyGolongan.isEmpty
+          ? const EmptyState(message: 'Belum ada data golongan')
           : ListView.builder(
               padding: const EdgeInsets.all(20),
-              itemCount: dummyJabatan.length,
+              itemCount: dummyGolongan.length,
               itemBuilder: (context, index) {
-                final item = dummyJabatan[index];
+                final item = dummyGolongan[index];
                 final isLatest = index == 0;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 14),
@@ -31,16 +31,16 @@ class JabatanScreen extends StatelessWidget {
                               width: 42,
                               height: 42,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFDECDC),
+                                color: const Color(0xFFFCE6EF),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.work_rounded,
-                                  color: Color(0xFFE67E22), size: 20),
+                              child: const Icon(Icons.military_tech_rounded,
+                                  color: Color(0xFFC2185B), size: 20),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                item.jabatan,
+                                'Golongan ${item.golongan}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -56,7 +56,7 @@ class JabatanScreen extends StatelessWidget {
                         const SizedBox(height: 14),
                         const Divider(height: 1),
                         const SizedBox(height: 10),
-                        InfoRow(label: 'Unit Kerja', value: item.unitKerja),
+                        InfoRow(label: 'Pangkat', value: item.pangkat),
                         InfoRow(label: 'TMT', value: item.tmt),
                         InfoRow(label: 'No. SK', value: item.noSk),
                       ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../login_screen.dart';
-import '../models/pengaduan_model.dart';
-import '../models/user_role.dart';
-import '../widgets/role_guard.dart';
-import '../widgets/notification_bell.dart';
-import 'detail_pengaduan_screen.dart';
+import '../../login_screen.dart';
+import '../../models/pengaduan_model.dart';
+import '../../models/user_role.dart';
+import '../../widgets/role_guard.dart';
+import '../../widgets/notification_bell.dart';
+import '../shared/detail_pengaduan_screen.dart';
 
 /// Dashboard untuk role Direktur (DIRUT) — Tahap 3 & Tahap 4 (fungsional).
 ///

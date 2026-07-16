@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/pengaduan_model.dart';
-import '../widgets/feature_scaffold.dart';
-import 'detail_pengaduan_screen.dart';
+import '../../models/pengaduan_model.dart';
+import '../../widgets/feature_scaffold.dart';
+import '../shared/detail_pengaduan_screen.dart';
 
 /// Halaman "Status Pengaduan" — menggantikan menu navbar footer
 /// "Laporan". Menampilkan riwayat seluruh pengaduan milik pegawai yang
