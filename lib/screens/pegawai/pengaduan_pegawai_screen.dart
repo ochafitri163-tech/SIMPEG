@@ -1,24 +1,20 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/pengaduan_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
-/// pegawai, mengikuti referensi desain UI "Pengaduan_Warga.png" secara
-/// persis: header navy, field Kategori (dropdown), Judul Singkat,
-/// Deskripsi, tombol lampirkan foto (opsional, border putus-putus),
-/// dan tombol merah "Kirim Pengaduan".
-///
-/// Setelah dikirim, pengaduan disimpan ke [PengaduanRepository] sehingga
-/// langsung muncul pada halaman "Status Pengaduan".
+/// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
+/// [PengaduanService.submit] (menggantikan PengaduanRepository in-memory
+/// lama) sehingga tersimpan permanen & bisa dilihat Kadiv/KSPI/dst.
 class PengaduanPegawaiScreen extends StatefulWidget {
   final AppUser user;
   const PengaduanPegawaiScreen({super.key, required this.user});
 
   @override
-  State<PengaduanPegawaiScreen> createState() =>
-      _PengaduanPegawaiScreenState();
+  State<PengaduanPegawaiScreen> createState() => _PengaduanPegawaiScreenState();
 }
 
 class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
@@ -34,28 +30,24 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     'Pelanggaran Teknik',
   ];
 
-  /// Catatan/penjelasan singkat untuk membantu pegawai menentukan kategori
-  /// pengaduan yang tepat. Ditampilkan di bawah setiap pilihan pada bottom
-  /// sheet "Pilih Kategori", dan juga sebagai ringkasan di bawah field
-  /// setelah kategori dipilih.
   static const Map<String, String> _kategoriNotes = {
     'Pelanggaran Administrasi':
         'Mencakup masalah SDM/kepegawaian internal, seperti: keterlambatan '
-        'atau ketidakhadiran kerja, pelanggaran jam kerja, hasil setoran/'
-        'pendapatan yang tidak disetorkan atau tidak sesuai (masalah '
-        'keuangan), penyalahgunaan wewenang atau fasilitas kantor, '
-        'ketidaksesuaian data kepegawaian, serta pelanggaran kedisiplinan '
-        'dan kode etik pegawai lainnya.',
+            'atau ketidakhadiran kerja, pelanggaran jam kerja, hasil setoran/'
+            'pendapatan yang tidak disetorkan atau tidak sesuai (masalah '
+            'keuangan), penyalahgunaan wewenang atau fasilitas kantor, '
+            'ketidaksesuaian data kepegawaian, serta pelanggaran kedisiplinan '
+            'dan kode etik pegawai lainnya.',
     'Pelanggaran Teknik':
         'Mencakup masalah pekerjaan teknis/lapangan, seperti: ukuran atau '
-        'spesifikasi pekerjaan tidak sesuai (contoh: panjang pipa yang '
-        'terpasang di lapangan tidak sama dengan yang tercatat pada '
-        'laporan), kualitas material/pemasangan tidak sesuai standar '
-        '(SNI/SOP), kesalahan pencatatan meter air atau data teknis, '
-        'pekerjaan tidak sesuai gambar teknis (as-built drawing), '
-        'keterlambatan penyelesaian pekerjaan teknis, kerusakan sarana/'
-        'prasarana produksi dan distribusi air yang tidak dilaporkan, '
-        'serta pelanggaran prosedur keselamatan kerja (K3) di lapangan.',
+            'spesifikasi pekerjaan tidak sesuai (contoh: panjang pipa yang '
+            'terpasang di lapangan tidak sama dengan yang tercatat pada '
+            'laporan), kualitas material/pemasangan tidak sesuai standar '
+            '(SNI/SOP), kesalahan pencatatan meter air atau data teknis, '
+            'pekerjaan tidak sesuai gambar teknis (as-built drawing), '
+            'keterlambatan penyelesaian pekerjaan teknis, kerusakan sarana/'
+            'prasarana produksi dan distribusi air yang tidak dilaporkan, '
+            'serta pelanggaran prosedur keselamatan kerja (K3) di lapangan.',
   };
 
   final _judulController = TextEditingController();
@@ -176,10 +168,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     );
 
     if (selected == null) return;
-
     setState(() => _kategori = selected);
-    // Ringkasan notes kategori akan otomatis muncul di bawah field
-    // (lihat build()) sesuai kategori yang dipilih.
   }
 
   Future<void> _pilihSumberFoto() async {
@@ -210,7 +199,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_outlined, color: accent),
+                leading:
+                    const Icon(Icons.photo_library_outlined, color: accent),
                 title: const Text('Pilih dari galeri',
                     style: TextStyle(fontSize: 13.5, color: labelDark)),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
@@ -242,7 +232,32 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     setState(() => _fotoLampiran.removeAt(index));
   }
 
-  void _kirimPengaduan() {
+  /// Upload semua foto lampiran ke Supabase Storage (bucket
+  /// "pengaduan-bukti") dan kembalikan daftar URL publiknya.
+  /// CATATAN: bucket ini perlu dibuat dulu manual di Supabase Dashboard
+  /// (Storage > New bucket > "pengaduan-bukti").
+  Future<List<String>> _uploadFotoLampiran() async {
+    final storage = Supabase.instance.client.storage;
+    final urls = <String>[];
+
+    for (int i = 0; i < _fotoLampiran.length; i++) {
+      final foto = _fotoLampiran[i];
+      final fileName =
+          '${widget.user.nik}_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+
+      await storage.from('pengaduan-bukti').uploadBinary(
+            fileName,
+            foto.bytes,
+          );
+
+      final url = storage.from('pengaduan-bukti').getPublicUrl(fileName);
+      urls.add(url);
+    }
+
+    return urls;
+  }
+
+  Future<void> _kirimPengaduan() async {
     if (_kategori == null) {
       _showSnack('Silakan pilih kategori pengaduan.', red);
       return;
@@ -256,43 +271,30 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       return;
     }
 
-    final kategoriFinal = _kategori!;
-
     setState(() => _isSubmitting = true);
 
-    // Simulasi pengiriman (belum terhubung ke API/database sungguhan).
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
-      final nomor = PengaduanRepository.generateNomorPengaduan();
-      final sekarang = DateTime.now();
-      PengaduanRepository.tambah(
-        Pengaduan(
-          nomorPengaduan: nomor,
-          kategori: kategoriFinal,
-          judul: _judulController.text.trim(),
-          deskripsi: _deskripsiController.text.trim(),
-          tanggalPengaduan: sekarang,
-          namaPegawai: widget.user.name,
-          nik: widget.user.nik,
-          cabang: widget.user.unitKerja,
-          golongan: widget.user.golongan,
-          anonim: false,
-          fotoBukti: _fotoLampiran.map((f) => f.xfile.path).toList(),
-          status: PengaduanStatus.menungguVerifikasiKadiv,
-          riwayatStatus: [
-            StatusHistoryEntry(
-              status: PengaduanStatus.menungguVerifikasiKadiv,
-              tanggal: sekarang,
-              oleh: 'Sistem',
-            ),
-          ],
-        ),
+    try {
+      final fotoUrls =
+          _fotoLampiran.isNotEmpty ? await _uploadFotoLampiran() : <String>[];
+
+      await PengaduanService.submit(
+        user: widget.user,
+        kategori: _kategori!,
+        judul: _judulController.text.trim(),
+        deskripsi: _deskripsiController.text.trim(),
+        fotoBukti: fotoUrls,
+        anonim: false,
       );
+
+      if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showSnack(
-          'Pengaduan berhasil dikirim (No. $nomor).', const Color(0xFF27AE60));
+      _showSnack('Pengaduan berhasil dikirim.', const Color(0xFF27AE60));
       Navigator.pop(context);
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showSnack('Gagal mengirim pengaduan: $e', red);
+    }
   }
 
   void _showSnack(String message, Color color) {
@@ -456,9 +458,6 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     );
   }
 
-  /// Kotak kecil berisi penjelasan/notes dari kategori yang sedang dipilih,
-  /// supaya pegawai bisa memastikan pengaduannya sudah masuk kategori yang
-  /// tepat sebelum mengirim.
   Widget _buildKategoriNoteBox(String kategori) {
     final note = _kategoriNotes[kategori];
     if (note == null) return const SizedBox.shrink();
@@ -585,7 +584,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
           borderRadius: BorderRadius.circular(12),
           onTap: _pilihSumberFoto,
           child: CustomPaint(
-            painter: _DashedBorderPainter(color: accent.withValues(alpha: 0.45)),
+            painter:
+                _DashedBorderPainter(color: accent.withValues(alpha: 0.45)),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -625,7 +625,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
           backgroundColor: red,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: _isSubmitting
             ? const SizedBox(
@@ -645,8 +646,6 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   }
 }
 
-/// Painter sederhana untuk border putus-putus (dashed) tanpa dependency
-/// eksternal, dipakai pada tombol "Lampirkan foto".
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
 
@@ -689,10 +688,6 @@ class _DashedBorderPainter extends CustomPainter {
   }
 }
 
-/// Menyimpan file foto hasil pilihan [ImagePicker] beserta byte datanya.
-/// Menggunakan [Uint8List] (bukan dart:io File) agar preview foto tetap
-/// berfungsi baik di Android/iOS maupun di Flutter Web, karena Image.file
-/// tidak didukung pada platform web.
 class _FotoLampiran {
   final XFile xfile;
   final Uint8List bytes;

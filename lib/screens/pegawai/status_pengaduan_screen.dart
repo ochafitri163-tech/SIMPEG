@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
+import '../../models/pengaduan_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
-/// Halaman "Status Pengaduan" — menggantikan menu navbar footer
-/// "Laporan". Menampilkan riwayat seluruh pengaduan milik pegawai yang
-/// sedang login, lengkap dengan pencarian & filter (status, rentang
-/// tanggal, nomor pengaduan, cabang).
+/// Halaman "Status Pengaduan" — menampilkan riwayat seluruh pengaduan
+/// milik pegawai yang sedang login (query difilter pelapor_id = user
+/// yang login, BUKAN semua pengaduan seperti versi lama yang memakai
+/// PengaduanRepository.semua), lengkap dengan pencarian & filter.
 class StatusPengaduanScreen extends StatefulWidget {
   final bool showBackButton;
   const StatusPengaduanScreen({super.key, this.showBackButton = true});
@@ -29,14 +30,29 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   String? _filterCabang;
   DateTimeRange? _filterTanggal;
 
+  late Future<List<Pengaduan>> _pengaduanFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _pengaduanFuture = PengaduanService.punyaSayaSebagaiObjek();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _pengaduanFuture = PengaduanService.punyaSayaSebagaiObjek();
+    });
+    await _pengaduanFuture;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  List<Pengaduan> get _filtered {
-    return PengaduanRepository.semua.where((p) {
+  List<Pengaduan> _filter(List<Pengaduan> semua) {
+    return semua.where((p) {
       final q = _query.trim().toLowerCase();
       final matchQuery = q.isEmpty ||
           p.nomorPengaduan.toLowerCase().contains(q) ||
@@ -58,15 +74,17 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
   }
 
-  List<String> get _daftarCabang {
-    final set = PengaduanRepository.semua.map((p) => p.cabang).toSet();
+  List<String> _daftarCabang(List<Pengaduan> semua) {
+    final set = semua.map((p) => p.cabang).toSet();
     return set.toList()..sort();
   }
 
   bool get _adaFilterAktif =>
-      _filterStatus.isNotEmpty || _filterCabang != null || _filterTanggal != null;
+      _filterStatus.isNotEmpty ||
+      _filterCabang != null ||
+      _filterTanggal != null;
 
-  Future<void> _openFilterSheet() async {
+  Future<void> _openFilterSheet(List<Pengaduan> semua) async {
     var tempStatus = {..._filterStatus};
     var tempCabang = _filterCabang;
     var tempTanggal = _filterTanggal;
@@ -180,7 +198,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _daftarCabang.map((c) {
+                      children: _daftarCabang(semua).map((c) {
                         final selected = tempCabang == c;
                         return ChoiceChip(
                           label: Text(c,
@@ -304,46 +322,79 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = _filtered;
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildRingkasanBar(items.length),
-          Expanded(
-            child: items.isEmpty
-                ? EmptyState(
-                    message: _adaFilterAktif
-                        ? 'Tidak ada pengaduan yang cocok dengan filter ini.'
-                        : 'Belum ada pengaduan yang cocok dengan pencarian.',
-                    icon: Icons.fact_check_outlined,
-                  )
-                : RefreshIndicator(
-                    color: accent,
-                    onRefresh: () async {
-                      await Future.delayed(const Duration(milliseconds: 600));
-                      if (mounted) setState(() {});
-                    },
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) =>
-                          _buildPengaduanCard(items[index]),
+      body: FutureBuilder<List<Pengaduan>>(
+        future: _pengaduanFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Column(
+              children: [
+                _buildHeader(),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Text(
+                        'Gagal memuat pengaduan: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: hintGrey, fontSize: 13),
+                      ),
                     ),
                   ),
-          ),
-        ],
+                ),
+              ],
+            );
+          }
+
+          final semua = snapshot.data ?? [];
+          final items = _filter(semua);
+
+          return Column(
+            children: [
+              _buildHeader(),
+              _buildRingkasanBar(items.length, semua),
+              Expanded(
+                child: items.isEmpty
+                    ? EmptyState(
+                        message: _adaFilterAktif
+                            ? 'Tidak ada pengaduan yang cocok dengan filter ini.'
+                            : 'Belum ada pengaduan yang cocok dengan pencarian.',
+                        icon: Icons.fact_check_outlined,
+                      )
+                    : RefreshIndicator(
+                        color: accent,
+                        onRefresh: _refresh,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) =>
+                              _buildPengaduanCard(items[index]),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  /// Baris ringkasan jumlah hasil + chip filter aktif (bisa dihapus satu
-  /// per satu dengan tap tombol ✕) supaya pengguna langsung tahu filter
-  /// apa saja yang sedang bekerja tanpa harus buka bottom sheet lagi.
-  Widget _buildRingkasanBar(int jumlah) {
+  Widget _buildRingkasanBar(int jumlah, List<Pengaduan> semua) {
     return Container(
       width: double.infinity,
       color: const Color(0xFFF3F6F9),
@@ -374,8 +425,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     _filterTanggal = null;
                   }),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 3),
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     child: Text(
                       'Hapus semua filter',
                       style: TextStyle(
@@ -398,8 +448,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   _buildFilterChipAktif(
                     label: s.label,
                     color: s.color,
-                    onRemove: () =>
-                        setState(() => _filterStatus.remove(s)),
+                    onRemove: () => setState(() => _filterStatus.remove(s)),
                   ),
                 if (_filterCabang != null)
                   _buildFilterChipAktif(
@@ -482,8 +531,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -569,8 +617,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         child: TextField(
                           controller: _searchController,
                           onChanged: (v) => setState(() => _query = v),
-                          style: const TextStyle(
-                              fontSize: 13, color: labelDark),
+                          style:
+                              const TextStyle(fontSize: 13, color: labelDark),
                           decoration: const InputDecoration(
                             hintText: 'Cari nomor / judul pengaduan',
                             hintStyle:
@@ -585,22 +633,28 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _openFilterSheet,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: _adaFilterAktif ? accent : Colors.white,
+              FutureBuilder<List<Pengaduan>>(
+                future: _pengaduanFuture,
+                builder: (context, snapshot) {
+                  final semua = snapshot.data ?? [];
+                  return InkWell(
                     borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    color: _adaFilterAktif ? Colors.white : navy,
-                    size: 20,
-                  ),
-                ),
+                    onTap: () => _openFilterSheet(semua),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: _adaFilterAktif ? accent : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.tune_rounded,
+                        color: _adaFilterAktif ? Colors.white : navy,
+                        size: 20,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -609,8 +663,6 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     );
   }
 
-  /// Memetakan kategori pengaduan ke ikon yang relevan supaya kartu lebih
-  /// mudah dipindai sekilas (scannable) tanpa harus membaca teks dulu.
   IconData _iconForKategori(String kategori) {
     final k = kategori.toLowerCase();
     if (k.contains('fasilitas')) return Icons.build_circle_rounded;
@@ -657,8 +709,6 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Aksen warna status di sisi kiri kartu — memudahkan
-                // pemindaian visual cepat tanpa harus membaca teks badge.
                 Container(
                   width: 5,
                   decoration: BoxDecoration(
@@ -695,8 +745,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     p.nomorPengaduan,
@@ -759,8 +808,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.visibility_outlined,
-                                size: 16),
+                            icon:
+                                const Icon(Icons.visibility_outlined, size: 16),
                             label: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -775,8 +824,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             style: TextButton.styleFrom(
                               foregroundColor: navy,
                               backgroundColor: navy.withOpacity(0.06),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 11),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10)),
                             ),

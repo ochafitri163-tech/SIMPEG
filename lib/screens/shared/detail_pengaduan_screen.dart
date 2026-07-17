@@ -1,7 +1,4 @@
-import 'dart:io';
 import 'dart:typed_data';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -9,12 +6,14 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../models/pengaduan_model.dart';
+import '../../models/pengaduan_service.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Detail Pengaduan — menampilkan informasi lengkap satu
-/// pengaduan: identitas pelapor, isi laporan, status saat ini, riwayat
-/// perubahan status (timeline), bukti foto, keterangan SPI/Tim Penegak
-/// Disiplin, serta tombol unduh laporan dalam bentuk PDF.
+/// pengaduan. Kalau [pengaduan] yang diterima belum punya riwayat status
+/// (mis. dibuka dari list StatusPengaduanScreen yang sengaja tidak
+/// mem-fetch riwayat demi performa), halaman ini akan fetch ulang
+/// riwayat lengkapnya dari Supabase saat dibuka.
 class DetailPengaduanScreen extends StatefulWidget {
   final Pengaduan pengaduan;
   const DetailPengaduanScreen({super.key, required this.pengaduan});
@@ -28,8 +27,35 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
   static const Color hintGrey = Color(0xFF9AA5B1);
 
   bool _isGeneratingPdf = false;
+  late Pengaduan p;
+  bool _loadingRiwayat = false;
 
-  Pengaduan get p => widget.pengaduan;
+  @override
+  void initState() {
+    super.initState();
+    p = widget.pengaduan;
+    _muatRiwayatJikaPerlu();
+  }
+
+  /// Kalau riwayat status kosong tapi kita tahu id barisnya di Supabase,
+  /// fetch ulang detail lengkap (termasuk riwayat) dan replace [p].
+  Future<void> _muatRiwayatJikaPerlu() async {
+    if (p.riwayatStatus.isNotEmpty) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    setState(() => _loadingRiwayat = true);
+    try {
+      final lengkap = await PengaduanService.detailLengkap(id);
+      if (lengkap != null && mounted) {
+        setState(() => p = lengkap);
+      }
+    } catch (_) {
+      // Diamkan -- kalau gagal, halaman tetap tampil tanpa riwayat detail.
+    } finally {
+      if (mounted) setState(() => _loadingRiwayat = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +86,9 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           _buildIdentitasCard(),
           const SizedBox(height: 14),
           _buildLaporanCard(),
-          if (p.kategoriDivisi != null || p.eksekutor != null || p.hasilInvestigasi != null) ...[
+          if (p.kategoriDivisi != null ||
+              p.eksekutor != null ||
+              p.hasilInvestigasi != null) ...[
             const SizedBox(height: 14),
             _buildProsesCard(),
           ],
@@ -145,14 +173,8 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           const _SectionTitle('Identitas Pelapor'),
           const SizedBox(height: 8),
           InfoRow(label: 'Nomor Pengaduan', value: p.nomorPengaduan),
-          InfoRow(
-            label: 'Nama Pegawai',
-            value: p.namaPegawai,
-          ),
-          InfoRow(
-            label: 'NIK',
-            value: p.nik,
-          ),
+          InfoRow(label: 'Nama Pegawai', value: p.namaPegawai),
+          InfoRow(label: 'NIK', value: p.nik),
           InfoRow(label: 'Cabang', value: p.cabang),
           InfoRow(label: 'Golongan / Jenjang Karier', value: p.golongan),
         ],
@@ -208,28 +230,45 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
             const Divider(height: 1, color: Color(0xFFEEF1F4)),
             const SizedBox(height: 10),
             const Text('Hasil Investigasi',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: hintGrey)),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: hintGrey)),
             const SizedBox(height: 4),
-            Text(p.hasilInvestigasi!, style: const TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
+            Text(p.hasilInvestigasi!,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.5, color: labelDark)),
           ],
           if ((p.suratRekomendasi ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
             const Text('Surat Rekomendasi',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: hintGrey)),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: hintGrey)),
             const SizedBox(height: 4),
-            Text(p.suratRekomendasi!, style: const TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
+            Text(p.suratRekomendasi!,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.5, color: labelDark)),
           ],
           if (p.tindakLanjutDiminta != null) ...[
             const SizedBox(height: 10),
             const Divider(height: 1, color: Color(0xFFEEF1F4)),
             const SizedBox(height: 10),
             const Text('Tindak Lanjut',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: hintGrey)),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: hintGrey)),
             const SizedBox(height: 4),
-            Text(p.tindakLanjutDiminta!, style: const TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
+            Text(p.tindakLanjutDiminta!,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.5, color: labelDark)),
             if (p.eksekutorTindakLanjut != null) ...[
               const SizedBox(height: 6),
-              InfoRow(label: 'Eksekutor Tindak Lanjut', value: p.eksekutorTindakLanjut!.label),
+              InfoRow(
+                  label: 'Eksekutor Tindak Lanjut',
+                  value: p.eksekutorTindakLanjut!.label),
             ],
           ],
         ],
@@ -248,17 +287,20 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: p.fotoBukti.map((f) {
-              return Container(
-                width: 84,
-                height: 84,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F6F9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEEF1F4)),
+            children: p.fotoBukti.map((url) {
+              return GestureDetector(
+                onTap: () => _bukaFotoFullscreen(url),
+                child: Container(
+                  width: 84,
+                  height: 84,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F6F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFEEF1F4)),
+                  ),
+                  child: _buildFotoThumb(url),
                 ),
-                child: _buildFotoThumb(f),
               );
             }).toList(),
           ),
@@ -267,8 +309,6 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
     );
   }
 
-  /// Placeholder ikon untuk foto yang tidak dapat dimuat (data contoh lama
-  /// tanpa berkas asli, atau path tidak valid).
   static const Widget _fotoPlaceholder = Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
@@ -278,25 +318,43 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
     ],
   );
 
-  /// Menampilkan thumbnail foto bukti. Di Flutter Web, path hasil
-  /// image_picker berupa blob URL sehingga dimuat lewat [Image.network];
-  /// di Android/iOS path berupa lokasi berkas asli sehingga dimuat lewat
-  /// [Image.file]. Jika berkas/URL tidak valid (mis. data contoh lama),
-  /// tampilkan ikon placeholder.
-  Widget _buildFotoThumb(String path) {
-    if (kIsWeb) {
-      return Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fotoPlaceholder,
-      );
-    }
-    final file = File(path);
-    if (!file.existsSync()) return _fotoPlaceholder;
-    return Image.file(
-      file,
+  /// Foto bukti sekarang selalu berupa URL Supabase Storage (baik di web
+  /// maupun mobile), jadi cukup pakai Image.network untuk semua platform.
+  Widget _buildFotoThumb(String url) {
+    return Image.network(
+      url,
       fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
       errorBuilder: (context, error, stackTrace) => _fotoPlaceholder,
+    );
+  }
+
+  void _bukaFotoFullscreen(String url) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            errorBuilder: (context, error, stackTrace) => const Padding(
+              padding: EdgeInsets.all(40),
+              child: Icon(Icons.broken_image_outlined,
+                  color: Colors.white54, size: 48),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -332,7 +390,8 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           const SizedBox(height: 8),
           Text(
             text,
-            style: const TextStyle(fontSize: 12.5, height: 1.5, color: labelDark),
+            style:
+                const TextStyle(fontSize: 12.5, height: 1.5, color: labelDark),
           ),
         ],
       ),
@@ -348,7 +407,18 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
         children: [
           const _SectionTitle('Riwayat Perubahan Status'),
           const SizedBox(height: 14),
-          if (riwayat.isEmpty)
+          if (_loadingRiwayat)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (riwayat.isEmpty)
             const Text('Belum ada riwayat status.',
                 style: TextStyle(fontSize: 12.5, color: hintGrey))
           else
@@ -428,8 +498,8 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
                       ),
                       child: Text(
                         h.keterangan!,
-                        style:
-                            const TextStyle(fontSize: 11.5, color: labelDark, height: 1.4),
+                        style: const TextStyle(
+                            fontSize: 11.5, color: labelDark, height: 1.4),
                       ),
                     ),
                   ],
@@ -517,8 +587,8 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           pw.SizedBox(height: 14),
           _pdfSectionTitle('Isi Pengaduan', navyColor),
           _pdfInfoRow('Kategori', p.kategori, greyColor),
-          _pdfInfoRow(
-              'Tanggal Pengaduan', formatTanggalIndonesia(p.tanggalPengaduan), greyColor),
+          _pdfInfoRow('Tanggal Pengaduan',
+              formatTanggalIndonesia(p.tanggalPengaduan), greyColor),
           pw.SizedBox(height: 6),
           pw.Text(p.deskripsi,
               style: const pw.TextStyle(fontSize: 10.5, lineSpacing: 2)),
@@ -608,8 +678,8 @@ class _DetailPengaduanScreenState extends State<DetailPengaduanScreen> {
           pw.Text(': ', style: pw.TextStyle(fontSize: 10, color: greyColor)),
           pw.Expanded(
             child: pw.Text(value,
-                style: pw.TextStyle(
-                    fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                style:
+                    pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
           ),
         ],
       ),

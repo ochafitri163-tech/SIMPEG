@@ -4,10 +4,82 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
+
+/// Ambil semua data THR milik pegawai yang sedang login dari Supabase,
+/// diurutkan dari tahun terbaru ke terlama, lalu dipetakan ke model
+/// [ThrItem] + [ThrSlipDetail] yang sama persis dipakai UI/PDF di bawah.
+Future<List<ThrItem>> _fetchThr(AppUser user) async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final rows = await Supabase.instance.client
+      .from('thr')
+      .select()
+      .eq('pegawai_id', userId)
+      .order('tahun', ascending: false);
+
+  return (rows as List).map((row) {
+    final slip = ThrSlipDetail(
+      bulanLabel: 'THR ${row['tahun']}',
+      nik: user.nik,
+      nama: user.name,
+      golongan: user.golonganUntukSlip,
+      unitKerja: user.unitKerja,
+      jabatan: user.jabatan,
+      gapok: (row['gapok'] ?? 0) as int,
+      tunjanganIstri: (row['tunjangan_istri'] ?? 0) as int,
+      tunjanganAnak: (row['tunjangan_anak'] ?? 0) as int,
+      tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+      tunjanganPrestasi: (row['tunjangan_prestasi'] ?? 0) as int,
+      tunjanganTransportasi: (row['tunjangan_transportasi'] ?? 0) as int,
+      tunjanganPangan: (row['tunjangan_pangan'] ?? 0) as int,
+      tunjanganBpjsKesehatan: (row['tunjangan_bpjs_kesehatan'] ?? 0) as int,
+      tunjanganPerumahan: (row['tunjangan_perumahan'] ?? 0) as int,
+      tunjanganBpjsTenagaKerja:
+          (row['tunjangan_bpjs_tenaga_kerja'] ?? 0) as int,
+      tunjanganPerusahaan: (row['tunjangan_perusahaan'] ?? 0) as int,
+      lembur: (row['lembur'] ?? 0) as int,
+      tunjanganPajak: (row['tunjangan_pajak'] ?? 0) as int,
+      tunjanganAirMinum: (row['tunjangan_air_minum'] ?? 0) as int,
+      tunjanganKomunikasi: (row['tunjangan_komunikasi'] ?? 0) as int,
+      potonganTrandistPmiLain: (row['potongan_trandist_pmi_lain'] ?? 0) as int,
+      potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+      potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+      potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+      potonganTunjanganPerusahaan:
+          (row['potongan_tunjangan_perusahaan'] ?? 0) as int,
+      potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+      potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+      potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+      potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+      potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+      potonganRekeningAirMinum:
+          (row['potongan_rekening_air_minum'] ?? 0) as int,
+      potonganKas: (row['potongan_kas'] ?? 0) as int,
+      potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+      potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+      potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+      potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+      potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+      potonganZakatRamadhan: (row['potongan_zakat_ramadhan'] ?? 0) as int,
+    );
+
+    return ThrItem(
+      tahun: row['tahun'] as String,
+      jumlah: slip.jumlahDiterima,
+      tanggalCair: (row['tanggal_cair'] ?? '-') as String,
+      status: (row['status'] ?? 'Belum Cair') as String,
+      gajiPokok: (row['gapok'] ?? 0) as int,
+      tunjanganTetap: slip.jumlahPendapatan - ((row['gapok'] ?? 0) as int),
+      slip: slip,
+    );
+  }).toList();
+}
 
 /// Halaman THR — didesain ulang mengikuti mockup UI (kartu ringkasan
 /// oranye "THR terakhir cair", rincian perhitungan, riwayat per tahun,
@@ -29,29 +101,74 @@ class _ThrScreenState extends State<ThrScreen> {
   static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
+  late Future<List<ThrItem>> _thrFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _thrFuture = _fetchThr(widget.user);
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _thrFuture = _fetchThr(widget.user));
+    await _thrFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ThrItem? terakhir = dummyThr.isNotEmpty ? dummyThr.first : null;
-    final riwayat = dummyThr.length > 1 ? dummyThr.sublist(1) : <ThrItem>[];
-
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
           Expanded(
-            child: terakhir == null
-                ? const Center(
+            child: FutureBuilder<List<ThrItem>>(
+              future: _thrFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
                     child: Padding(
-                      padding: EdgeInsets.all(40),
+                      padding: const EdgeInsets.all(40),
                       child: Text(
-                        'Belum ada data THR',
-                        style: TextStyle(color: labelGrey, fontSize: 13),
+                        'Gagal memuat data THR: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: labelGrey, fontSize: 13),
                       ),
                     ),
-                  )
-                : ListView(
+                  );
+                }
+
+                final thrList = snapshot.data ?? [];
+                final ThrItem? terakhir =
+                    thrList.isNotEmpty ? thrList.first : null;
+                final riwayat =
+                    thrList.length > 1 ? thrList.sublist(1) : <ThrItem>[];
+
+                if (terakhir == null) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: const [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              'Belum ada data THR',
+                              style: TextStyle(color: labelGrey, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                     children: [
                       _buildHeroCard(terakhir),
@@ -67,15 +184,15 @@ class _ThrScreenState extends State<ThrScreen> {
                       _buildCekDetailButton(terakhir),
                     ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Header navy dengan tombol kembali & judul "THR".
-  // ---------------------------------------------------------------------
   Widget _buildHeader(BuildContext context) {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
@@ -142,9 +259,6 @@ class _ThrScreenState extends State<ThrScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu oranye "THR terakhir cair".
-  // ---------------------------------------------------------------------
   Widget _buildHeroCard(ThrItem item) {
     final total = item.slip?.jumlahDiterima ?? item.jumlah;
     return Container(
@@ -187,10 +301,8 @@ class _ThrScreenState extends State<ThrScreen> {
           const SizedBox(height: 6),
           Text(
             'Dicairkan ${item.tanggalCair}',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 12,
-            ),
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
           ),
         ],
       ),
@@ -212,12 +324,6 @@ class _ThrScreenState extends State<ThrScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu rincian perhitungan. Dibangun dinamis dari ThrSlipDetail (semua
-  // baris pendapatan & potongan yang nilainya > 0) supaya selalu sinkron
-  // dengan angka di PDF. Kalau item belum punya slip, jatuh ke versi
-  // ringkas (gaji pokok / tunjangan tetap / total).
-  // ---------------------------------------------------------------------
   Widget _buildRincianCard(ThrItem item) {
     final slip = item.slip;
 
@@ -280,22 +386,12 @@ class _ThrScreenState extends State<ThrScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: navy,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: navy,
-            ),
-          ),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.bold, color: navy)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.bold, color: navy)),
         ],
       ),
     );
@@ -330,9 +426,6 @@ class _ThrScreenState extends State<ThrScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu riwayat THR per tahun.
-  // ---------------------------------------------------------------------
   Widget _buildRiwayatCard(List<ThrItem> riwayat) {
     if (riwayat.isEmpty) {
       return _WhiteCard(
@@ -352,11 +445,9 @@ class _ThrScreenState extends State<ThrScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'THR ${riwayat[i].tahun}',
-                    style: const TextStyle(
-                        fontSize: 13.5, color: Color(0xFF3B3F45)),
-                  ),
+                  Text('THR ${riwayat[i].tahun}',
+                      style: const TextStyle(
+                          fontSize: 13.5, color: Color(0xFF3B3F45))),
                   Text(
                     formatRupiah(riwayat[i].jumlah),
                     style: const TextStyle(
@@ -374,9 +465,6 @@ class _ThrScreenState extends State<ThrScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Tombol "Cek Detail" -> generate & unduh slip THR (PDF).
-  // ---------------------------------------------------------------------
   Widget _buildCekDetailButton(ThrItem item) {
     return SizedBox(
       width: double.infinity,
@@ -387,23 +475,18 @@ class _ThrScreenState extends State<ThrScreen> {
           backgroundColor: navy,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: _isGenerating
             ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  color: Colors.white,
-                ),
+                    strokeWidth: 2.4, color: Colors.white),
               )
-            : const Text(
-                'Cek Detail',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
+            : const Text('Cek Detail',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -412,10 +495,7 @@ class _ThrScreenState extends State<ThrScreen> {
     setState(() => _isGenerating = true);
     try {
       final bytes = await _generateThrPdf(item);
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: 'THR_${item.tahun}.pdf',
-      );
+      await Printing.sharePdf(bytes: bytes, filename: 'THR_${item.tahun}.pdf');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -427,10 +507,6 @@ class _ThrScreenState extends State<ThrScreen> {
     }
   }
 
-  /// Menyusun dokumen PDF slip THR.
-  /// Kalau [item.slip] tersedia, cetak slip lengkap dua kolom
-  /// (Pendapatan & Potongan) persis format resmi perusahaan.
-  /// Kalau tidak, jatuh ke versi ringkas (gaji pokok/tunjangan/total).
   Future<Uint8List> _generateThrPdf(ThrItem item) async {
     final doc = pw.Document();
     final navyColor = PdfColor.fromInt(0xFF0D2C6E);
@@ -441,7 +517,8 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(32),
-          build: (context) => _buildSlipPdfContent(item, item.slip!, navyColor, greyColor),
+          build: (context) =>
+              _buildSlipPdfContent(item, item.slip!, navyColor, greyColor),
         ),
       );
     } else {
@@ -449,7 +526,8 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(36),
-          build: (context) => _buildSimplePdfContent(item, navyColor, greyColor),
+          build: (context) =>
+              _buildSimplePdfContent(item, navyColor, greyColor),
         ),
       );
     }
@@ -457,10 +535,6 @@ class _ThrScreenState extends State<ThrScreen> {
     return doc.save();
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF lengkap: kop perusahaan, identitas pegawai, 2 kolom
-  // (PENDAPATAN | POTONGAN), lalu baris "JUMLAH PENDAPATAN DITERIMA".
-  // ---------------------------------------------------------------------
   pw.Widget _buildSlipPdfContent(
     ThrItem item,
     ThrSlipDetail slip,
@@ -470,15 +544,13 @@ class _ThrScreenState extends State<ThrScreen> {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Kop.
         pw.Center(
           child: pw.Text(
             slip.perusahaan,
             style: pw.TextStyle(
-              fontSize: 12.5,
-              fontWeight: pw.FontWeight.bold,
-              color: navyColor,
-            ),
+                fontSize: 12.5,
+                fontWeight: pw.FontWeight.bold,
+                color: navyColor),
           ),
         ),
         pw.SizedBox(height: 3),
@@ -491,19 +563,14 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.SizedBox(height: 12),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
-        // Identitas pegawai.
         _pdfIdentityRow('NIK', widget.user.nik),
         _pdfIdentityRow('NAMA', widget.user.name.toUpperCase()),
         _pdfIdentityRow('GOLONGAN', widget.user.golonganUntukSlip),
         _pdfIdentityRow('UNIT KERJA', widget.user.unitKerja.toUpperCase()),
         _pdfIdentityRow('JABATAN', widget.user.jabatan.toUpperCase()),
-
         pw.SizedBox(height: 14),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
-        // Dua kolom: PENDAPATAN | POTONGAN.
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -516,34 +583,24 @@ class _ThrScreenState extends State<ThrScreen> {
             ),
           ],
         ),
-
         pw.SizedBox(height: 16),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
-        // Total diterima.
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'JUMLAH PENDAPATAN DITERIMA',
-              style: pw.TextStyle(
-                fontSize: 11.5,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-            pw.Text(
-              formatRupiah(slip.jumlahDiterima),
-              style: pw.TextStyle(
-                fontSize: 11.5,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
+            pw.Text('JUMLAH PENDAPATAN DITERIMA',
+                style: pw.TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
+            pw.Text(formatRupiah(slip.jumlahDiterima),
+                style: pw.TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
           ],
         ),
-
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 6),
@@ -568,13 +625,9 @@ class _ThrScreenState extends State<ThrScreen> {
           ),
           pw.Text(': ', style: const pw.TextStyle(fontSize: 9)),
           pw.Expanded(
-            child: pw.Text(
-              value,
-              style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
+            child: pw.Text(value,
+                style:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
           ),
         ],
       ),
@@ -589,14 +642,11 @@ class _ThrScreenState extends State<ThrScreen> {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          'PENDAPATAN',
-          style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
-        ),
+        pw.Text('PENDAPATAN',
+            style: pw.TextStyle(
+                fontSize: 9.5,
+                fontWeight: pw.FontWeight.bold,
+                color: greyColor)),
         pw.SizedBox(height: 6),
         _pdfSlipLine('Gaji Pokok', slip.gapok),
         _pdfSlipLine('Tunjangan Istri', slip.tunjanganIstri),
@@ -616,7 +666,8 @@ class _ThrScreenState extends State<ThrScreen> {
         _pdfSlipLine('Tunjangan Komunikasi', slip.tunjanganKomunikasi),
         pw.SizedBox(height: 4),
         pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Pendapatan', slip.jumlahPendapatan, bold: true, color: navyColor),
+        _pdfSlipLine('Jumlah Pendapatan', slip.jumlahPendapatan,
+            bold: true, color: navyColor),
       ],
     );
   }
@@ -629,17 +680,14 @@ class _ThrScreenState extends State<ThrScreen> {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          'POTONGAN',
-          style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
-        ),
+        pw.Text('POTONGAN',
+            style: pw.TextStyle(
+                fontSize: 9.5,
+                fontWeight: pw.FontWeight.bold,
+                color: greyColor)),
         pw.SizedBox(height: 6),
-        _pdfSlipLine('Trandist Potongan PMI / Lain-lain',
-            slip.potonganTrandistPmiLain),
+        _pdfSlipLine(
+            'Trandist Potongan PMI / Lain-lain', slip.potonganTrandistPmiLain),
         _pdfSlipLine('Potongan Dapenma', slip.potonganDapenma),
         _pdfSlipLine(
             'Potongan BPJS Tenaga Kerja', slip.potonganBpjsTenagaKerja),
@@ -651,8 +699,8 @@ class _ThrScreenState extends State<ThrScreen> {
         _pdfSlipLine('Potongan BPJS Kesehatan', slip.potonganBpjsKesehatan),
         pw.SizedBox(height: 4),
         pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Potongan Pendapatan',
-            slip.jumlahPotonganPendapatan,
+        _pdfSlipLine(
+            'Jumlah Potongan Pendapatan', slip.jumlahPotonganPendapatan,
             bold: true, color: navyColor),
         pw.SizedBox(height: 10),
         _pdfSlipLine('Potongan Koperasi', slip.potonganKoperasi),
@@ -668,14 +716,13 @@ class _ThrScreenState extends State<ThrScreen> {
         _pdfSlipLine('Potongan Zakat Ramadhan', slip.potonganZakatRamadhan),
         pw.SizedBox(height: 4),
         pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Potongan Non-Pendapatan',
-            slip.jumlahPotonganNonPendapatan,
+        _pdfSlipLine(
+            'Jumlah Potongan Non-Pendapatan', slip.jumlahPotonganNonPendapatan,
             bold: true, color: navyColor),
       ],
     );
   }
 
-  /// Satu baris "label ......... nilai" untuk kolom pendapatan/potongan.
   pw.Widget _pdfSlipLine(
     String label,
     int value, {
@@ -692,18 +739,13 @@ class _ThrScreenState extends State<ThrScreen> {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Expanded(
-            child: pw.Text(label, style: style),
-          ),
+          pw.Expanded(child: pw.Text(label, style: style)),
           pw.Text(formatRupiah(value), style: style),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF ringkas (fallback bila item tidak punya rincian slip).
-  // ---------------------------------------------------------------------
   pw.Widget _buildSimplePdfContent(
     ThrItem item,
     PdfColor navyColor,
@@ -715,25 +757,17 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Text(
           'PERUMDAM TIRTA DARMA AYU',
           style: pw.TextStyle(
-            fontSize: 11,
-            color: greyColor,
-            fontWeight: pw.FontWeight.bold,
-          ),
+              fontSize: 11, color: greyColor, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'Slip Tunjangan Hari Raya (THR)',
           style: pw.TextStyle(
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 20, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
         pw.SizedBox(height: 2),
-        pw.Text(
-          'Tahun ${item.tahun}',
-          style: pw.TextStyle(fontSize: 12, color: greyColor),
-        ),
+        pw.Text('Tahun ${item.tahun}',
+            style: pw.TextStyle(fontSize: 12, color: greyColor)),
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor),
         pw.SizedBox(height: 14),
@@ -744,10 +778,7 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Text(
           'RINCIAN PERHITUNGAN',
           style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 10, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 10),
         _pdfRow('Gaji Pokok', formatRupiah(item.gajiPokok), navyColor),
@@ -760,22 +791,16 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'Total THR',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-            pw.Text(
-              formatRupiah(item.jumlah),
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
+            pw.Text('Total THR',
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
+            pw.Text(formatRupiah(item.jumlah),
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
           ],
         ),
         pw.SizedBox(height: 20),
@@ -797,17 +822,13 @@ class _ThrScreenState extends State<ThrScreen> {
         pw.Text(
           value,
           style: pw.TextStyle(
-            fontSize: 11,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 11, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
       ],
     );
   }
 }
 
-/// Kartu putih dasar dengan shadow lembut, dipakai berulang di halaman ini.
 class _WhiteCard extends StatelessWidget {
   final Widget child;
 

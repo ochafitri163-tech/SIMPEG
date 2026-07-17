@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import '../../widgets/notification_bell.dart';
@@ -11,6 +12,57 @@ import 'profile_detail_screen.dart';
 import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
+
+/// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
+/// login dari tabel `attendance` di Supabase (sama seperti di
+/// absensi_screen.dart). Kalau belum ada data, kembalikan ringkasan
+/// kosong (0/0/0) supaya UI tetap tampil rapi tanpa error.
+Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  final now = DateTime.now();
+
+  const bulanList = [
+    '',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  final labelBulanIni = '${bulanList[now.month]} ${now.year}';
+
+  if (userId == null) {
+    return AttendanceSummary(
+        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
+  }
+
+  final row = await Supabase.instance.client
+      .from('attendance')
+      .select()
+      .eq('pegawai_id', userId)
+      .eq('tahun', now.year)
+      .eq('bulan', now.month)
+      .maybeSingle();
+
+  if (row == null) {
+    return AttendanceSummary(
+        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
+  }
+
+  return AttendanceSummary(
+    bulanLabel: (row['bulan_label'] ?? labelBulanIni) as String,
+    hadir: (row['hadir'] ?? 0) as int,
+    telat: (row['telat'] ?? 0) as int,
+    izin: (row['izin'] ?? 0) as int,
+  );
+}
 
 class PegawaiDashboard extends StatefulWidget {
   final AppUser user;
@@ -25,6 +77,13 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   static const Color _accent = Color(0xFF2E86AB);
 
   int _bottomNavIndex = 0;
+  late Future<AttendanceSummary> _attendanceFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _attendanceFuture = _fetchAttendanceBulanIni();
+  }
 
   void _onBottomNavTap(int index) {
     setState(() => _bottomNavIndex = index);
@@ -53,9 +112,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   // ==================== TAB: BERANDA ====================
   Widget _buildBerandaTab() {
     final firstName = widget.user.name.split(' ').first;
-    final summary = dummyAttendanceSummary;
 
-    // MENU UTAMA tanpa item 'Profile'
     final menuItems = <_QuickMenuItem>[
       _QuickMenuItem(
           label: 'Payroll',
@@ -83,99 +140,114 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           builder: (_) => InsentifScreen(user: widget.user)),
     ];
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(firstName),
-          Transform.translate(
-            offset: const Offset(0, -28),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildScheduleCard(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'RINGKASAN KEHADIRAN · ${summary.bulanLabel.toUpperCase()}',
-                  style: const TextStyle(
+    return FutureBuilder<AttendanceSummary>(
+      future: _attendanceFuture,
+      builder: (context, snapshot) {
+        final summary = snapshot.data ??
+            const AttendanceSummary(
+                bulanLabel: '...', hadir: 0, telat: 0, izin: 0);
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(firstName),
+              Transform.translate(
+                offset: const Offset(0, -28),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildScheduleCard(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'RINGKASAN KEHADIRAN · ${summary.bulanLabel.toUpperCase()}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: Color(0xFF7F8C8D),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Bulan ini',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : _buildAttendanceSection(summary),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _buildInfoBanner(summary),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+                child: const Text(
+                  'MENU UTAMA',
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                     color: Color(0xFF7F8C8D),
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _accent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Bulan ini',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _accent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildAttendanceSection(summary),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: _buildInfoBanner(summary),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-            child: const Text(
-              'MENU UTAMA',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-                color: Color(0xFF7F8C8D),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: menuItems.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.8,
-              ),
-              itemBuilder: (context, index) {
-                final item = menuItems[index];
-                return _QuickMenuCircle(
-                  item: item,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: item.builder),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: menuItems.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemBuilder: (context, index) {
+                    final item = menuItems[index];
+                    return _QuickMenuCircle(
+                      item: item,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: item.builder),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -236,96 +308,97 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           ),
           const SizedBox(height: 12),
           Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(user: widget.user),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withOpacity(0.3),
-                              Colors.white.withOpacity(0.1)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white.withOpacity(0.4), width: 2),
-                        ),
-                        child: Text(
-                          firstName.isNotEmpty
-                              ? firstName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProfileScreen(user: widget.user),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Hai, $firstName! 👋',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0.3),
+                                  Colors.white.withOpacity(0.1)
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.4),
+                                  width: 2),
+                            ),
+                            child: Text(
+                              firstName.isNotEmpty
+                                  ? firstName[0].toUpperCase()
+                                  : '?',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'NIK ${widget.user.nik}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Hai, $firstName! 👋',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'NIK ${widget.user.nik}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: IconTheme(
+                  data: const IconThemeData(color: Colors.white),
+                  child: NotificationBell(role: UserRole.pegawai),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: IconTheme(
-              data: const IconThemeData(color: Colors.white),
-              child: NotificationBell(role: UserRole.pegawai),
-            ),
-          ),
-        ],
-      ),
         ],
       ),
     );

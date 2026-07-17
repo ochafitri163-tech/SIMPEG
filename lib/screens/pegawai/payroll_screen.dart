@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
@@ -19,6 +20,81 @@ String formatRupiah(int value) {
     }
   }
   return 'Rp $buffer';
+}
+
+/// Ambil semua data payroll milik pegawai yang sedang login dari Supabase,
+/// diurutkan dari periode terbaru ke terlama, lalu dipetakan ke model
+/// [PayrollItem] + [PayrollSlipDetail] yang sama persis dipakai UI/PDF di
+/// bawah -- sehingga tidak ada satupun widget/PDF builder yang perlu diubah.
+Future<List<PayrollItem>> _fetchPayroll(AppUser user) async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final rows = await Supabase.instance.client
+      .from('payroll')
+      .select()
+      .eq('pegawai_id', userId)
+      .order('tahun', ascending: false)
+      .order('bulan', ascending: false);
+
+  return (rows as List).map((row) {
+    final slip = PayrollSlipDetail(
+      bulanLabel: (row['periode'] as String).toUpperCase(),
+      nik: user.nik,
+      nama: user.name,
+      golongan: user.golonganUntukSlip,
+      unitKerja: user.unitKerja,
+      jabatan: user.jabatan,
+      gapok: (row['gapok'] ?? 0) as int,
+      tunjanganIstri: (row['tunjangan_istri'] ?? 0) as int,
+      tunjanganAnak: (row['tunjangan_anak'] ?? 0) as int,
+      tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+      tunjanganPrestasi: (row['tunjangan_prestasi'] ?? 0) as int,
+      tunjanganTransportasi: (row['tunjangan_transportasi'] ?? 0) as int,
+      tunjanganPangan: (row['tunjangan_pangan'] ?? 0) as int,
+      tunjanganBpjsKesehatan: (row['tunjangan_bpjs_kesehatan'] ?? 0) as int,
+      tunjanganPerumahan: (row['tunjangan_perumahan'] ?? 0) as int,
+      tunjanganBpjsTenagaKerja:
+          (row['tunjangan_bpjs_tenaga_kerja'] ?? 0) as int,
+      tunjanganPerusahaan: (row['tunjangan_perusahaan'] ?? 0) as int,
+      lembur: (row['lembur'] ?? 0) as int,
+      tunjanganPajak: (row['tunjangan_pajak'] ?? 0) as int,
+      tunjanganAirMinum: (row['tunjangan_air_minum'] ?? 0) as int,
+      tunjanganKomunikasi: (row['tunjangan_komunikasi'] ?? 0) as int,
+      potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
+      potonganTrandistPmiLain: (row['potongan_trandist_pmi_lain'] ?? 0) as int,
+      potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+      potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+      potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+      potonganTunjanganPerusahaan:
+          (row['potongan_tunjangan_perusahaan'] ?? 0) as int,
+      potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+      potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+      potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+      potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+      potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+      potonganRekeningAirMinum:
+          (row['potongan_rekening_air_minum'] ?? 0) as int,
+      potonganKas: (row['potongan_kas'] ?? 0) as int,
+      potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+      potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+      potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+      potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+      potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+      potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
+    );
+
+    return PayrollItem(
+      periode: row['periode'] as String,
+      gajiPokok: (row['gapok'] ?? 0) as int,
+      tunjanganKeluarga: ((row['tunjangan_istri'] ?? 0) as int) +
+          ((row['tunjangan_anak'] ?? 0) as int),
+      tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+      potongan: slip.totalPotongan,
+      status: row['status'] as String,
+      slip: slip,
+    );
+  }).toList();
 }
 
 /// Halaman Payroll / Gaji — didesain mengikuti mockup UI (kartu ringkasan
@@ -41,31 +117,75 @@ class _PayrollScreenState extends State<PayrollScreen> {
   static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
+  late Future<List<PayrollItem>> _payrollFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _payrollFuture = _fetchPayroll(widget.user);
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _payrollFuture = _fetchPayroll(widget.user));
+    await _payrollFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final PayrollItem? terbaru =
-        dummyPayroll.isNotEmpty ? dummyPayroll.first : null;
-    final riwayat =
-        dummyPayroll.length > 1 ? dummyPayroll.sublist(1) : <PayrollItem>[];
-
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
           Expanded(
-            child: terbaru == null
-                ? const Center(
+            child: FutureBuilder<List<PayrollItem>>(
+              future: _payrollFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
                     child: Padding(
-                      padding: EdgeInsets.all(40),
+                      padding: const EdgeInsets.all(40),
                       child: Text(
-                        'Belum ada data gaji',
-                        style: TextStyle(color: labelGrey, fontSize: 13),
+                        'Gagal memuat data gaji: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: labelGrey, fontSize: 13),
                       ),
                     ),
-                  )
-                : ListView(
+                  );
+                }
+
+                final payrollList = snapshot.data ?? [];
+                final PayrollItem? terbaru =
+                    payrollList.isNotEmpty ? payrollList.first : null;
+                final riwayat = payrollList.length > 1
+                    ? payrollList.sublist(1)
+                    : <PayrollItem>[];
+
+                if (terbaru == null) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: const [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              'Belum ada data gaji',
+                              style: TextStyle(color: labelGrey, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                     children: [
                       _buildHeroCard(terbaru),
@@ -81,6 +201,9 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       _buildCekDetailButton(terbaru),
                     ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -156,9 +279,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu hijau "Gaji Bersih · <periode>".
-  // ---------------------------------------------------------------------
   Widget _buildHeroCard(PayrollItem item) {
     final total = item.slip?.jumlahDiterima ?? item.gajiBersih;
     return Container(
@@ -218,22 +338,17 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu rincian: baris pendapatan, baris potongan, "Jumlah Potongan"
-  // (bold), lalu "Pendapatan" (highlight biru). Dibangun dinamis dari
-  // PayrollSlipDetail supaya selalu sinkron dengan angka di PDF.
-  // ---------------------------------------------------------------------
   Widget _buildRincianCard(PayrollItem item) {
     final slip = item.slip;
 
-    // Fallback kalau item belum punya rincian slip lengkap.
     if (slip == null) {
       return _WhiteCard(
         child: Column(
           children: [
             _plainRow('Gaji pokok', formatRupiah(item.gajiPokok)),
             const Divider(height: 1, color: Color(0xFFEDF0F3)),
-            _plainRow('Tunjangan keluarga', formatRupiah(item.tunjanganKeluarga)),
+            _plainRow(
+                'Tunjangan keluarga', formatRupiah(item.tunjanganKeluarga)),
             const Divider(height: 1, color: Color(0xFFEDF0F3)),
             _plainRow('Tunjangan jabatan', formatRupiah(item.tunjanganJabatan)),
             const SizedBox(height: 4),
@@ -342,9 +457,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu riwayat gaji per bulan.
-  // ---------------------------------------------------------------------
   Widget _buildRiwayatCard(List<PayrollItem> riwayat) {
     if (riwayat.isEmpty) {
       return _WhiteCard(
@@ -386,9 +498,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Tombol "Cek Detail" -> generate & unduh slip gaji (PDF).
-  // ---------------------------------------------------------------------
   Widget _buildCekDetailButton(PayrollItem item) {
     return SizedBox(
       width: double.infinity,
@@ -442,11 +551,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     }
   }
 
-  /// Menyusun dokumen PDF slip gaji.
-  /// Kalau [item.slip] tersedia, cetak slip lengkap dua kolom
-  /// (Pendapatan & Potongan) persis format resmi perusahaan, berisi
-  /// identitas pegawai (NIK, nama, golongan, unit kerja, jabatan) yang
-  /// sebenarnya. Kalau tidak, jatuh ke versi ringkas.
   Future<Uint8List> _generatePayrollPdf(PayrollItem item) async {
     final doc = pw.Document();
     final navyColor = PdfColor.fromInt(0xFF0D2C6E);
@@ -466,7 +570,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(36),
-          build: (context) => _buildSimplePdfContent(item, navyColor, greyColor),
+          build: (context) =>
+              _buildSimplePdfContent(item, navyColor, greyColor),
         ),
       );
     }
@@ -474,10 +579,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     return doc.save();
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF lengkap: kop perusahaan, identitas pegawai, 2 kolom
-  // (PENDAPATAN | POTONGAN), lalu baris "JUMLAH PENDAPATAN DITERIMA".
-  // ---------------------------------------------------------------------
   pw.Widget _buildSlipPdfContent(
     PayrollSlipDetail slip,
     PdfColor navyColor,
@@ -506,17 +607,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.SizedBox(height: 12),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         _pdfIdentityRow('NIK', widget.user.nik),
         _pdfIdentityRow('NAMA', widget.user.name.toUpperCase()),
         _pdfIdentityRow('GOLONGAN', widget.user.golonganUntukSlip),
         _pdfIdentityRow('UNIT KERJA', widget.user.unitKerja.toUpperCase()),
         _pdfIdentityRow('JABATAN', widget.user.jabatan.toUpperCase()),
-
         pw.SizedBox(height: 14),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -529,11 +627,9 @@ class _PayrollScreenState extends State<PayrollScreen> {
             ),
           ],
         ),
-
         pw.SizedBox(height: 16),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -555,7 +651,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
             ),
           ],
         ),
-
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 6),
@@ -582,10 +677,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
           pw.Expanded(
             child: pw.Text(
               value,
-              style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
             ),
           ),
         ],
@@ -604,10 +696,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Text(
           'PENDAPATAN',
           style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 6),
         _pdfSlipLine('Gaji Pokok', slip.gapok),
@@ -645,16 +734,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Text(
           'POTONGAN',
           style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 6),
         _pdfSlipLine(
             'Potongan Sanksi Perusahaan', slip.potonganSanksiPerusahaan),
-        _pdfSlipLine('Trandist Potongan PMI / Lain-lain',
-            slip.potonganTrandistPmiLain),
+        _pdfSlipLine(
+            'Trandist Potongan PMI / Lain-lain', slip.potonganTrandistPmiLain),
         _pdfSlipLine('Potongan Dapenma', slip.potonganDapenma),
         _pdfSlipLine(
             'Potongan BPJS Tenaga Kerja', slip.potonganBpjsTenagaKerja),
@@ -683,14 +769,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
         _pdfSlipLine('Potongan Zakat Profesi', slip.potonganZakatProfesi),
         pw.SizedBox(height: 4),
         pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Potongan Non-Pendapatan',
-            slip.jumlahPotonganNonPendapatan,
+        _pdfSlipLine(
+            'Jumlah Potongan Non-Pendapatan', slip.jumlahPotonganNonPendapatan,
             bold: true, color: navyColor),
       ],
     );
   }
 
-  /// Satu baris "label ......... nilai" untuk kolom pendapatan/potongan.
   pw.Widget _pdfSlipLine(
     String label,
     int value, {
@@ -707,18 +792,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Expanded(
-            child: pw.Text(label, style: style),
-          ),
+          pw.Expanded(child: pw.Text(label, style: style)),
           pw.Text(formatRupiah(value), style: style),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF ringkas (fallback bila item tidak punya rincian slip).
-  // ---------------------------------------------------------------------
   pw.Widget _buildSimplePdfContent(
     PayrollItem item,
     PdfColor navyColor,
@@ -730,25 +810,17 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Text(
           'PERUMDAM TIRTA DARMA AYU',
           style: pw.TextStyle(
-            fontSize: 11,
-            color: greyColor,
-            fontWeight: pw.FontWeight.bold,
-          ),
+              fontSize: 11, color: greyColor, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'Slip Gaji / Payroll',
           style: pw.TextStyle(
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 20, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
         pw.SizedBox(height: 2),
-        pw.Text(
-          'Periode ${item.periode}',
-          style: pw.TextStyle(fontSize: 12, color: greyColor),
-        ),
+        pw.Text('Periode ${item.periode}',
+            style: pw.TextStyle(fontSize: 12, color: greyColor)),
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor),
         pw.SizedBox(height: 14),
@@ -757,10 +829,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Text(
           'RINCIAN',
           style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 10, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 10),
         _pdfRow('Gaji Pokok', formatRupiah(item.gajiPokok), navyColor),
@@ -778,22 +847,16 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'Gaji Bersih',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-            pw.Text(
-              formatRupiah(item.gajiBersih),
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
+            pw.Text('Gaji Bersih',
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
+            pw.Text(formatRupiah(item.gajiBersih),
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
           ],
         ),
         pw.SizedBox(height: 20),
@@ -815,17 +878,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
         pw.Text(
           value,
           style: pw.TextStyle(
-            fontSize: 11,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 11, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
       ],
     );
   }
 }
 
-/// Kartu putih dasar dengan shadow lembut, dipakai berulang di halaman ini.
 class _WhiteCard extends StatelessWidget {
   final Widget child;
 

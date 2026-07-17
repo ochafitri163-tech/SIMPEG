@@ -4,15 +4,81 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
+/// Ambil semua data insentif milik pegawai yang sedang login dari
+/// Supabase, diurutkan dari yang terbaru (created_at desc), lalu dipetakan
+/// ke model [InsentifItem] + [InsentifSlipDetail] yang sama persis dipakai
+/// UI/PDF di bawah.
+Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final rows = await Supabase.instance.client
+      .from('insentif')
+      .select()
+      .eq('pegawai_id', userId)
+      .order('created_at', ascending: false);
+
+  return (rows as List).map((row) {
+    final slip = InsentifSlipDetail(
+      bulanLabel: (row['periode'] as String).toUpperCase(),
+      nik: user.nik,
+      nama: user.name,
+      golongan: user.golonganUntukSlip,
+      unitKerja: user.unitKerja,
+      jabatan: user.jabatan,
+      insentifJabatan: (row['insentif_jabatan'] ?? 0) as int,
+      insentifPrestasi: (row['insentif_prestasi'] ?? 0) as int,
+      insentifTransportasi: (row['insentif_transportasi'] ?? 0) as int,
+      insentifPangan: (row['insentif_pangan'] ?? 0) as int,
+      insentifBpjsKesehatan: (row['insentif_bpjs_kesehatan'] ?? 0) as int,
+      insentifPerumahan: (row['insentif_perumahan'] ?? 0) as int,
+      insentifBpjsTenagaKerja: (row['insentif_bpjs_tenaga_kerja'] ?? 0) as int,
+      insentifPerusahaan: (row['insentif_perusahaan'] ?? 0) as int,
+      lembur: (row['lembur'] ?? 0) as int,
+      insentifPajak: (row['insentif_pajak'] ?? 0) as int,
+      insentifAirMinum: (row['insentif_air_minum'] ?? 0) as int,
+      insentifKomunikasi: (row['insentif_komunikasi'] ?? 0) as int,
+      potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
+      potonganPmiLain: (row['potongan_pmi_lain'] ?? 0) as int,
+      potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+      potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+      potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+      potonganInsentifPerusahaan:
+          (row['potongan_insentif_perusahaan'] ?? 0) as int,
+      potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+      potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+      potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+      potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+      potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+      potonganRekeningAirMinum:
+          (row['potongan_rekening_air_minum'] ?? 0) as int,
+      potonganKas: (row['potongan_kas'] ?? 0) as int,
+      potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+      potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+      potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+      potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+      potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+      potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
+    );
+
+    return InsentifItem(
+      judul: row['judul'] as String,
+      periode: row['periode'] as String,
+      jumlah: slip.jumlahDiterima,
+      slip: slip,
+    );
+  }).toList();
+}
+
 /// Halaman Insentif — didesain mengikuti mockup UI (kartu ringkasan ungu
 /// "Insentif · <periode>", daftar "Riwayat Insentif", dan tombol
-/// "Cek Detail" yang mengunduh slip insentif & potongan lengkap dalam PDF,
-/// persis format cetak resmi PERUMDAM Tirta Darma Ayu.)
+/// "Cek Detail" yang mengunduh slip insentif & potongan lengkap dalam PDF).
 class InsentifScreen extends StatefulWidget {
   final AppUser user;
 
@@ -29,50 +95,92 @@ class _InsentifScreenState extends State<InsentifScreen> {
   static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
+  late Future<List<InsentifItem>> _insentifFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _insentifFuture = _fetchInsentif(widget.user);
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _insentifFuture = _fetchInsentif(widget.user));
+    await _insentifFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final InsentifItem? terbaru =
-        dummyInsentif.isNotEmpty ? dummyInsentif.first : null;
-    final riwayat = dummyInsentif;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
           Expanded(
-            child: terbaru == null
-                ? const Center(
+            child: FutureBuilder<List<InsentifItem>>(
+              future: _insentifFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
                     child: Padding(
-                      padding: EdgeInsets.all(40),
+                      padding: const EdgeInsets.all(40),
                       child: Text(
-                        'Belum ada data insentif',
-                        style: TextStyle(color: labelGrey, fontSize: 13),
+                        'Gagal memuat data insentif: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: labelGrey, fontSize: 13),
                       ),
                     ),
-                  )
-                : ListView(
+                  );
+                }
+
+                final riwayatSemua = snapshot.data ?? [];
+                final InsentifItem? terbaru =
+                    riwayatSemua.isNotEmpty ? riwayatSemua.first : null;
+
+                if (terbaru == null) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: const [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              'Belum ada data insentif',
+                              style: TextStyle(color: labelGrey, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                     children: [
                       _buildHeroCard(terbaru),
                       const SizedBox(height: 26),
                       _buildSectionLabel('RIWAYAT INSENTIF'),
                       const SizedBox(height: 10),
-                      _buildRiwayatCard(riwayat),
+                      _buildRiwayatCard(riwayatSemua),
                       const SizedBox(height: 24),
                       _buildCekDetailButton(terbaru),
                     ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Header navy dengan tombol kembali & judul "Insentif".
-  // ---------------------------------------------------------------------
   Widget _buildHeader(BuildContext context) {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
@@ -139,9 +247,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu ungu "Insentif · <periode>" + nominal + judul insentif terbaru.
-  // ---------------------------------------------------------------------
   Widget _buildHeroCard(InsentifItem item) {
     final total = item.slip?.jumlahDiterima ?? item.jumlah;
     return Container(
@@ -210,11 +315,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu daftar riwayat insentif — ikon bulat, judul & periode, nominal.
-  // Baris dengan rincian slip lengkap bisa disentuh untuk cetak PDF-nya
-  // sendiri.
-  // ---------------------------------------------------------------------
   Widget _buildRiwayatCard(List<InsentifItem> riwayat) {
     if (riwayat.isEmpty) {
       return _WhiteCard(
@@ -276,8 +376,8 @@ class _InsentifScreenState extends State<InsentifScreen> {
                       ),
                     ),
                     Text(
-                      formatRupiah(riwayat[i].slip?.jumlahDiterima ??
-                          riwayat[i].jumlah),
+                      formatRupiah(
+                          riwayat[i].slip?.jumlahDiterima ?? riwayat[i].jumlah),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -294,9 +394,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Tombol "Cek Detail" -> generate & unduh slip insentif (PDF).
-  // ---------------------------------------------------------------------
   Widget _buildCekDetailButton(InsentifItem item) {
     return SizedBox(
       width: double.infinity,
@@ -350,11 +447,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     }
   }
 
-  /// Menyusun dokumen PDF slip insentif.
-  /// Kalau [item.slip] tersedia, cetak slip lengkap dua kolom
-  /// (Insentif & Potongan) persis format resmi perusahaan, berisi
-  /// identitas pegawai (NIK, nama, golongan, unit kerja, jabatan) yang
-  /// sebenarnya. Kalau tidak, jatuh ke versi ringkas.
   Future<Uint8List> _generateInsentifPdf(InsentifItem item) async {
     final doc = pw.Document();
     final navyColor = PdfColor.fromInt(0xFF0D2C6E);
@@ -374,7 +466,8 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(36),
-          build: (context) => _buildSimplePdfContent(item, navyColor, greyColor),
+          build: (context) =>
+              _buildSimplePdfContent(item, navyColor, greyColor),
         ),
       );
     }
@@ -382,10 +475,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     return doc.save();
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF lengkap: kop perusahaan, identitas pegawai, 2 kolom
-  // (INSENTIF | POTONGAN), lalu baris "JUMLAH INSENTIF DITERIMA".
-  // ---------------------------------------------------------------------
   pw.Widget _buildSlipPdfContent(
     InsentifSlipDetail slip,
     PdfColor navyColor,
@@ -414,17 +503,14 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.SizedBox(height: 12),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         _pdfIdentityRow('NIK', widget.user.nik),
         _pdfIdentityRow('NAMA', widget.user.name.toUpperCase()),
         _pdfIdentityRow('GOLONGAN', widget.user.golonganUntukSlip),
         _pdfIdentityRow('UNIT KERJA', widget.user.unitKerja.toUpperCase()),
         _pdfIdentityRow('JABATAN', widget.user.jabatan.toUpperCase()),
-
         pw.SizedBox(height: 14),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -437,11 +523,9 @@ class _InsentifScreenState extends State<InsentifScreen> {
             ),
           ],
         ),
-
         pw.SizedBox(height: 16),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 10),
-
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -463,7 +547,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
             ),
           ],
         ),
-
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor, thickness: 0.7),
         pw.SizedBox(height: 6),
@@ -490,10 +573,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
           pw.Expanded(
             child: pw.Text(
               value,
-              style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
             ),
           ),
         ],
@@ -512,10 +592,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Text(
           'INSENTIF',
           style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 6),
         _pdfSlipLine('Insentif Jabatan', slip.insentifJabatan),
@@ -550,10 +627,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Text(
           'POTONGAN',
           style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: greyColor,
-          ),
+              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
         pw.SizedBox(height: 6),
         _pdfSlipLine(
@@ -593,7 +667,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
     );
   }
 
-  /// Satu baris "label ......... nilai" untuk kolom insentif/potongan.
   pw.Widget _pdfSlipLine(
     String label,
     int value, {
@@ -610,18 +683,13 @@ class _InsentifScreenState extends State<InsentifScreen> {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Expanded(
-            child: pw.Text(label, style: style),
-          ),
+          pw.Expanded(child: pw.Text(label, style: style)),
           pw.Text(formatRupiah(value), style: style),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Layout PDF ringkas (fallback bila item tidak punya rincian slip).
-  // ---------------------------------------------------------------------
   pw.Widget _buildSimplePdfContent(
     InsentifItem item,
     PdfColor navyColor,
@@ -633,25 +701,17 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Text(
           'PERUMDAM TIRTA DARMA AYU',
           style: pw.TextStyle(
-            fontSize: 11,
-            color: greyColor,
-            fontWeight: pw.FontWeight.bold,
-          ),
+              fontSize: 11, color: greyColor, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'Slip Insentif Pendidikan',
           style: pw.TextStyle(
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 20, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
         pw.SizedBox(height: 2),
-        pw.Text(
-          'Periode ${item.periode}',
-          style: pw.TextStyle(fontSize: 12, color: greyColor),
-        ),
+        pw.Text('Periode ${item.periode}',
+            style: pw.TextStyle(fontSize: 12, color: greyColor)),
         pw.SizedBox(height: 20),
         pw.Divider(color: greyColor),
         pw.SizedBox(height: 14),
@@ -662,22 +722,16 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'Jumlah Diterima',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-            pw.Text(
-              formatRupiah(item.jumlah),
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
+            pw.Text('Jumlah Diterima',
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
+            pw.Text(formatRupiah(item.jumlah),
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: navyColor)),
           ],
         ),
         pw.SizedBox(height: 20),
@@ -699,17 +753,13 @@ class _InsentifScreenState extends State<InsentifScreen> {
         pw.Text(
           value,
           style: pw.TextStyle(
-            fontSize: 11,
-            fontWeight: pw.FontWeight.bold,
-            color: navyColor,
-          ),
+              fontSize: 11, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
       ],
     );
   }
 }
 
-/// Kartu putih dasar dengan shadow lembut, dipakai berulang di halaman ini.
 class _WhiteCard extends StatelessWidget {
   final Widget child;
 

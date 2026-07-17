@@ -4,13 +4,77 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
+/// Ambil riwayat pendidikan pegawai yang sedang login, urut sesuai kolom
+/// `urutan` (0 = jenjang terakhir/tertinggi).
+Future<List<PendidikanItem>> _fetchPendidikan() async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final rows = await Supabase.instance.client
+      .from('pendidikan')
+      .select()
+      .eq('pegawai_id', userId)
+      .order('urutan', ascending: true);
+
+  return (rows as List).map((row) {
+    return PendidikanItem(
+      jenjang: row['jenjang'] as String,
+      jurusan: row['jurusan'] as String?,
+      namaSekolah: row['nama_sekolah'] as String?,
+      kotaLulus: row['kota_lulus'] as String?,
+      tahunLulus: row['tahun_lulus'] as String,
+      noIjazah: row['no_ijazah'] as String?,
+    );
+  }).toList();
+}
+
+/// Ambil slip Tunjangan Pendidikan terbaru milik pegawai yang sedang
+/// login, digabung dengan identitas dari tabel `pegawai` untuk kop PDF.
+/// Return null kalau belum ada data slip untuk pegawai ini.
+Future<PendidikanTunjanganDetail?> _fetchTunjanganSlip() async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return null;
+
+  final pegawai = await Supabase.instance.client
+      .from('pegawai')
+      .select()
+      .eq('id', userId)
+      .maybeSingle();
+  if (pegawai == null) return null;
+
+  final slipRow = await Supabase.instance.client
+      .from('tunjangan_pendidikan')
+      .select()
+      .eq('pegawai_id', userId)
+      .order('created_at', ascending: false)
+      .limit(1)
+      .maybeSingle();
+  if (slipRow == null) return null;
+
+  return PendidikanTunjanganDetail(
+    bulanLabel: (slipRow['bulan_label'] as String).toUpperCase(),
+    nik: pegawai['nik'] as String,
+    nama: (pegawai['name'] as String).toUpperCase(),
+    golongan:
+        (pegawai['golongan_detail'] ?? pegawai['golongan'] ?? '') as String,
+    unitKerja: (pegawai['unit_kerja'] as String).toUpperCase(),
+    jabatan: (pegawai['jabatan'] as String).toUpperCase(),
+    gapok: (slipRow['gapok'] ?? 0) as int,
+    tunjanganIstri: (slipRow['tunjangan_istri'] ?? 0) as int,
+    tunjanganAnak: (slipRow['tunjangan_anak'] ?? 0) as int,
+    potonganKoperasi: (slipRow['potongan_koperasi'] ?? 0) as int,
+    potonganKas: (slipRow['potongan_kas'] ?? 0) as int,
+  );
+}
+
 /// Halaman Pendidikan — riwayat jenjang pendidikan pegawai, ditutup dengan
 /// tombol "Cek Detail" yang mengunduh slip Tunjangan Pendidikan & Potongan
-/// dalam bentuk PDF (persis format resmi perusahaan).
+/// dalam bentuk PDF.
 class PendidikanScreen extends StatefulWidget {
   const PendidikanScreen({super.key});
 
@@ -24,6 +88,18 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
+  late Future<List<PendidikanItem>> _pendidikanFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _pendidikanFuture = _fetchPendidikan();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _pendidikanFuture = _fetchPendidikan());
+    await _pendidikanFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,41 +109,70 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
         children: [
           _buildHeader(context),
           Expanded(
-            child: dummyPendidikan.isEmpty
-                ? const Center(
+            child: FutureBuilder<List<PendidikanItem>>(
+              future: _pendidikanFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
                     child: Padding(
-                      padding: EdgeInsets.all(40),
+                      padding: const EdgeInsets.all(40),
                       child: Text(
-                        'Belum ada data pendidikan',
-                        style: TextStyle(color: labelGrey, fontSize: 13),
+                        'Gagal memuat data pendidikan: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: labelGrey, fontSize: 13),
                       ),
                     ),
-                  )
-                : ListView(
+                  );
+                }
+
+                final data = snapshot.data ?? [];
+
+                if (data.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: const [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              'Belum ada data pendidikan',
+                              style: TextStyle(color: labelGrey, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                     children: [
                       _buildSectionLabel('RIWAYAT PENDIDIKAN'),
                       const SizedBox(height: 10),
-                      for (int i = 0; i < dummyPendidikan.length; i++) ...[
-                        _buildPendidikanCard(
-                          dummyPendidikan[i],
-                          isTerakhir: i == 0,
-                        ),
+                      for (int i = 0; i < data.length; i++) ...[
+                        _buildPendidikanCard(data[i], isTerakhir: i == 0),
                         const SizedBox(height: 14),
                       ],
                       const SizedBox(height: 10),
                       _buildCekDetailButton(),
                     ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Header navy dengan tombol kembali & judul "Pendidikan".
-  // ---------------------------------------------------------------------
   Widget _buildHeader(BuildContext context) {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
@@ -149,9 +254,6 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Kartu satu jenjang pendidikan.
-  // ---------------------------------------------------------------------
   Widget _buildPendidikanCard(PendidikanItem item, {required bool isTerakhir}) {
     return Container(
       width: double.infinity,
@@ -247,9 +349,6 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // Tombol "Cek Detail" -> generate & unduh slip tunjangan pendidikan (PDF).
-  // ---------------------------------------------------------------------
   Widget _buildCekDetailButton() {
     return SizedBox(
       width: double.infinity,
@@ -285,7 +384,18 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   Future<void> _downloadPendidikanPdf() async {
     setState(() => _isGenerating = true);
     try {
-      final slip = dummyPendidikanTunjangan;
+      final slip = await _fetchTunjanganSlip();
+      if (slip == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Belum ada data slip tunjangan pendidikan.'),
+            ),
+          );
+        }
+        return;
+      }
+
       final bytes = await _generatePendidikanPdf(slip);
       final fileLabel = slip.bulanLabel.replaceAll(' ', '_');
       await Printing.sharePdf(
@@ -303,9 +413,6 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
     }
   }
 
-  /// Menyusun dokumen PDF slip Tunjangan Pendidikan & Potongan, persis
-  /// format resmi perusahaan (kop, identitas pegawai, 2 kolom
-  /// Pendapatan | Potongan, lalu "JUMLAH INSENTIF DITERIMA").
   Future<Uint8List> _generatePendidikanPdf(
       PendidikanTunjanganDetail slip) async {
     final doc = pw.Document();
@@ -467,7 +574,6 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
     );
   }
 
-  /// Satu baris "label ......... nilai" untuk kolom pendapatan/potongan.
   pw.Widget _pdfLine(
     String label,
     int value, {
