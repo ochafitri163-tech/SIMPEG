@@ -1,5 +1,3 @@
-import 'package:simpeg_mobile/models/pengaduan_model.dart';
-import 'package:simpeg_mobile/models/user_role.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
@@ -103,7 +101,6 @@ extension PengaduanIdX on Pengaduan {
   int? get supabaseId => _pengaduanIdMap[this];
 }
 
-
 /// =============================================================
 /// PengaduanService — menggantikan PengaduanRepository in-memory lama.
 /// Semua method di sini query langsung ke tabel `pengaduan_pegawai`,
@@ -186,10 +183,8 @@ class PengaduanService {
     // Catatan: ini query dari client, sehingga bergantung pada RLS yang
     // mengizinkan SELECT id pegawai ber-role kadiv. Kalau RLS ketat,
     // sebaiknya langkah ini dipindah ke Supabase Edge Function/trigger.
-    final kadivList = await _client
-        .from('pegawai')
-        .select('id')
-        .eq('role', 'kadivKategori');
+    final kadivList =
+        await _client.from('pegawai').select('id').eq('role', 'kadivKategori');
 
     for (final kadiv in (kadivList as List)) {
       await _client.from('notifikasi').insert({
@@ -298,7 +293,6 @@ class PengaduanService {
     final rows = await untukRole(role);
     return rows.map((row) => pengaduanFromRow(row)).toList();
   }
-
 
   /// sekaligus, supaya konsisten (dipanggil oleh semua aksi role di bawah).
   static Future<void> _ubahStatus({
@@ -429,7 +423,8 @@ class PengaduanService {
   static Future<void> keputusanDirektur({
     required int pengaduanId,
     required String oleh,
-    required String keputusan, // 'setuju'|'tolak'|'peninjauanKembali'|'tindakLanjut'
+    required String
+        keputusan, // 'setuju'|'tolak'|'peninjauanKembali'|'tindakLanjut'
     String? catatan,
   }) async {
     late String statusBaru;
@@ -537,5 +532,45 @@ class NotificationService {
         .update({'dibaca': true})
         .eq('untuk_pegawai_id', userId)
         .eq('dibaca', false);
+  }
+
+  /// Kirim notifikasi yang sama ke SEMUA pegawai dengan role tertentu
+  /// (mis. semua KSPI, semua Direktur). Dipakai saat aksi satu role perlu
+  /// memberi tahu role berikutnya dalam alur (Kadiv -> KSPI, KSPI ->
+  /// Direktur, dst).
+  static Future<void> kirimKeRole({
+    required UserRole role,
+    required String judul,
+    required String pesan,
+    int? pengaduanId,
+  }) async {
+    final daftarPegawai =
+        await _client.from('pegawai').select('id').eq('role', role.name);
+
+    for (final pegawai in (daftarPegawai as List)) {
+      await _client.from('notifikasi').insert({
+        'untuk_pegawai_id': pegawai['id'],
+        'judul': judul,
+        'pesan': pesan,
+        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      });
+    }
+  }
+
+  /// Kirim notifikasi ke SATU pegawai spesifik berdasarkan id-nya. Dipakai
+  /// saat aksi perlu memberi tahu pelapor asli (bukan semua orang di satu
+  /// role), mis. saat pengaduan pegawai dinyatakan selesai.
+  static Future<void> kirimKePegawai({
+    required String pegawaiId,
+    required String judul,
+    required String pesan,
+    int? pengaduanId,
+  }) async {
+    await _client.from('notifikasi').insert({
+      'untuk_pegawai_id': pegawaiId,
+      'judul': judul,
+      'pesan': pesan,
+      if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+    });
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// Halaman Pengaturan — preferensi aplikasi (notifikasi, tampilan, bahasa)
-/// dan info aplikasi. Sebagian pengaturan masih dummy (belum tersambung ke
-/// penyimpanan lokal/API) namun sudah interaktif secara UI.
+/// dan info aplikasi. Preferensi notifikasi tersimpan permanen di
+/// Supabase (tabel `preferensi_pegawai`), dan "Ubah Kata Sandi" sudah
+/// terhubung ke Supabase Auth (bukan lagi placeholder "coming soon").
 class PengaturanScreen extends StatefulWidget {
   const PengaturanScreen({super.key});
 
@@ -14,7 +16,61 @@ class PengaturanScreen extends StatefulWidget {
 class _PengaturanScreenState extends State<PengaturanScreen> {
   bool _notifAbsensi = true;
   bool _notifPengumuman = true;
-  bool _modeGelap = false;
+  final bool _modeGelap = false;
+  bool _isLoadingPref = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatPreferensi();
+  }
+
+  Future<void> _muatPreferensi() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      setState(() => _isLoadingPref = false);
+      return;
+    }
+
+    try {
+      final row = await Supabase.instance.client
+          .from('preferensi_pegawai')
+          .select()
+          .eq('pegawai_id', userId)
+          .maybeSingle();
+
+      if (row != null && mounted) {
+        setState(() {
+          _notifAbsensi = row['notif_absensi'] as bool;
+          _notifPengumuman = row['notif_pengumuman'] as bool;
+        });
+      }
+    } catch (_) {
+      // Kalau gagal fetch, tetap pakai default (true/true) tanpa error UI.
+    } finally {
+      if (mounted) setState(() => _isLoadingPref = false);
+    }
+  }
+
+  Future<void> _simpanPreferensi() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      await Supabase.instance.client.from('preferensi_pegawai').upsert({
+        'pegawai_id': userId,
+        'notif_absensi': _notifAbsensi,
+        'notif_pengumuman': _notifPengumuman,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan preferensi: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,86 +78,94 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
       title: 'Pengaturan',
       subtitle: 'Preferensi aplikasi & akun',
       icon: Icons.settings_rounded,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const _SectionLabel('NOTIFIKASI'),
-          const SizedBox(height: 10),
-          InfoCard(
-            padding: EdgeInsets.zero,
-            child: Column(
+      child: _isLoadingPref
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                _SwitchRow(
-                  icon: Icons.fact_check_rounded,
-                  title: 'Pengingat Absensi',
-                  subtitle: 'Notifikasi jam masuk & pulang',
-                  value: _notifAbsensi,
-                  onChanged: (v) => setState(() => _notifAbsensi = v),
+                const _SectionLabel('NOTIFIKASI'),
+                const SizedBox(height: 10),
+                InfoCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      _SwitchRow(
+                        icon: Icons.fact_check_rounded,
+                        title: 'Pengingat Absensi',
+                        subtitle: 'Notifikasi jam masuk & pulang',
+                        value: _notifAbsensi,
+                        onChanged: (v) {
+                          setState(() => _notifAbsensi = v);
+                          _simpanPreferensi();
+                        },
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
+                      _SwitchRow(
+                        icon: Icons.campaign_rounded,
+                        title: 'Pengumuman Kantor',
+                        subtitle: 'Info & pengumuman dari PDAM',
+                        value: _notifPengumuman,
+                        onChanged: (v) {
+                          setState(() => _notifPengumuman = v);
+                          _simpanPreferensi();
+                        },
+                        isLast: true,
+                      ),
+                    ],
+                  ),
                 ),
-                const Divider(height: 1, color: Color(0xFFF0F2F5)),
-                _SwitchRow(
-                  icon: Icons.campaign_rounded,
-                  title: 'Pengumuman Kantor',
-                  subtitle: 'Info & pengumuman dari PDAM',
-                  value: _notifPengumuman,
-                  onChanged: (v) => setState(() => _notifPengumuman = v),
-                  isLast: true,
+                const SizedBox(height: 22),
+                const _SectionLabel('TAMPILAN'),
+                const SizedBox(height: 10),
+                InfoCard(
+                  padding: EdgeInsets.zero,
+                  child: _SwitchRow(
+                    icon: Icons.dark_mode_rounded,
+                    title: 'Mode Gelap',
+                    subtitle: 'Segera hadir',
+                    value: _modeGelap,
+                    onChanged: null,
+                    isLast: true,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const _SectionLabel('LAINNYA'),
+                const SizedBox(height: 10),
+                InfoCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      _NavRow(
+                        icon: Icons.lock_outline_rounded,
+                        title: 'Ubah Kata Sandi',
+                        onTap: () => _showUbahPasswordDialog(context),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
+                      _NavRow(
+                        icon: Icons.privacy_tip_outlined,
+                        title: 'Kebijakan Privasi',
+                        onTap: () => _showComingSoon(context),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
+                      _NavRow(
+                        icon: Icons.info_outline_rounded,
+                        title: 'Tentang Aplikasi',
+                        subtitle: 'SIMPEG Mobile V3',
+                        onTap: () => _showComingSoon(context),
+                        isLast: true,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: Text(
+                    'SIMPEG Mobile · v3.0.0',
+                    style: TextStyle(fontSize: 11.5, color: Colors.grey[400]),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 22),
-          const _SectionLabel('TAMPILAN'),
-          const SizedBox(height: 10),
-          InfoCard(
-            padding: EdgeInsets.zero,
-            child: _SwitchRow(
-              icon: Icons.dark_mode_rounded,
-              title: 'Mode Gelap',
-              subtitle: 'Segera hadir',
-              value: _modeGelap,
-              onChanged: null,
-              isLast: true,
-            ),
-          ),
-          const SizedBox(height: 22),
-          const _SectionLabel('LAINNYA'),
-          const SizedBox(height: 10),
-          InfoCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _NavRow(
-                  icon: Icons.lock_outline_rounded,
-                  title: 'Ubah Kata Sandi',
-                  onTap: () => _showComingSoon(context),
-                ),
-                const Divider(height: 1, color: Color(0xFFF0F2F5)),
-                _NavRow(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Kebijakan Privasi',
-                  onTap: () => _showComingSoon(context),
-                ),
-                const Divider(height: 1, color: Color(0xFFF0F2F5)),
-                _NavRow(
-                  icon: Icons.info_outline_rounded,
-                  title: 'Tentang Aplikasi',
-                  subtitle: 'SIMPEG Mobile V3',
-                  onTap: () => _showComingSoon(context),
-                  isLast: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: Text(
-              'SIMPEG Mobile · v3.0.0',
-              style: TextStyle(fontSize: 11.5, color: Colors.grey[400]),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -114,6 +178,120 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
+    );
+  }
+
+  /// Dialog ubah kata sandi -- terhubung langsung ke Supabase Auth.
+  /// Supabase mewajibkan re-autentikasi implisit lewat sesi aktif, jadi
+  /// cukup panggil updateUser tanpa perlu password lama (selama sesi
+  /// masih valid). Kalau ingin mewajibkan konfirmasi password lama,
+  /// tambahkan langkah signInWithPassword ulang sebelum updateUser.
+  Future<void> _showUbahPasswordDialog(BuildContext context) async {
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool isSubmitting = false;
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Ubah Kata Sandi',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Kata Sandi Baru',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Konfirmasi Kata Sandi',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(errorText!,
+                        style:
+                            const TextStyle(color: Colors.red, fontSize: 12.5)),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final pass = passwordController.text;
+                          final confirm = confirmController.text;
+
+                          if (pass.length < 6) {
+                            setDialogState(() =>
+                                errorText = 'Kata sandi minimal 6 karakter.');
+                            return;
+                          }
+                          if (pass != confirm) {
+                            setDialogState(
+                                () => errorText = 'Konfirmasi tidak cocok.');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            await Supabase.instance.client.auth.updateUser(
+                              UserAttributes(password: pass),
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Kata sandi berhasil diubah.'),
+                                  backgroundColor: Color(0xFF27AE60),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorText = 'Gagal mengubah kata sandi: $e';
+                            });
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -186,7 +364,8 @@ class _SwitchRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF8B98A9)),
+                    style: const TextStyle(
+                        fontSize: 11.5, color: Color(0xFF8B98A9)),
                   ),
                 ],
               ],
@@ -257,7 +436,8 @@ class _NavRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF8B98A9)),
+                      style: const TextStyle(
+                          fontSize: 11.5, color: Color(0xFF8B98A9)),
                     ),
                   ],
                 ],
