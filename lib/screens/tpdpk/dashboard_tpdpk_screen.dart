@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
+import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
 /// Dashboard untuk role TPDPK — Tahap 3 & Tahap 4 (fungsional).
-///
-/// TPDPK menangani:
-/// 1. `menungguInvestigasi` (eksekutor = TPDPK) -> memilih petugas investigasi.
-/// 2. `investigasiBerjalan` -> membuat hasil investigasi + surat rekomendasi,
-///    lalu kirim ke KSPI.
-/// 3. `revisiInvestigasi` -> mengirim ulang hasil setelah direvisi KSPI.
+/// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardTpdpkScreen extends StatefulWidget {
   final AppUser user;
   const DashboardTpdpkScreen({super.key, required this.user});
@@ -25,7 +22,24 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
   static const Color _accent = Color(0xFF2E86AB);
 
-  void _logout() {
+  late Future<List<Pengaduan>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = PengaduanService.untukRoleSebagaiObjek(UserRole.tpdpk);
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _future = PengaduanService.untukRoleSebagaiObjek(UserRole.tpdpk);
+    });
+    await _future;
+  }
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
@@ -44,14 +58,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     );
   }
 
-  Future<T?> _openSheet<T>(Widget Function(BuildContext, void Function(void Function())) builder) {
+  Future<T?> _openSheet<T>(
+      Widget Function(BuildContext, void Function(void Function())) builder) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: const BoxDecoration(
@@ -69,15 +85,19 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         width: 40,
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
       );
 
   Widget _judulSheet(String title, Pengaduan p) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(p.nomorPengaduan, style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+          Text(p.nomorPengaduan,
+              style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
           const SizedBox(height: 16),
         ],
       );
@@ -97,7 +117,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               controller: petugasController,
               decoration: InputDecoration(
                 labelText: 'Nama petugas investigasi',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -106,7 +127,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (petugasController.text.trim().isEmpty) {
-                    _showSnack('Nama petugas wajib diisi.', const Color(0xFFE74C3C));
+                    _showSnack(
+                        'Nama petugas wajib diisi.', const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -117,7 +139,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -126,20 +149,32 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        p.tpdpkPilihPetugas(oleh: widget.user.name, petugas: petugasController.text.trim());
-      });
-      if (mounted) {
-        _showSnack('Petugas investigasi ditetapkan untuk ${p.nomorPengaduan}.', const Color(0xFF27AE60));
-      }
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.tpdpkPilihPetugas(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        petugas: petugasController.text.trim(),
+      );
+
+      if (!mounted) return;
+      _showSnack('Petugas investigasi ditetapkan untuk ${p.nomorPengaduan}.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
   // ---------- 2. Kirim hasil investigasi + surat rekomendasi ----------
   Future<void> _bukaKirimHasil(Pengaduan p, {required bool revisi}) async {
-    final hasilController = TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
-    final rekomendasiController = TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
+    final hasilController =
+        TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
+    final rekomendasiController =
+        TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -148,7 +183,11 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            _judulSheet(revisi ? 'Kirim Ulang Hasil Investigasi (Revisi)' : 'Hasil Investigasi & Surat Rekomendasi', p),
+            _judulSheet(
+                revisi
+                    ? 'Kirim Ulang Hasil Investigasi (Revisi)'
+                    : 'Hasil Investigasi & Surat Rekomendasi',
+                p),
             if (revisi && (p.catatanReviewHasilKspi ?? '').isNotEmpty) ...[
               _infoBlok('Catatan Revisi dari KSPI', p.catatanReviewHasilKspi!),
               const SizedBox(height: 14),
@@ -158,7 +197,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               maxLines: 4,
               decoration: InputDecoration(
                 labelText: 'Hasil investigasi',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 14),
@@ -167,7 +207,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Surat rekomendasi',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -175,8 +216,11 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (hasilController.text.trim().isEmpty || rekomendasiController.text.trim().isEmpty) {
-                    _showSnack('Hasil investigasi & surat rekomendasi wajib diisi.', const Color(0xFFE74C3C));
+                  if (hasilController.text.trim().isEmpty ||
+                      rekomendasiController.text.trim().isEmpty) {
+                    _showSnack(
+                        'Hasil investigasi & surat rekomendasi wajib diisi.',
+                        const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -187,7 +231,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -196,30 +241,40 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        if (revisi) {
-          p.kirimRevisiInvestigasi(
-            oleh: widget.user.name,
-            hasil: hasilController.text.trim(),
-            rekomendasi: rekomendasiController.text.trim(),
-          );
-        } else {
-          p.kirimHasilInvestigasi(
-            oleh: widget.user.name,
-            hasil: hasilController.text.trim(),
-            rekomendasi: rekomendasiController.text.trim(),
-          );
-        }
-      });
-      NotificationCenter.tambah(
-        untukRole: UserRole.kspi,
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      if (revisi) {
+        await PengaduanService.kirimRevisiInvestigasi(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          hasil: hasilController.text.trim(),
+          rekomendasi: rekomendasiController.text.trim(),
+        );
+      } else {
+        await PengaduanService.kirimHasilInvestigasi(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          hasil: hasilController.text.trim(),
+          rekomendasi: rekomendasiController.text.trim(),
+        );
+      }
+
+      await NotificationService.kirimKeRole(
+        role: UserRole.kspi,
         judul: 'Hasil investigasi masuk',
         pesan: '${p.nomorPengaduan} sudah dikirim TPDPK, menunggu review KSPI.',
+        pengaduanId: id,
       );
-      if (mounted) {
-        _showSnack('Hasil investigasi ${p.nomorPengaduan} dikirim ke KSPI.', const Color(0xFF27AE60));
-      }
+
+      if (!mounted) return;
+      _showSnack('Hasil investigasi ${p.nomorPengaduan} dikirim ke KSPI.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -227,11 +282,17 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFFF3F6F9), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF3F6F9),
+          borderRadius: BorderRadius.circular(10)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7F8C8D))),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7F8C8D))),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 12.5)),
         ],
@@ -248,7 +309,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: const BoxDecoration(
@@ -263,24 +325,34 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   width: 40,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 const Text('Selesaikan Tindak Lanjut',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(p.nomorPengaduan, style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+                Text(p.nomorPengaduan,
+                    style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
                 const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFF3F6F9), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF3F6F9),
+                      borderRadius: BorderRadius.circular(10)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Instruksi Direktur',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7F8C8D))),
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF7F8C8D))),
                       const SizedBox(height: 4),
-                      Text(p.tindakLanjutDiminta ?? '-', style: const TextStyle(fontSize: 12.5)),
+                      Text(p.tindakLanjutDiminta ?? '-',
+                          style: const TextStyle(fontSize: 12.5)),
                     ],
                   ),
                 ),
@@ -290,7 +362,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   maxLines: 3,
                   decoration: InputDecoration(
                     labelText: 'Keterangan penyelesaian (opsional)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -304,7 +377,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       backgroundColor: const Color(0xFF1E8449),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
@@ -315,35 +389,43 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       },
     );
 
-    if (konfirmasi == true) {
-      setState(() {
-        p.selesaikanTindakLanjut(
-          oleh: widget.user.name,
-          role: UserRole.tpdpk,
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
-        );
-      });
-      NotificationCenter.tambah(
-        untukRole: UserRole.pegawai,
-        judul: 'Pengaduan selesai',
-        pesan: '${p.nomorPengaduan} — tindak lanjut telah dijalankan & dinyatakan selesai.',
+    if (konfirmasi != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.selesaikanTindakLanjut(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        role: UserRole.tpdpk,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
       );
-      if (mounted) {
-        _showSnack('${p.nomorPengaduan} ditandai selesai.', const Color(0xFF27AE60));
+
+      final detail = await PengaduanService.detail(id);
+      final pelaporId = detail?['pelapor_id'] as String?;
+      if (pelaporId != null) {
+        await NotificationService.kirimKePegawai(
+          pegawaiId: pelaporId,
+          judul: 'Pengaduan selesai',
+          pesan:
+              '${p.nomorPengaduan} — tindak lanjut telah dijalankan & dinyatakan selesai.',
+          pengaduanId: id,
+        );
       }
+
+      if (!mounted) return;
+      _showSnack(
+          '${p.nomorPengaduan} ditandai selesai.', const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final semua = PengaduanRepository.untukRole(UserRole.tpdpk);
-    final menungguPetugas = semua
-        .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
-        .toList();
-    final berjalan = semua.where((p) => p.status == PengaduanStatus.investigasiBerjalan).toList();
-    final revisi = semua.where((p) => p.status == PengaduanStatus.revisiInvestigasi).toList();
-    final tindakLanjut = semua.where((p) => p.status == PengaduanStatus.tindakLanjut).toList();
-
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.tpdpk],
@@ -362,43 +444,78 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             ),
           ],
         ),
-        body: RefreshIndicator(
-          onRefresh: () async => setState(() {}),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _buildHeaderCard(semua.length),
-              const SizedBox(height: 20),
-              _buildSection(
-                'MENUNGGU PENUGASAN PETUGAS',
-                menungguPetugas,
-                (p) => _bukaPilihPetugas(p),
-                'Tidak ada tugas baru.',
-                'Tetapkan Petugas',
+        body: FutureBuilder<List<Pengaduan>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Text(
+                    'Gagal memuat data: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ),
+              );
+            }
+
+            final semua = snapshot.data ?? [];
+            final menungguPetugas = semua
+                .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
+                .toList();
+            final berjalan = semua
+                .where((p) => p.status == PengaduanStatus.investigasiBerjalan)
+                .toList();
+            final revisi = semua
+                .where((p) => p.status == PengaduanStatus.revisiInvestigasi)
+                .toList();
+            final tindakLanjut = semua
+                .where((p) => p.status == PengaduanStatus.tindakLanjut)
+                .toList();
+
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _buildHeaderCard(semua.length),
+                  const SizedBox(height: 20),
+                  _buildSection(
+                    'MENUNGGU PENUGASAN PETUGAS',
+                    menungguPetugas,
+                    (p) => _bukaPilihPetugas(p),
+                    'Tidak ada tugas baru.',
+                    'Tetapkan Petugas',
+                  ),
+                  _buildSection(
+                    'INVESTIGASI BERJALAN',
+                    berjalan,
+                    (p) => _bukaKirimHasil(p, revisi: false),
+                    'Tidak ada investigasi berjalan.',
+                    'Kirim Hasil',
+                  ),
+                  _buildSection(
+                    'PERLU REVISI (DIKEMBALIKAN KSPI)',
+                    revisi,
+                    (p) => _bukaKirimHasil(p, revisi: true),
+                    'Tidak ada revisi yang diminta.',
+                    'Kirim Ulang',
+                  ),
+                  _buildSection(
+                    'TINDAK LANJUT DARI DIREKTUR',
+                    tindakLanjut,
+                    (p) => _bukaSelesaikanTindakLanjut(p),
+                    'Tidak ada tindak lanjut yang ditugaskan.',
+                    'Selesaikan',
+                  ),
+                ],
               ),
-              _buildSection(
-                'INVESTIGASI BERJALAN',
-                berjalan,
-                (p) => _bukaKirimHasil(p, revisi: false),
-                'Tidak ada investigasi berjalan.',
-                'Kirim Hasil',
-              ),
-              _buildSection(
-                'PERLU REVISI (DIKEMBALIKAN KSPI)',
-                revisi,
-                (p) => _bukaKirimHasil(p, revisi: true),
-                'Tidak ada revisi yang diminta.',
-                'Kirim Ulang',
-              ),
-              _buildSection(
-                'TINDAK LANJUT DARI DIREKTUR',
-                tindakLanjut,
-                (p) => _bukaSelesaikanTindakLanjut(p),
-                'Tidak ada tindak lanjut yang ditugaskan.',
-                'Selesaikan',
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -416,13 +533,17 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       children: [
         Text(title,
             style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Color(0xFF7F8C8D))),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: Color(0xFF7F8C8D))),
         const SizedBox(height: 10),
         if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             alignment: Alignment.centerLeft,
-            child: Text(emptyText, style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
+            child: Text(emptyText,
+                style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
           )
         else
           ...items.map((p) => _buildPengaduanCard(p, onAksi, tombolLabel)),
@@ -436,7 +557,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [_navy, _accent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(
+            colors: [_navy, _accent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -445,27 +569,40 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             radius: 26,
             backgroundColor: Colors.white,
             child: Text(widget.user.initials,
-                style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+                style: const TextStyle(
+                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(widget.user.name,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
                 const SizedBox(height: 2),
                 Text('${widget.user.role.label} · ${widget.user.jabatan}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.85), fontSize: 12)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(10)),
             child: Column(
               children: [
-                Text('$jumlah', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                const Text('Perlu Aksi', style: TextStyle(color: Colors.white, fontSize: 10)),
+                Text('$jumlah',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+                const Text('Perlu Aksi',
+                    style: TextStyle(color: Colors.white, fontSize: 10)),
               ],
             ),
           ),
@@ -474,13 +611,19 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     );
   }
 
-  Widget _buildPengaduanCard(Pengaduan p, Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
+  Widget _buildPengaduanCard(Pengaduan p,
+      Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3))
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -491,20 +634,32 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               children: [
                 Expanded(
                   child: Text(p.nomorPengaduan,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _accent)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _accent)),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: p.status.color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: p.status.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8)),
                   child: Text(p.status.label,
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: p.status.color)),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: p.status.color)),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(p.judul, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            Text(p.judul,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Petugas: ${p.petugasInvestigasi ?? '-'}', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+            Text('Petugas: ${p.petugasInvestigasi ?? '-'}',
+                style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -512,7 +667,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => DetailPengaduanScreen(pengaduan: p)),
+                      MaterialPageRoute(
+                          builder: (_) => DetailPengaduanScreen(pengaduan: p)),
                     ),
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12)),
@@ -520,7 +676,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9)),
                     ),
                   ),
                 ),
@@ -532,9 +689,11 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       backgroundColor: _navy,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9)),
                     ),
-                    child: Text(tombolLabel, style: const TextStyle(fontSize: 12)),
+                    child:
+                        Text(tombolLabel, style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],

@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
+import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
 /// Dashboard untuk role KSPI — Tahap 3 & Tahap 4 (fungsional).
-///
-/// KSPI menangani 4 jenis pekerjaan berbeda tergantung status pengaduan:
-/// 1. `reviewKspi`            -> review awal & pilih eksekutor (Kadiv/TPDPK).
-/// 2. `menungguReviewKspi`    -> review hasil investigasi dari TPDPK.
-/// 3. `ditolakDirektur`       -> revisi lalu kirim ulang ke Direktur.
-/// 4. `peninjauanKembali`     -> kirim ulang untuk investigasi ulang.
+/// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardKspiScreen extends StatefulWidget {
   final AppUser user;
   const DashboardKspiScreen({super.key, required this.user});
@@ -25,7 +22,24 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
   static const Color _accent = Color(0xFF2E86AB);
 
-  void _logout() {
+  late Future<List<Pengaduan>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = PengaduanService.untukRoleSebagaiObjek(UserRole.kspi);
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _future = PengaduanService.untukRoleSebagaiObjek(UserRole.kspi);
+    });
+    await _future;
+  }
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
@@ -44,14 +58,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     );
   }
 
-  Future<T?> _openSheet<T>(Widget Function(BuildContext, void Function(void Function())) builder) {
+  Future<T?> _openSheet<T>(
+      Widget Function(BuildContext, void Function(void Function())) builder) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: const BoxDecoration(
@@ -69,15 +85,19 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         width: 40,
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
       );
 
   Widget _judulSheet(String title, Pengaduan p) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(p.nomorPengaduan, style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+          Text(p.nomorPengaduan,
+              style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
           const SizedBox(height: 16),
         ],
       );
@@ -96,7 +116,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           children: [
             _grip(),
             _judulSheet('Review & Pilih Eksekutor', p),
-            const Text('Eksekutor', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+            const Text('Eksekutor',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Row(
               children: Eksekutor.values.map((e) {
@@ -112,7 +133,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                               fontWeight: FontWeight.w600)),
                       selected: selected,
                       selectedColor: _accent,
-                      onSelected: (_) => setSheetState(() => eksekutorDipilih = e),
+                      onSelected: (_) =>
+                          setSheetState(() => eksekutorDipilih = e),
                     ),
                   ),
                 );
@@ -124,7 +146,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 controller: petugasController,
                 decoration: InputDecoration(
                   labelText: 'Nama petugas investigasi',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
@@ -134,7 +157,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Catatan review (opsional)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -144,7 +168,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 onPressed: () {
                   if (eksekutorDipilih == Eksekutor.kadiv &&
                       petugasController.text.trim().isEmpty) {
-                    _showSnack('Nama petugas investigasi wajib diisi.', const Color(0xFFE74C3C));
+                    _showSnack('Nama petugas investigasi wajib diisi.',
+                        const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -157,7 +182,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -166,23 +192,39 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        p.reviewDanPilihEksekutor(
-          oleh: widget.user.name,
-          eksekutorBaru: eksekutorDipilih,
-          petugas: petugasController.text.trim().isEmpty ? null : petugasController.text.trim(),
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
-        );
-      });
-      NotificationCenter.tambah(
-        untukRole: eksekutorDipilih == Eksekutor.kadiv ? UserRole.kadivKategori : UserRole.tpdpk,
-        judul: 'Penugasan investigasi baru',
-        pesan: '${p.nomorPengaduan} ditugaskan sebagai eksekutor: ${eksekutorDipilih.label}.',
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.reviewDanPilihEksekutor(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        eksekutor: eksekutorDipilih.name,
+        petugas: petugasController.text.trim().isEmpty
+            ? null
+            : petugasController.text.trim(),
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
       );
-      if (mounted) {
-        _showSnack('${p.nomorPengaduan} diteruskan ke ${eksekutorDipilih.label}.', const Color(0xFF27AE60));
-      }
+
+      await NotificationService.kirimKeRole(
+        role: eksekutorDipilih == Eksekutor.kadiv
+            ? UserRole.kadivKategori
+            : UserRole.tpdpk,
+        judul: 'Penugasan investigasi baru',
+        pesan:
+            '${p.nomorPengaduan} ditugaskan sebagai eksekutor: ${eksekutorDipilih.label}.',
+        pengaduanId: id,
+      );
+
+      if (!mounted) return;
+      _showSnack('${p.nomorPengaduan} diteruskan ke ${eksekutorDipilih.label}.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -213,17 +255,22 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     label: const Text('Sesuai', style: TextStyle(fontSize: 12)),
                     selected: sesuai,
                     selectedColor: const Color(0xFF27AE60),
-                    labelStyle: TextStyle(color: sesuai ? Colors.white : _navy, fontWeight: FontWeight.w600),
+                    labelStyle: TextStyle(
+                        color: sesuai ? Colors.white : _navy,
+                        fontWeight: FontWeight.w600),
                     onSelected: (_) => setSheetState(() => sesuai = true),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ChoiceChip(
-                    label: const Text('Belum sesuai', style: TextStyle(fontSize: 12)),
+                    label: const Text('Belum sesuai',
+                        style: TextStyle(fontSize: 12)),
                     selected: !sesuai,
                     selectedColor: const Color(0xFFE74C3C),
-                    labelStyle: TextStyle(color: !sesuai ? Colors.white : _navy, fontWeight: FontWeight.w600),
+                    labelStyle: TextStyle(
+                        color: !sesuai ? Colors.white : _navy,
+                        fontWeight: FontWeight.w600),
                     onSelected: (_) => setSheetState(() => sesuai = false),
                   ),
                 ),
@@ -234,8 +281,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: sesuai ? 'Catatan untuk Direktur (opsional)' : 'Alasan revisi (wajib)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                labelText: sesuai
+                    ? 'Catatan untuk Direktur (opsional)'
+                    : 'Alasan revisi (wajib)',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -244,18 +294,22 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (!sesuai && catatanController.text.trim().isEmpty) {
-                    _showSnack('Alasan revisi wajib diisi.', const Color(0xFFE74C3C));
+                    _showSnack(
+                        'Alasan revisi wajib diisi.', const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
                 },
-                icon: Icon(sesuai ? Icons.send_rounded : Icons.replay_rounded, size: 18),
-                label: Text(sesuai ? 'Kirim ke Direktur' : 'Kembalikan untuk Revisi'),
+                icon: Icon(sesuai ? Icons.send_rounded : Icons.replay_rounded,
+                    size: 18),
+                label: Text(
+                    sesuai ? 'Kirim ke Direktur' : 'Kembalikan untuk Revisi'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: sesuai ? _navy : const Color(0xFFE74C3C),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -264,27 +318,40 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        p.reviewHasilInvestigasi(
-          oleh: widget.user.name,
-          sesuai: sesuai,
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
-        );
-      });
-      NotificationCenter.tambah(
-        untukRole: sesuai ? UserRole.direktur : UserRole.tpdpk,
-        judul: sesuai ? 'Menunggu persetujuan Anda' : 'Revisi investigasi diminta',
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.reviewHasilInvestigasi(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        sesuai: sesuai,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
+      );
+
+      await NotificationService.kirimKeRole(
+        role: sesuai ? UserRole.direktur : UserRole.tpdpk,
+        judul:
+            sesuai ? 'Menunggu persetujuan Anda' : 'Revisi investigasi diminta',
         pesan: sesuai
             ? '${p.nomorPengaduan} menunggu persetujuan Direktur.'
             : '${p.nomorPengaduan} dikembalikan untuk revisi investigasi.',
+        pengaduanId: id,
       );
-      if (mounted) {
-        _showSnack(
-          sesuai ? '${p.nomorPengaduan} dikirim ke Direktur.' : '${p.nomorPengaduan} dikembalikan untuk revisi.',
-          sesuai ? const Color(0xFF27AE60) : const Color(0xFFE67E22),
-        );
-      }
+
+      if (!mounted) return;
+      _showSnack(
+        sesuai
+            ? '${p.nomorPengaduan} dikirim ke Direktur.'
+            : '${p.nomorPengaduan} dikembalikan untuk revisi.',
+        sesuai ? const Color(0xFF27AE60) : const Color(0xFFE67E22),
+      );
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -299,14 +366,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           children: [
             _grip(),
             _judulSheet('Revisi Setelah Penolakan Direktur', p),
-            _infoBlok('Alasan Penolakan Direktur', p.alasanPenolakanDirektur ?? '-'),
+            _infoBlok(
+                'Alasan Penolakan Direktur', p.alasanPenolakanDirektur ?? '-'),
             const SizedBox(height: 14),
             TextField(
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Catatan revisi',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -315,7 +384,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (catatanController.text.trim().isEmpty) {
-                    _showSnack('Catatan revisi wajib diisi.', const Color(0xFFE74C3C));
+                    _showSnack(
+                        'Catatan revisi wajib diisi.', const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -326,7 +396,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -335,18 +406,30 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        p.kirimUlangSetelahRevisiKspi(oleh: widget.user.name, catatanRevisi: catatanController.text.trim());
-      });
-      NotificationCenter.tambah(
-        untukRole: UserRole.direktur,
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.kirimUlangSetelahRevisiKspi(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        catatanRevisi: catatanController.text.trim(),
+      );
+
+      await NotificationService.kirimKeRole(
+        role: UserRole.direktur,
         judul: 'Revisi dari KSPI',
         pesan: '${p.nomorPengaduan} dikirim ulang setelah direvisi KSPI.',
+        pengaduanId: id,
       );
-      if (mounted) {
-        _showSnack('${p.nomorPengaduan} dikirim ulang ke Direktur.', const Color(0xFF27AE60));
-      }
+
+      if (!mounted) return;
+      _showSnack('${p.nomorPengaduan} dikirim ulang ke Direktur.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -368,7 +451,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Catatan pengiriman ulang (opsional)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
@@ -382,7 +466,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -391,21 +476,33 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
     });
 
-    if (ok == true) {
-      setState(() {
-        p.kirimUntukInvestigasiUlang(
-          oleh: widget.user.name,
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
-        );
-      });
-      NotificationCenter.tambah(
-        untukRole: UserRole.tpdpk,
-        judul: 'Investigasi ulang diminta',
-        pesan: '${p.nomorPengaduan} perlu investigasi ulang (peninjauan kembali Direktur).',
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.kirimUntukInvestigasiUlang(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
       );
-      if (mounted) {
-        _showSnack('${p.nomorPengaduan} dikirim untuk investigasi ulang.', const Color(0xFF27AE60));
-      }
+
+      await NotificationService.kirimKeRole(
+        role: UserRole.tpdpk,
+        judul: 'Investigasi ulang diminta',
+        pesan:
+            '${p.nomorPengaduan} perlu investigasi ulang (peninjauan kembali Direktur).',
+        pengaduanId: id,
+      );
+
+      if (!mounted) return;
+      _showSnack('${p.nomorPengaduan} dikirim untuk investigasi ulang.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -420,7 +517,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7F8C8D))),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7F8C8D))),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 12.5)),
         ],
@@ -430,12 +531,6 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final semua = PengaduanRepository.untukRole(UserRole.kspi);
-    final reviewAwal = semua.where((p) => p.status == PengaduanStatus.reviewKspi).toList();
-    final reviewHasil = semua.where((p) => p.status == PengaduanStatus.menungguReviewKspi).toList();
-    final ditolak = semua.where((p) => p.status == PengaduanStatus.ditolakDirektur).toList();
-    final peninjauan = semua.where((p) => p.status == PengaduanStatus.peninjauanKembali).toList();
-
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.kspi],
@@ -454,23 +549,74 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
-        body: RefreshIndicator(
-          onRefresh: () async => setState(() {}),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _buildHeaderCard(semua.length),
-              const SizedBox(height: 20),
-              _buildSection('REVIEW AWAL — PILIH EKSEKUTOR', reviewAwal, _bukaReviewEksekutor,
-                  'Belum ada pengaduan dari Kadiv.', 'Review'),
-              _buildSection('REVIEW HASIL INVESTIGASI', reviewHasil, _bukaReviewHasil,
-                  'Belum ada hasil investigasi masuk.', 'Review Hasil'),
-              _buildSection('PESAN PENOLAKAN DARI DIREKTUR', ditolak, _bukaRevisiPenolakan,
-                  'Tidak ada penolakan dari Direktur.', 'Revisi'),
-              _buildSection('PENINJAUAN KEMBALI DARI DIREKTUR', peninjauan, _bukaPeninjauanKembali,
-                  'Tidak ada permintaan peninjauan kembali.', 'Tindak Lanjuti'),
-            ],
-          ),
+        body: FutureBuilder<List<Pengaduan>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Text(
+                    'Gagal memuat data: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ),
+              );
+            }
+
+            final semua = snapshot.data ?? [];
+            final reviewAwal = semua
+                .where((p) => p.status == PengaduanStatus.reviewKspi)
+                .toList();
+            final reviewHasil = semua
+                .where((p) => p.status == PengaduanStatus.menungguReviewKspi)
+                .toList();
+            final ditolak = semua
+                .where((p) => p.status == PengaduanStatus.ditolakDirektur)
+                .toList();
+            final peninjauan = semua
+                .where((p) => p.status == PengaduanStatus.peninjauanKembali)
+                .toList();
+
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _buildHeaderCard(semua.length),
+                  const SizedBox(height: 20),
+                  _buildSection(
+                      'REVIEW AWAL — PILIH EKSEKUTOR',
+                      reviewAwal,
+                      _bukaReviewEksekutor,
+                      'Belum ada pengaduan dari Kadiv.',
+                      'Review'),
+                  _buildSection(
+                      'REVIEW HASIL INVESTIGASI',
+                      reviewHasil,
+                      _bukaReviewHasil,
+                      'Belum ada hasil investigasi masuk.',
+                      'Review Hasil'),
+                  _buildSection(
+                      'PESAN PENOLAKAN DARI DIREKTUR',
+                      ditolak,
+                      _bukaRevisiPenolakan,
+                      'Tidak ada penolakan dari Direktur.',
+                      'Revisi'),
+                  _buildSection(
+                      'PENINJAUAN KEMBALI DARI DIREKTUR',
+                      peninjauan,
+                      _bukaPeninjauanKembali,
+                      'Tidak ada permintaan peninjauan kembali.',
+                      'Tindak Lanjuti'),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -488,13 +634,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       children: [
         Text(title,
             style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Color(0xFF7F8C8D))),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: Color(0xFF7F8C8D))),
         const SizedBox(height: 10),
         if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             alignment: Alignment.centerLeft,
-            child: Text(emptyText, style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
+            child: Text(emptyText,
+                style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
           )
         else
           ...items.map((p) => _buildPengaduanCard(p, onAksi, tombolLabel)),
@@ -508,7 +658,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [_navy, _accent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(
+            colors: [_navy, _accent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -517,27 +670,40 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             radius: 26,
             backgroundColor: Colors.white,
             child: Text(widget.user.initials,
-                style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+                style: const TextStyle(
+                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(widget.user.name,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
                 const SizedBox(height: 2),
                 Text('${widget.user.role.label} · ${widget.user.jabatan}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.85), fontSize: 12)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(10)),
             child: Column(
               children: [
-                Text('$jumlah', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                const Text('Perlu Aksi', style: TextStyle(color: Colors.white, fontSize: 10)),
+                Text('$jumlah',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+                const Text('Perlu Aksi',
+                    style: TextStyle(color: Colors.white, fontSize: 10)),
               ],
             ),
           ),
@@ -546,13 +712,19 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     );
   }
 
-  Widget _buildPengaduanCard(Pengaduan p, Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
+  Widget _buildPengaduanCard(Pengaduan p,
+      Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3))
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -563,20 +735,32 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               children: [
                 Expanded(
                   child: Text(p.nomorPengaduan,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _accent)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _accent)),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: p.status.color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: p.status.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8)),
                   child: Text(p.status.label,
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: p.status.color)),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: p.status.color)),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(p.judul, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            Text(p.judul,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Kategori: ${p.kategori}${p.kategoriDivisi != null ? ' · ${p.kategoriDivisi!.label}' : ''}',
+            Text(
+                'Kategori: ${p.kategori}${p.kategoriDivisi != null ? ' · ${p.kategoriDivisi!.label}' : ''}',
                 style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
             const SizedBox(height: 12),
             Row(
@@ -585,7 +769,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => DetailPengaduanScreen(pengaduan: p)),
+                      MaterialPageRoute(
+                          builder: (_) => DetailPengaduanScreen(pengaduan: p)),
                     ),
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12)),
@@ -593,7 +778,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9)),
                     ),
                   ),
                 ),
@@ -605,9 +791,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       backgroundColor: _navy,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9)),
                     ),
-                    child: Text(tombolLabel, style: const TextStyle(fontSize: 12)),
+                    child:
+                        Text(tombolLabel, style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],

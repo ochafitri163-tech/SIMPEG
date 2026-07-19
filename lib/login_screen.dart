@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Mengubah NIK menjadi email samaran, karena Supabase Auth
   /// mewajibkan format email untuk sign in.
-  String _emailFromNik(String nik) => '$nik@simpeg.internal';
+  String _emailFromNik(String nik) => '$nik@gmail.com';
 
   Future<void> _login() async {
     if (_nikController.text.isEmpty || _passwordController.text.isEmpty) {
