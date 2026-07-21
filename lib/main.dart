@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import 'services/notification_service.dart';
+import 'services/theme_controller.dart';
 
 // Ganti dengan URL & anon key project Supabase kamu
 // Ambil di: Supabase Dashboard > Settings > API
@@ -15,6 +17,11 @@ Future<void> main() async {
     anonKey: supabaseAnonKey,
   );
 
+  // Notifikasi lokal (pengingat absensi & pengumuman kantor) & preferensi
+  // mode gelap harus siap SEBELUM UI pertama kali dirender.
+  await NotificationService.instance.init();
+  await ThemeController.instance.loadSaved();
+
   runApp(const SimpegApp());
 }
 
@@ -26,16 +33,35 @@ class SimpegApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SIMPEG Mobile Ver.3',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0D2C6E),
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Roboto',
-        useMaterial3: true,
-      ),
-      home: const LoginScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.instance.themeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'SIMPEG Mobile Ver.3',
+          debugShowCheckedModeBanner: false,
+          themeMode: mode,
+          theme: ThemeData(
+            brightness: Brightness.light,
+            primaryColor: const Color(0xFF0D2C6E),
+            scaffoldBackgroundColor: Colors.white,
+            fontFamily: 'Roboto',
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            primaryColor: const Color(0xFF2E86AB),
+            scaffoldBackgroundColor: const Color(0xFF10151C),
+            cardColor: const Color(0xFF1B2230),
+            fontFamily: 'Roboto',
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF2E86AB),
+              brightness: Brightness.dark,
+            ),
+          ),
+          home: const LoginScreen(),
+        );
+      },
     );
   }
 }

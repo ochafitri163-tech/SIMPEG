@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 /// Golongan, Jabatan, Payroll, THR, Sanksi, Pengaduan Warga) —
 /// header gradasi navy->teal dengan tombol kembali & judul, isi berupa
 /// daftar kartu putih di atas latar abu muda.
+///
+/// Semua warna sekarang mengikuti `Theme.of(context).brightness`, jadi
+/// otomatis berubah saat Mode Gelap diaktifkan lewat ThemeController.
 class FeatureScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -13,6 +16,11 @@ class FeatureScaffold extends StatelessWidget {
 
   static const Color navy = Color(0xFF0D2C6E);
   static const Color accent = Color(0xFF2E86AB);
+
+  // Warna latar & permukaan khusus mode gelap, selaras dengan
+  // `darkTheme` di main.dart (scaffoldBackgroundColor: 0xFF10151C,
+  // cardColor: 0xFF1B2230).
+  static const Color _darkBackground = Color(0xFF10151C);
 
   const FeatureScaffold({
     super.key,
@@ -25,8 +33,10 @@ class FeatureScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: isDark ? _darkBackground : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           Container(
@@ -37,13 +47,18 @@ class FeatureScaffold extends StatelessWidget {
               right: 20,
               bottom: 22,
             ),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
+              // Header gradasi tetap sama di kedua mode supaya brand
+              // PDAM tetap konsisten; hanya sedikit digelapkan agar
+              // tidak terlalu terang di lingkungan gelap.
               gradient: LinearGradient(
-                colors: [navy, accent],
+                colors: isDark
+                    ? const [Color(0xFF081A45), Color(0xFF1F5F79)]
+                    : const [navy, accent],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(28),
                 bottomRight: Radius.circular(28),
               ),
@@ -109,6 +124,9 @@ class FeatureScaffold extends StatelessWidget {
 }
 
 /// Badge status kecil berwarna (mis. "Sudah Dibayar", "Diproses").
+/// Warna badge sendiri tetap sama di kedua mode (sudah cukup kontras
+/// karena selalu memakai opacity di atas latar kartu), tidak perlu
+/// disesuaikan.
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -158,8 +176,10 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-/// Kartu putih dasar dengan shadow lembut, dipakai berulang di semua
-/// halaman fitur.
+/// Kartu dasar dengan shadow lembut, dipakai berulang di semua
+/// halaman fitur. Warna permukaan mengikuti tema: putih di mode
+/// terang, `0xFF1B2230` di mode gelap (selaras dengan cardColor di
+/// darkTheme pada main.dart).
 class InfoCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -172,15 +192,18 @@ class InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? theme.cardColor : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -206,6 +229,8 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -215,7 +240,10 @@ class InfoRow extends StatelessWidget {
             flex: 4,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12.5, color: Color(0xFF7F8C8D)),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: isDark ? const Color(0xFF9AA6B2) : const Color(0xFF7F8C8D),
+              ),
             ),
           ),
           Expanded(
@@ -226,7 +254,7 @@ class InfoRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-                color: const Color(0xFF1B2733),
+                color: isDark ? Colors.white : const Color(0xFF1B2733),
               ),
             ),
           ),
@@ -249,15 +277,20 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          Icon(icon, size: 40, color: Colors.grey[300]),
+          Icon(icon, size: 40, color: isDark ? Colors.grey[700] : Colors.grey[300]),
           const SizedBox(height: 12),
           Text(
             message,
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey[500] : Colors.grey[500],
+            ),
           ),
         ],
       ),

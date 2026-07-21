@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/notification_service.dart';
+import '../../services/theme_controller.dart';
 import '../../widgets/feature_scaffold.dart';
+import 'kebijakan_privasi_screen.dart';
+import 'tentang_aplikasi_screen.dart';
 
-/// Halaman Pengaturan — preferensi aplikasi (notifikasi, tampilan, bahasa)
-/// dan info aplikasi. Preferensi notifikasi tersimpan permanen di
-/// Supabase (tabel `preferensi_pegawai`), dan "Ubah Kata Sandi" sudah
-/// terhubung ke Supabase Auth (bukan lagi placeholder "coming soon").
 class PengaturanScreen extends StatefulWidget {
   const PengaturanScreen({super.key});
 
@@ -16,8 +16,9 @@ class PengaturanScreen extends StatefulWidget {
 class _PengaturanScreenState extends State<PengaturanScreen> {
   bool _notifAbsensi = true;
   bool _notifPengumuman = true;
-  final bool _modeGelap = false;
   bool _isLoadingPref = true;
+  bool _isSavingAbsensi = false;
+  bool _isSavingPengumuman = false;
 
   @override
   void initState() {
@@ -41,8 +42,8 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
 
       if (row != null && mounted) {
         setState(() {
-          _notifAbsensi = row['notif_absensi'] as bool;
-          _notifPengumuman = row['notif_pengumuman'] as bool;
+          _notifAbsensi = (row['notif_absensi'] as bool?) ?? true;
+          _notifPengumuman = (row['notif_pengumuman'] as bool?) ?? true;
         });
       }
     } catch (_) {
@@ -52,7 +53,7 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
     }
   }
 
-  Future<void> _simpanPreferensi() async {
+  Future<void> _simpanPreferensiNotif() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -70,6 +71,38 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
         );
       }
     }
+  }
+
+  Future<void> _onToggleAbsensi(bool value) async {
+    setState(() {
+      _notifAbsensi = value;
+      _isSavingAbsensi = true;
+    });
+
+    if (value) {
+      await NotificationService.instance.enableAbsensiReminder();
+    } else {
+      await NotificationService.instance.disableAbsensiReminder();
+    }
+    await _simpanPreferensiNotif();
+
+    if (mounted) setState(() => _isSavingAbsensi = false);
+  }
+
+  Future<void> _onTogglePengumuman(bool value) async {
+    setState(() {
+      _notifPengumuman = value;
+      _isSavingPengumuman = true;
+    });
+
+    if (value) {
+      await NotificationService.instance.enablePengumumanNotif();
+    } else {
+      await NotificationService.instance.disablePengumumanNotif();
+    }
+    await _simpanPreferensiNotif();
+
+    if (mounted) setState(() => _isSavingPengumuman = false);
   }
 
   @override
@@ -94,21 +127,17 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                         title: 'Pengingat Absensi',
                         subtitle: 'Notifikasi jam masuk & pulang',
                         value: _notifAbsensi,
-                        onChanged: (v) {
-                          setState(() => _notifAbsensi = v);
-                          _simpanPreferensi();
-                        },
+                        isBusy: _isSavingAbsensi,
+                        onChanged: _onToggleAbsensi,
                       ),
-                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
+                      _ThemedDivider(),
                       _SwitchRow(
                         icon: Icons.campaign_rounded,
                         title: 'Pengumuman Kantor',
                         subtitle: 'Info & pengumuman dari PDAM',
                         value: _notifPengumuman,
-                        onChanged: (v) {
-                          setState(() => _notifPengumuman = v);
-                          _simpanPreferensi();
-                        },
+                        isBusy: _isSavingPengumuman,
+                        onChanged: _onTogglePengumuman,
                         isLast: true,
                       ),
                     ],
@@ -117,16 +146,21 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                 const SizedBox(height: 22),
                 const _SectionLabel('TAMPILAN'),
                 const SizedBox(height: 10),
-                InfoCard(
-                  padding: EdgeInsets.zero,
-                  child: _SwitchRow(
-                    icon: Icons.dark_mode_rounded,
-                    title: 'Mode Gelap',
-                    subtitle: 'Segera hadir',
-                    value: _modeGelap,
-                    onChanged: null,
-                    isLast: true,
-                  ),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: ThemeController.instance.themeMode,
+                  builder: (context, mode, _) {
+                    return InfoCard(
+                      padding: EdgeInsets.zero,
+                      child: _SwitchRow(
+                        icon: Icons.dark_mode_rounded,
+                        title: 'Mode Gelap',
+                        subtitle: mode == ThemeMode.dark ? 'Aktif' : 'Nonaktif',
+                        value: mode == ThemeMode.dark,
+                        onChanged: (v) => ThemeController.instance.setDark(v),
+                        isLast: true,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 22),
                 const _SectionLabel('LAINNYA'),
@@ -136,22 +170,24 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                   child: Column(
                     children: [
                       _NavRow(
-                        icon: Icons.lock_outline_rounded,
-                        title: 'Ubah Kata Sandi',
-                        onTap: () => _showUbahPasswordDialog(context),
-                      ),
-                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
-                      _NavRow(
                         icon: Icons.privacy_tip_outlined,
                         title: 'Kebijakan Privasi',
-                        onTap: () => _showComingSoon(context),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const KebijakanPrivasiScreen(),
+                          ),
+                        ),
                       ),
-                      const Divider(height: 1, color: Color(0xFFF0F2F5)),
+                      _ThemedDivider(),
                       _NavRow(
                         icon: Icons.info_outline_rounded,
                         title: 'Tentang Aplikasi',
                         subtitle: 'SIMPEG Mobile V3',
-                        onTap: () => _showComingSoon(context),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TentangAplikasiScreen(),
+                          ),
+                        ),
                         isLast: true,
                       ),
                     ],
@@ -168,130 +204,17 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
             ),
     );
   }
+}
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Fitur ini sedang dalam pengembangan.'),
-        backgroundColor: FeatureScaffold.accent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  /// Dialog ubah kata sandi -- terhubung langsung ke Supabase Auth.
-  /// Supabase mewajibkan re-autentikasi implisit lewat sesi aktif, jadi
-  /// cukup panggil updateUser tanpa perlu password lama (selama sesi
-  /// masih valid). Kalau ingin mewajibkan konfirmasi password lama,
-  /// tambahkan langkah signInWithPassword ulang sebelum updateUser.
-  Future<void> _showUbahPasswordDialog(BuildContext context) async {
-    final passwordController = TextEditingController();
-    final confirmController = TextEditingController();
-    bool isSubmitting = false;
-    String? errorText;
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              title: const Text('Ubah Kata Sandi',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Kata Sandi Baru',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: confirmController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Konfirmasi Kata Sandi',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(errorText!,
-                        style:
-                            const TextStyle(color: Colors.red, fontSize: 12.5)),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          final pass = passwordController.text;
-                          final confirm = confirmController.text;
-
-                          if (pass.length < 6) {
-                            setDialogState(() =>
-                                errorText = 'Kata sandi minimal 6 karakter.');
-                            return;
-                          }
-                          if (pass != confirm) {
-                            setDialogState(
-                                () => errorText = 'Konfirmasi tidak cocok.');
-                            return;
-                          }
-
-                          setDialogState(() {
-                            isSubmitting = true;
-                            errorText = null;
-                          });
-
-                          try {
-                            await Supabase.instance.client.auth.updateUser(
-                              UserAttributes(password: pass),
-                            );
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Kata sandi berhasil diubah.'),
-                                  backgroundColor: Color(0xFF27AE60),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            setDialogState(() {
-                              isSubmitting = false;
-                              errorText = 'Gagal mengubah kata sandi: $e';
-                            });
-                          }
-                        },
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Simpan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+/// Divider tipis yang otomatis menyesuaikan warna dengan tema aktif,
+/// dipakai sebagai pemisah antar baris di dalam InfoCard.
+class _ThemedDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Divider(
+      height: 1,
+      color: isDark ? const Color(0xFF2A3342) : const Color(0xFFF0F2F5),
     );
   }
 }
@@ -302,18 +225,22 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11.5,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF8B98A9),
+        color: isDark ? const Color(0xFF6D7A8A) : const Color(0xFF8B98A9),
         letterSpacing: 0.6,
       ),
     );
   }
 }
 
+/// Baris switch yang responsif: judul & subjudul boleh membungkus lebih
+/// dari 1 baris (mis. di layar sempit) tanpa membuat ikon/switch
+/// kehilangan posisi, karena `Row` disejajarkan ke atas (bukan tengah).
 class _SwitchRow extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -321,6 +248,7 @@ class _SwitchRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool isLast;
+  final bool isBusy;
 
   const _SwitchRow({
     required this.icon,
@@ -329,19 +257,25 @@ class _SwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.isLast = false,
+    this.isBusy = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FB),
+              color: isDark
+                  ? FeatureScaffold.accent.withOpacity(0.18)
+                  : const Color(0xFFEAF2FB),
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
@@ -351,31 +285,45 @@ class _SwitchRow extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  softWrap: true,
+                  style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1B2733),
+                    color: isDark ? Colors.white : const Color(0xFF1B2733),
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: Color(0xFF8B98A9)),
+                    softWrap: true,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark
+                          ? const Color(0xFF9AA6B2)
+                          : const Color(0xFF8B98A9),
+                    ),
                   ),
                 ],
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeTrackColor: FeatureScaffold.accent,
-          ),
+          const SizedBox(width: 8),
+          isBusy
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                )
+              : Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeTrackColor: FeatureScaffold.accent,
+                ),
         ],
       ),
     );
@@ -399,10 +347,11 @@ class _NavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.vertical(
-        top: isLast ? Radius.zero : Radius.zero,
         bottom: isLast ? const Radius.circular(16) : Radius.zero,
       ),
       child: Padding(
@@ -413,7 +362,9 @@ class _NavRow extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FB),
+                color: isDark
+                    ? FeatureScaffold.accent.withOpacity(0.18)
+                    : const Color(0xFFEAF2FB),
                 borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
@@ -426,24 +377,33 @@ class _NavRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    softWrap: true,
+                    style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1B2733),
+                      color: isDark ? Colors.white : const Color(0xFF1B2733),
                     ),
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(
-                          fontSize: 11.5, color: Color(0xFF8B98A9)),
+                      softWrap: true,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark
+                            ? const Color(0xFF9AA6B2)
+                            : const Color(0xFF8B98A9),
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFB9C2CC)),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? const Color(0xFF4A5568) : const Color(0xFFB9C2CC),
+            ),
           ],
         ),
       ),

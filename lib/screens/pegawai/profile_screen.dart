@@ -28,13 +28,16 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _buildHeader(context),
+          _buildHeader(context, isSmallScreen),
           Transform.translate(
             offset: const Offset(0, -28),
             child: Padding(
@@ -42,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildIdentityCard(),
+                  _buildIdentityCard(isSmallScreen),
                   const SizedBox(height: 22),
                   const _SectionLabel('INFORMASI SAYA'),
                   const SizedBox(height: 10),
@@ -57,6 +60,7 @@ class ProfileScreen extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const GolonganScreen()),
                         ),
+                        isSmallScreen: isSmallScreen,
                       ),
                       const _TileDivider(),
                       _MenuTile(
@@ -68,6 +72,7 @@ class ProfileScreen extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const AbsensiScreen()),
                         ),
+                        isSmallScreen: isSmallScreen,
                       ),
                       const _TileDivider(),
                       _MenuTile(
@@ -79,6 +84,7 @@ class ProfileScreen extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const PendidikanScreen()),
                         ),
+                        isSmallScreen: isSmallScreen,
                       ),
                       const _TileDivider(),
                       _MenuTile(
@@ -90,6 +96,7 @@ class ProfileScreen extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const KeluargaScreen()),
                         ),
+                        isSmallScreen: isSmallScreen,
                       ),
                       const _TileDivider(),
                       _MenuTile(
@@ -102,6 +109,7 @@ class ProfileScreen extends StatelessWidget {
                               builder: (_) => const PrestasiSanksiScreen()),
                         ),
                         isLast: true,
+                        isSmallScreen: isSmallScreen,
                       ),
                     ],
                   ),
@@ -120,16 +128,20 @@ class ProfileScreen extends StatelessWidget {
                               builder: (_) => const PengaturanScreen()),
                         ),
                         isLast: true,
+                        isSmallScreen: isSmallScreen,
                       ),
                     ],
                   ),
                   const SizedBox(height: 22),
-                  _buildLogoutButton(context),
+                  _buildLogoutButton(context, isSmallScreen),
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
                       'PERUMDAM Tirta Darma Ayu • v1.0.0',
-                      style: TextStyle(fontSize: 11, color: hintGrey),
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10.0 : 11.0,
+                        color: hintGrey,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -142,18 +154,22 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isSmallScreen) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         20,
-        MediaQuery.of(context).padding.top + 12,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 12.0),
         20,
-        64,
+        isSmallScreen ? 56.0 : 64.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [navy, navy.withOpacity(0.85), const Color(0xFF123A85)],
+          colors: [
+            navy,
+            navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -169,9 +185,9 @@ class ProfileScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.18)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -182,9 +198,9 @@ class ProfileScreen extends StatelessWidget {
                   Text(
                     'PERUMDAM TIRTA DARMA AYU',
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: isSmallScreen ? 7.0 : 9.0,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       letterSpacing: 0.6,
                     ),
                   ),
@@ -199,23 +215,23 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.maybePop(context),
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: isSmallScreen ? 28.0 : 36.0,
+                  height: isSmallScreen ? 28.0 : 36.0,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.14),
+                    color: Colors.white.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.chevron_left_rounded,
-                      color: Colors.white, size: 22),
+                  child: Icon(Icons.chevron_left_rounded,
+                      color: Colors.white, size: isSmallScreen ? 18.0 : 22.0),
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Profil Saya',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
+                    fontSize: isSmallScreen ? 15.0 : 17.0,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -227,16 +243,16 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIdentityCard() {
+  Widget _buildIdentityCard(bool isSmallScreen) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isSmallScreen ? 14.0 : 18.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -248,8 +264,8 @@ class ProfileScreen extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: isSmallScreen ? 50.0 : 60.0,
+                height: isSmallScreen ? 50.0 : 60.0,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -261,9 +277,9 @@ class ProfileScreen extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   user.initials,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: isSmallScreen ? 17.0 : 20.0,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -272,8 +288,8 @@ class ProfileScreen extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  width: 13,
-                  height: 13,
+                  width: isSmallScreen ? 11.0 : 13.0,
+                  height: isSmallScreen ? 11.0 : 13.0,
                   decoration: BoxDecoration(
                     color: const Color(0xFF27AE60),
                     shape: BoxShape.circle,
@@ -292,8 +308,8 @@ class ProfileScreen extends StatelessWidget {
                   '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15.5,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 14.0 : 15.5,
                     fontWeight: FontWeight.bold,
                     color: labelDark,
                   ),
@@ -303,20 +319,23 @@ class ProfileScreen extends StatelessWidget {
                   user.jabatan,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: hintGrey),
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 11.0 : 12.0,
+                    color: hintGrey,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.1),
+                    color: accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'NIK ${user.nik}',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10.0 : 11.0,
                       fontWeight: FontWeight.w700,
                       color: accent,
                     ),
@@ -330,17 +349,20 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildLogoutButton(BuildContext context, bool isSmallScreen) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: isSmallScreen ? 44.0 : 50.0,
       child: OutlinedButton.icon(
         onPressed: () => _confirmLogout(context),
-        icon: const Icon(Icons.logout_rounded, size: 18, color: danger),
-        label: const Text(
+        icon: Icon(Icons.logout_rounded, size: isSmallScreen ? 16.0 : 18.0,
+            color: danger),
+        label: Text(
           'Keluar',
           style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w700, color: danger),
+              fontSize: isSmallScreen ? 13.0 : 14.0,
+              fontWeight: FontWeight.w700,
+              color: danger),
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: danger, width: 1.2),
@@ -431,7 +453,7 @@ class _MenuCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -461,6 +483,7 @@ class _MenuTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   final bool isLast;
+  final bool isSmallScreen;
 
   const _MenuTile({
     required this.icon,
@@ -469,6 +492,7 @@ class _MenuTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.isLast = false,
+    this.isSmallScreen = false,
   });
 
   @override
@@ -482,18 +506,22 @@ class _MenuTile extends StatelessWidget {
           bottom: isLast ? const Radius.circular(16) : Radius.zero,
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 14.0 : 16.0,
+            vertical: isSmallScreen ? 12.0 : 14.0,
+          ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: isSmallScreen ? 36.0 : 40.0,
+                height: isSmallScreen ? 36.0 : 40.0,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(icon, size: 19, color: iconColor),
+                child: Icon(icon, size: isSmallScreen ? 17.0 : 19.0,
+                    color: iconColor),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -502,8 +530,8 @@ class _MenuTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 13.5,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 12.5 : 13.5,
                         fontWeight: FontWeight.w700,
                         color: ProfileScreen.labelDark,
                       ),
@@ -513,8 +541,8 @@ class _MenuTile extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10.5 : 11.5,
                         color: ProfileScreen.hintGrey,
                       ),
                     ),

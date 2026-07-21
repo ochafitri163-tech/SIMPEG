@@ -240,6 +240,9 @@ class _AbsensiDetailScreenState extends State<AbsensiDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
     return FeatureScaffold(
       title: 'Absensi',
       subtitle: 'Rincian jam kedatangan',
@@ -271,7 +274,7 @@ class _AbsensiDetailScreenState extends State<AbsensiDetailScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(isSmallScreen ? 16.0 : 20.0),
               children: [
                 _StatusBanner(
                   positif: tidakAdaTelat,
@@ -283,18 +286,18 @@ class _AbsensiDetailScreenState extends State<AbsensiDetailScreen> {
                       : 'Total $totalTelat3Bulan hari tercatat masuk setelah 09.01',
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'RINCIAN JAM KEDATANGAN PER PERIODE',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: isSmallScreen ? 10.5 : 11.5,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF8B98A9),
+                    color: const Color(0xFF8B98A9),
                     letterSpacing: 0.6,
                   ),
                 ),
                 const SizedBox(height: 12),
                 for (final periode in periods) ...[
-                  _PeriodeCard(data: periode),
+                  _PeriodeCard(data: periode, isSmallScreen: isSmallScreen),
                   const SizedBox(height: 16),
                 ],
               ],
@@ -320,18 +323,19 @@ class _StatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = positif ? const Color(0xFF27AE60) : const Color(0xFFE67E22);
+    final isSmallScreen = MediaQuery.of(context).size.width < 400;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isSmallScreen ? 14.0 : 18.0),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.85)],
+          colors: [color, color.withValues(alpha: 0.85)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -340,8 +344,8 @@ class _StatusBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: isSmallScreen ? 34.0 : 40.0,
+            height: isSmallScreen ? 34.0 : 40.0,
             decoration: const BoxDecoration(
               color: Colors.white24,
               shape: BoxShape.circle,
@@ -349,7 +353,7 @@ class _StatusBanner extends StatelessWidget {
             child: Icon(
               positif ? Icons.check_rounded : Icons.priority_high_rounded,
               color: Colors.white,
-              size: 22,
+              size: isSmallScreen ? 18.0 : 22.0,
             ),
           ),
           const SizedBox(width: 14),
@@ -359,18 +363,18 @@ class _StatusBanner extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: isSmallScreen ? 12.5 : 14.0,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: isSmallScreen ? 11.0 : 12.0,
                   ),
                 ),
               ],
@@ -384,19 +388,20 @@ class _StatusBanner extends StatelessWidget {
 
 class _PeriodeCard extends StatelessWidget {
   final MonthlyArrivalBucket data;
+  final bool isSmallScreen;
 
-  const _PeriodeCard({required this.data});
+  const _PeriodeCard({required this.data, this.isSmallScreen = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -407,10 +412,10 @@ class _PeriodeCard extends StatelessWidget {
         children: [
           Text(
             data.label,
-            style: const TextStyle(
-              fontSize: 15,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 13.0 : 15.0,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1B2733),
+              color: const Color(0xFF1B2733),
             ),
           ),
           const SizedBox(height: 12),
@@ -421,6 +426,7 @@ class _PeriodeCard extends StatelessWidget {
                   label: '07.31 – 08.00',
                   value: data.bucket0731_0800,
                   color: const Color(0xFF27AE60),
+                  isSmallScreen: isSmallScreen,
                 ),
               ),
               const SizedBox(width: 10),
@@ -429,6 +435,7 @@ class _PeriodeCard extends StatelessWidget {
                   label: '08.01 – 08.30',
                   value: data.bucket0801_0830,
                   color: const Color(0xFF27AE60),
+                  isSmallScreen: isSmallScreen,
                 ),
               ),
             ],
@@ -441,6 +448,7 @@ class _PeriodeCard extends StatelessWidget {
                   label: '08.31 – 09.00',
                   value: data.bucket0831_0900,
                   color: const Color(0xFFE67E22),
+                  isSmallScreen: isSmallScreen,
                 ),
               ),
               const SizedBox(width: 10),
@@ -449,6 +457,7 @@ class _PeriodeCard extends StatelessWidget {
                   label: '> 09.01',
                   value: data.bucketAfter0901,
                   color: const Color(0xFFE74C3C),
+                  isSmallScreen: isSmallScreen,
                 ),
               ),
             ],
@@ -459,6 +468,7 @@ class _PeriodeCard extends StatelessWidget {
             value: data.pulangSebelum1600,
             color: const Color(0xFF27AE60),
             fullWidth: true,
+            isSmallScreen: isSmallScreen,
           ),
         ],
       ),
@@ -471,19 +481,24 @@ class _BucketTile extends StatelessWidget {
   final int value;
   final Color color;
   final bool fullWidth;
+  final bool isSmallScreen;
 
   const _BucketTile({
     required this.label,
     required this.value,
     required this.color,
     this.fullWidth = false,
+    this.isSmallScreen = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: fullWidth ? double.infinity : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 10.0 : 12.0,
+        vertical: isSmallScreen ? 8.0 : 10.0,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF3F6F9),
         borderRadius: BorderRadius.circular(12),
@@ -493,13 +508,16 @@ class _BucketTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: isSmallScreen ? 10.5 : 11.5,
+              color: Colors.grey[600],
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             '$value hr',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isSmallScreen ? 12.5 : 14.0,
               fontWeight: FontWeight.bold,
               color: color,
             ),

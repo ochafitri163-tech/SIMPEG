@@ -13,6 +13,9 @@ import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
 /// login dari tabel `attendance` di Supabase (sama seperti di
@@ -21,6 +24,16 @@ import 'absensi_detail_screen.dart';
 Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
   final userId = Supabase.instance.client.auth.currentUser?.id;
   final now = DateTime.now();
+  final response = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/albums/1'));
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to fetch attendance summary');
+  } else {
+    final data = jsonDecode(response.body);
+    // Parse the response body and create an AttendanceSummary object
+    // You may need to adjust this based on the actual response structure
+    print(data);
+  }
 
   const bulanList = [
     '',
@@ -119,6 +132,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   // ==================== TAB: BERANDA ====================
   Widget _buildBerandaTab() {
     final firstName = widget.user.name.split(' ').first;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    final crossAxisCount = isSmallScreen ? 2 : 3;
 
     final menuItems = <_QuickMenuItem>[
       _QuickMenuItem(
@@ -160,12 +176,12 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(firstName),
+              _buildHeader(firstName, isSmallScreen),
               Transform.translate(
                 offset: const Offset(0, -28),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildScheduleCard(),
+                  child: _buildScheduleCard(isSmallScreen),
                 ),
               ),
               Padding(
@@ -173,13 +189,16 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'RINGKASAN KEHADIRAN · ${summary.bulanLabel.toUpperCase()}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF7F8C8D),
+                    Flexible(
+                      child: Text(
+                        'RINGKASAN KEHADIRAN · ${summary.bulanLabel.toUpperCase()}',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 9 : 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: const Color(0xFF7F8C8D),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     InkWell(
@@ -189,12 +208,12 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _accent.withOpacity(0.1),
+                          color: _accent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Text(
                               'Detail',
                               style: TextStyle(
@@ -220,21 +239,21 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                         padding: EdgeInsets.symmetric(vertical: 24),
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    : _buildAttendanceSection(summary),
+                    : _buildAttendanceSection(summary, isSmallScreen),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: _buildInfoBanner(summary),
+                child: _buildInfoBanner(summary, isSmallScreen),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                child: const Text(
+                child: Text(
                   'MENU UTAMA',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: isSmallScreen ? 10 : 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
-                    color: Color(0xFF7F8C8D),
+                    color: const Color(0xFF7F8C8D),
                   ),
                 ),
               ),
@@ -244,11 +263,11 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: menuItems.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 0.8,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: isSmallScreen ? 12 : 16,
+                    crossAxisSpacing: isSmallScreen ? 12 : 16,
+                    childAspectRatio: isSmallScreen ? 0.9 : 0.8,
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
@@ -259,6 +278,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                           MaterialPageRoute(builder: item.builder),
                         );
                       },
+                      isSmallScreen: isSmallScreen,
                     );
                   },
                 ),
@@ -270,18 +290,22 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
-  Widget _buildHeader(String firstName) {
+  Widget _buildHeader(String firstName, bool isSmallScreen) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         20,
-        MediaQuery.of(context).padding.top + 16,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 16.0),
         20,
-        56,
+        isSmallScreen ? 40.0 : 56.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_navy, _navy.withOpacity(0.85), const Color(0xFF123A85)],
+          colors: [
+            _navy,
+            _navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -291,7 +315,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         ),
         boxShadow: [
           BoxShadow(
-            color: _navy.withOpacity(0.2),
+            color: _navy.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -303,9 +327,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.18)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -316,9 +340,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 Text(
                   'PERUMDAM TIRTA DARMA AYU',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: isSmallScreen ? 7 : 9,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white.withOpacity(0.75),
+                    color: Colors.white.withValues(alpha: 0.75),
                     letterSpacing: 0.6,
                   ),
                 ),
@@ -344,30 +368,30 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                       child: Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: isSmallScreen ? 40.0 : 48.0,
+                            height: isSmallScreen ? 40.0 : 48.0,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Colors.white.withOpacity(0.3),
-                                  Colors.white.withOpacity(0.1)
+                                  Colors.white.withValues(alpha: 0.3),
+                                  Colors.white.withValues(alpha: 0.1)
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                  color: Colors.white.withOpacity(0.4),
+                                  color: Colors.white.withValues(alpha: 0.4),
                                   width: 2),
                             ),
                             child: Text(
                               firstName.isNotEmpty
                                   ? firstName[0].toUpperCase()
                                   : '?',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 20,
+                                fontSize: isSmallScreen ? 16.0 : 20.0,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -382,9 +406,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                                   'Hai, $firstName! 👋',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 18,
+                                    fontSize: isSmallScreen ? 15.0 : 18.0,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -394,8 +418,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: isSmallScreen ? 10.0 : 12.0,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -423,7 +447,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
-  Widget _buildScheduleCard() {
+  Widget _buildScheduleCard(bool isSmallScreen) {
     final now = DateTime.now();
     const hariList = [
       'Senin',
@@ -455,18 +479,21 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 14.0 : 18.0,
+        vertical: isSmallScreen ? 12.0 : 16.0,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: _accent.withOpacity(0.04),
+            color: _accent.withValues(alpha: 0.04),
             blurRadius: 30,
             offset: const Offset(0, 4),
           ),
@@ -478,7 +505,10 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [_accent.withOpacity(0.15), _accent.withOpacity(0.05)],
+                colors: [
+                  _accent.withValues(alpha: 0.15),
+                  _accent.withValues(alpha: 0.05)
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -494,8 +524,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               children: [
                 Text(
                   tanggal,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 12.0 : 14.0,
                     fontWeight: FontWeight.w700,
                     color: _navy,
                   ),
@@ -515,7 +545,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _accent.withOpacity(0.08),
+              color: _accent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
@@ -532,59 +562,63 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
-  Widget _buildAttendanceSection(AttendanceSummary summary) {
+  Widget _buildAttendanceSection(
+      AttendanceSummary summary, bool isSmallScreen) {
+    if (isSmallScreen) {
+      return Column(
+        children: [
+          _buildStatChips(summary),
+          const SizedBox(height: 12),
+          _buildBars(summary),
+        ],
+      );
+    } else {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 6,
+              child: _buildBars(summary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 5,
+              child: _buildStatChips(summary),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildBars(AttendanceSummary summary) {
     final maxVal = [summary.hadir, summary.telat, summary.izin]
         .reduce((a, b) => a > b ? a : b);
 
-    return IntrinsicHeight(
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Expanded(
-            flex: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _buildBar('Hadir', summary.hadir, maxVal,
-                      const Color(0xFF27AE60), Icons.check_circle_rounded),
-                  _buildBar('Telat', summary.telat, maxVal,
-                      const Color(0xFFF39C12), Icons.warning_rounded),
-                  _buildBar('Izin', summary.izin, maxVal,
-                      const Color(0xFFE74C3C), Icons.cancel_rounded),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 5,
-            child: Column(
-              children: [
-                _buildStatChip('Hadir', '${summary.hadir} Hari',
-                    const Color(0xFF27AE60), Icons.check_circle_rounded),
-                const SizedBox(height: 8),
-                _buildStatChip('Telat', '${summary.telat} Hari',
-                    const Color(0xFFF39C12), Icons.warning_rounded),
-                const SizedBox(height: 8),
-                _buildStatChip('Izin', '${summary.izin} Hari',
-                    const Color(0xFFE74C3C), Icons.cancel_rounded),
-              ],
-            ),
-          ),
+          _buildBar('Hadir', summary.hadir, maxVal, const Color(0xFF27AE60),
+              Icons.check_circle_rounded),
+          _buildBar('Telat', summary.telat, maxVal, const Color(0xFFF39C12),
+              Icons.warning_rounded),
+          _buildBar('Izin', summary.izin, maxVal, const Color(0xFFE74C3C),
+              Icons.cancel_rounded),
         ],
       ),
     );
@@ -592,7 +626,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   Widget _buildBar(
       String label, int value, int maxVal, Color color, IconData icon) {
-    final height = maxVal == 0 ? 8.0 : 12 + (value / maxVal) * 70;
+    final height = maxVal == 0 ? 8.0 : 12.0 + (value / maxVal) * 70.0;
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -604,7 +638,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               height: height,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color.withOpacity(0.7), color],
+                  colors: [color.withValues(alpha: 0.7), color],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
@@ -614,8 +648,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             if (value > 0)
               Positioned(
                 top: 2,
-                child:
-                    Icon(icon, color: Colors.white.withOpacity(0.9), size: 12),
+                child: Icon(icon,
+                    color: Colors.white.withValues(alpha: 0.9), size: 12),
               ),
           ],
         ),
@@ -640,6 +674,21 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
+  Widget _buildStatChips(AttendanceSummary summary) {
+    return Column(
+      children: [
+        _buildStatChip('Hadir', '${summary.hadir} Hari',
+            const Color(0xFF27AE60), Icons.check_circle_rounded),
+        const SizedBox(height: 8),
+        _buildStatChip('Telat', '${summary.telat} Hari',
+            const Color(0xFFF39C12), Icons.warning_rounded),
+        const SizedBox(height: 8),
+        _buildStatChip('Izin', '${summary.izin} Hari', const Color(0xFFE74C3C),
+            Icons.cancel_rounded),
+      ],
+    );
+  }
+
   Widget _buildStatChip(
       String label, String value, Color color, IconData icon) {
     return Container(
@@ -650,7 +699,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -688,7 +737,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
-  Widget _buildInfoBanner(AttendanceSummary summary) {
+  Widget _buildInfoBanner(AttendanceSummary summary, bool isSmallScreen) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -696,18 +745,21 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         borderRadius: BorderRadius.circular(18),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12.0 : 16.0,
+            vertical: isSmallScreen ? 12.0 : 14.0,
+          ),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFFE4F1FB), const Color(0xFFEAF5FB)],
+            gradient: const LinearGradient(
+              colors: [Color(0xFFE4F1FB), Color(0xFFEAF5FB)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _accent.withOpacity(0.1)),
+            border: Border.all(color: _accent.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: _accent.withOpacity(0.05),
+                color: _accent.withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -738,8 +790,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   children: [
                     Text(
                       'Hanya ${summary.telat} kali Telat dan ${summary.izin} kali Izin bulan ini',
-                      style: const TextStyle(
-                        fontSize: 12.5,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 11.0 : 12.5,
                         fontWeight: FontWeight.w700,
                         color: _navy,
                       ),
@@ -758,8 +810,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               ),
               const Padding(
                 padding: EdgeInsets.only(top: 6),
-                child: Icon(Icons.chevron_right_rounded,
-                    color: _accent, size: 18),
+                child:
+                    Icon(Icons.chevron_right_rounded, color: _accent, size: 18),
               ),
             ],
           ),
@@ -770,63 +822,93 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   // ==================== BOTTOM NAVIGATION BAR ====================
   Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+    const items = [
+      (icon: Icons.home_rounded, index: 0),
+      (icon: Icons.fact_check_rounded, index: 1),
+      (icon: Icons.person_rounded, index: 2),
+    ];
+
+    return SizedBox(
+      height: 78,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          // Bar putih flat di bawah
+          Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: items
+                    .map((it) => Expanded(
+                          child: _buildNavItem(
+                            icon: it.icon,
+                            index: it.index,
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              _buildNavItem(Icons.home_rounded, 'Beranda', 0),
-              _buildNavItem(Icons.fact_check_rounded, 'Pengaduan', 1),
-              _buildNavItem(Icons.person_outline_rounded, 'Profil', 2),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem({required IconData icon, required int index}) {
     final isActive = _bottomNavIndex == index;
-    final color = isActive ? _accent : const Color(0xFF95A5A6);
-    return Expanded(
+
+    return Center(
       child: InkWell(
         onTap: () => _onBottomNavTap(index),
-        borderRadius: BorderRadius.circular(30),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: isActive ? _accent.withOpacity(0.08) : Colors.transparent,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 22),
-              if (isActive) ...[
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _accent,
-                  ),
-                ),
-              ],
-            ],
+        customBorder: const CircleBorder(),
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutBack,
+          offset: isActive ? const Offset(0, -0.28) : Offset.zero,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            width: isActive ? 52 : 44,
+            height: isActive ? 52 : 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isActive
+                  ? LinearGradient(
+                      colors: [_accent, _navy],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: _accent.withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? Colors.white : const Color(0xFF9AA5B1),
+              size: isActive ? 24 : 22,
+            ),
           ),
         ),
       ),
@@ -850,13 +932,22 @@ class _QuickMenuItem {
 class _QuickMenuCircle extends StatelessWidget {
   final _QuickMenuItem item;
   final VoidCallback onTap;
-  const _QuickMenuCircle({required this.item, required this.onTap});
+  final bool isSmallScreen;
+  const _QuickMenuCircle({
+    required this.item,
+    required this.onTap,
+    this.isSmallScreen = false,
+  });
 
   static const Color _accent = Color(0xFF2E86AB);
   static const Color _navy = Color(0xFF0D2C6E);
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = isSmallScreen ? 24.0 : 28.0;
+    final fontSize = isSmallScreen ? 10.0 : 11.5;
+    final containerSize = isSmallScreen ? 56.0 : 64.0;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -867,12 +958,12 @@ class _QuickMenuCircle extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
             BoxShadow(
-              color: _accent.withOpacity(0.04),
+              color: _accent.withValues(alpha: 0.04),
               blurRadius: 20,
               offset: const Offset(0, 2),
             ),
@@ -886,8 +977,8 @@ class _QuickMenuCircle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: containerSize,
+              height: containerSize,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_accent, _navy],
@@ -897,13 +988,13 @@ class _QuickMenuCircle extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: _accent.withOpacity(0.3),
+                    color: _accent.withValues(alpha: 0.3),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
                 ],
               ),
-              child: Icon(item.icon, color: Colors.white, size: 28),
+              child: Icon(item.icon, color: Colors.white, size: iconSize),
             ),
             const SizedBox(height: 10),
             Text(
@@ -911,11 +1002,11 @@ class _QuickMenuCircle extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
+              style: TextStyle(
+                fontSize: fontSize,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
-                color: Color(0xFF2C3E50),
+                color: const Color(0xFF2C3E50),
               ),
             ),
           ],

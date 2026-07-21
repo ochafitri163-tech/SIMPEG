@@ -10,12 +10,35 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # UI & Icons
   cupertino_icons: ^1.0.6
+  google_fonts: ^6.2.1
+
+  # PDF & Printing
   pdf: ^3.10.8
   printing: ^5.13.1
-  google_fonts: ^6.2.1
+
+  # Image Picker
   image_picker: ^1.1.2
+
+  # Supabase & HTTP
   supabase_flutter: ^2.8.0
+  http: ^1.6.0
+
+  # State Management & Preferences
+  provider: ^6.1.1
+  shared_preferences: ^2.3.3
+
+  # Local Notifications
+  flutter_local_notifications: ^17.2.4
+
+  # Utilities
+  intl: ^0.19.0
+  url_launcher: ^6.2.5
+  timezone: ^0.9.4
+  package_info_plus: ^8.1.2
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

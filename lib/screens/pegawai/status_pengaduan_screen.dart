@@ -4,10 +4,7 @@ import '../../models/pengaduan_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
-/// Halaman "Status Pengaduan" — menampilkan riwayat seluruh pengaduan
-/// milik pegawai yang sedang login (query difilter pelapor_id = user
-/// yang login, BUKAN semua pengaduan seperti versi lama yang memakai
-/// PengaduanRepository.semua), lengkap dengan pencarian & filter.
+
 class StatusPengaduanScreen extends StatefulWidget {
   final bool showBackButton;
   const StatusPengaduanScreen({super.key, this.showBackButton = true});
@@ -99,11 +96,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final isSmallScreen = MediaQuery.of(context).size.width < 400;
             return SafeArea(
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
+                  left: isSmallScreen ? 16.0 : 20.0,
+                  right: isSmallScreen ? 16.0 : 20.0,
                   top: 10,
                   bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                 ),
@@ -164,7 +162,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         return FilterChip(
                           label: Text(s.label,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: isSmallScreen ? 10.5 : 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: selected ? Colors.white : s.color,
                               )),
@@ -179,9 +177,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             });
                           },
                           selectedColor: s.color,
-                          backgroundColor: s.color.withOpacity(0.1),
+                          backgroundColor: s.color.withValues(alpha: 0.1),
                           checkmarkColor: Colors.white,
-                          side: BorderSide(color: s.color.withOpacity(0.3)),
+                          side: BorderSide(color: s.color.withValues(alpha: 0.3)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -203,7 +201,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         return ChoiceChip(
                           label: Text(c,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: isSmallScreen ? 10.5 : 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: selected ? Colors.white : labelDark,
                               )),
@@ -273,7 +271,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                     ? 'Pilih rentang tanggal'
                                     : '${formatTanggalIndonesia(tempTanggal!.start)}  —  ${formatTanggalIndonesia(tempTanggal!.end)}',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: isSmallScreen ? 11.0 : 12.0,
                                   fontWeight: FontWeight.w600,
                                   color: tempTanggal == null
                                       ? hintGrey
@@ -322,6 +320,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
@@ -331,7 +332,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Column(
               children: [
-                _buildHeader(),
+                _buildHeader(isSmallScreen),
                 const Expanded(
                   child: Center(child: CircularProgressIndicator()),
                 ),
@@ -342,7 +343,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           if (snapshot.hasError) {
             return Column(
               children: [
-                _buildHeader(),
+                _buildHeader(isSmallScreen),
                 Expanded(
                   child: Center(
                     child: Padding(
@@ -364,8 +365,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
 
           return Column(
             children: [
-              _buildHeader(),
-              _buildRingkasanBar(items.length, semua),
+              _buildHeader(isSmallScreen),
+              _buildRingkasanBar(items.length, semua, isSmallScreen),
               Expanded(
                 child: items.isEmpty
                     ? EmptyState(
@@ -378,12 +379,17 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         color: accent,
                         onRefresh: _refresh,
                         child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                          padding: EdgeInsets.fromLTRB(
+                            isSmallScreen ? 16.0 : 20.0,
+                            4,
+                            isSmallScreen ? 16.0 : 20.0,
+                            24,
+                          ),
                           itemCount: items.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) =>
-                              _buildPengaduanCard(items[index]),
+                              _buildPengaduanCard(items[index], isSmallScreen),
                         ),
                       ),
               ),
@@ -394,23 +400,28 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     );
   }
 
-  Widget _buildRingkasanBar(int jumlah, List<Pengaduan> semua) {
+  Widget _buildRingkasanBar(int jumlah, List<Pengaduan> semua, bool isSmallScreen) {
     return Container(
       width: double.infinity,
       color: const Color(0xFFF3F6F9),
-      padding: EdgeInsets.fromLTRB(20, 14, 20, _adaFilterAktif ? 4 : 10),
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 16.0 : 20.0,
+        isSmallScreen ? 10.0 : 14.0,
+        isSmallScreen ? 16.0 : 20.0,
+        _adaFilterAktif ? (isSmallScreen ? 2.0 : 4.0) : (isSmallScreen ? 6.0 : 10.0),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.fact_check_rounded, size: 14, color: hintGrey),
+              Icon(Icons.fact_check_rounded, size: isSmallScreen ? 12.0 : 14.0, color: hintGrey),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   '$jumlah pengaduan ditemukan',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 11.0 : 12.0,
                     fontWeight: FontWeight.w600,
                     color: hintGrey,
                   ),
@@ -424,12 +435,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     _filterCabang = null;
                     _filterTanggal = null;
                   }),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     child: Text(
                       'Hapus semua filter',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: isSmallScreen ? 10.5 : 11.5,
                         fontWeight: FontWeight.w700,
                         color: accent,
                       ),
@@ -479,9 +490,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     return Container(
       padding: const EdgeInsets.only(left: 10, right: 6, top: 5, bottom: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -505,18 +516,22 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isSmallScreen) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-        20,
-        MediaQuery.of(context).padding.top + 12,
-        20,
-        18,
+        isSmallScreen ? 16.0 : 20.0,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 12.0),
+        isSmallScreen ? 16.0 : 20.0,
+        isSmallScreen ? 14.0 : 18.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [navy, navy.withOpacity(0.85), const Color(0xFF123A85)],
+          colors: [
+            navy,
+            navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -533,9 +548,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -546,9 +561,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     Text(
                       'PERUMDAM TIRTA DARMA AYU',
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: isSmallScreen ? 7.0 : 9.0,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         letterSpacing: 0.6,
                       ),
                     ),
@@ -565,24 +580,24 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   borderRadius: BorderRadius.circular(10),
                   onTap: () => Navigator.maybePop(context),
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: isSmallScreen ? 28.0 : 36.0,
+                    height: isSmallScreen ? 28.0 : 36.0,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.14),
+                      color: Colors.white.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.chevron_left_rounded,
-                        color: Colors.white, size: 22),
+                    child: Icon(Icons.chevron_left_rounded,
+                        color: Colors.white, size: isSmallScreen ? 18.0 : 22.0),
                   ),
                 ),
                 const SizedBox(width: 14),
               ],
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Status Pengaduan',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
+                    fontSize: isSmallScreen ? 15.0 : 17.0,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -591,10 +606,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           ),
           const SizedBox(height: 4),
           Padding(
-            padding: EdgeInsets.only(left: widget.showBackButton ? 50 : 0),
-            child: const Text(
+            padding: EdgeInsets.only(left: widget.showBackButton ? (isSmallScreen ? 42.0 : 50.0) : 0.0),
+            child: Text(
               'Riwayat seluruh pengaduan yang pernah kamu buat',
-              style: TextStyle(color: Colors.white70, fontSize: 11.5),
+              style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 10.5 : 11.5),
             ),
           ),
           const SizedBox(height: 16),
@@ -602,7 +619,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
             children: [
               Expanded(
                 child: Container(
-                  height: 44,
+                  height: isSmallScreen ? 38.0 : 44.0,
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -617,8 +634,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         child: TextField(
                           controller: _searchController,
                           onChanged: (v) => setState(() => _query = v),
-                          style:
-                              const TextStyle(fontSize: 13, color: labelDark),
+                          style: TextStyle(
+                              fontSize: isSmallScreen ? 12.0 : 13.0,
+                              color: labelDark),
                           decoration: const InputDecoration(
                             hintText: 'Cari nomor / judul pengaduan',
                             hintStyle:
@@ -641,8 +659,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => _openFilterSheet(semua),
                     child: Container(
-                      width: 44,
-                      height: 44,
+                      width: isSmallScreen ? 38.0 : 44.0,
+                      height: isSmallScreen ? 38.0 : 44.0,
                       decoration: BoxDecoration(
                         color: _adaFilterAktif ? accent : Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -650,7 +668,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       child: Icon(
                         Icons.tune_rounded,
                         color: _adaFilterAktif ? Colors.white : navy,
-                        size: 20,
+                        size: isSmallScreen ? 18.0 : 20.0,
                       ),
                     ),
                   );
@@ -681,7 +699,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     return Icons.report_gmailerrorred_rounded;
   }
 
-  Widget _buildPengaduanCard(Pengaduan p) {
+  Widget _buildPengaduanCard(Pengaduan p, bool isSmallScreen) {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -699,7 +717,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -721,7 +739,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 16, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      isSmallScreen ? 12.0 : 14.0,
+                      isSmallScreen ? 12.0 : 16.0,
+                      isSmallScreen ? 12.0 : 16.0,
+                      isSmallScreen ? 12.0 : 16.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -729,16 +752,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: isSmallScreen ? 32.0 : 38.0,
+                              height: isSmallScreen ? 32.0 : 38.0,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: accent.withOpacity(0.1),
+                                color: accent.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(11),
                               ),
                               child: Icon(
                                 _iconForKategori(p.kategori),
-                                size: 18,
+                                size: isSmallScreen ? 16.0 : 18.0,
                                 color: accent,
                               ),
                             ),
@@ -749,8 +772,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                 children: [
                                   Text(
                                     p.nomorPengaduan,
-                                    style: const TextStyle(
-                                      fontSize: 10.5,
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 9.5 : 10.5,
                                       fontWeight: FontWeight.w700,
                                       color: hintGrey,
                                       letterSpacing: 0.3,
@@ -761,8 +784,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                     p.judul,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 14,
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 13.0 : 14.0,
                                       fontWeight: FontWeight.bold,
                                       color: labelDark,
                                       height: 1.25,
@@ -771,8 +794,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                   const SizedBox(height: 3),
                                   Text(
                                     p.kategori,
-                                    style: const TextStyle(
-                                        fontSize: 11.5, color: accent),
+                                    style: TextStyle(
+                                        fontSize: isSmallScreen ? 10.5 : 11.5,
+                                        color: accent),
                                   ),
                                 ],
                               ),
@@ -783,13 +807,15 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         Row(
                           children: [
                             Icon(Icons.calendar_today_rounded,
-                                size: 13, color: hintGrey),
+                                size: isSmallScreen ? 12.0 : 13.0,
+                                color: hintGrey),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 formatTanggalIndonesia(p.tanggalPengaduan),
-                                style: const TextStyle(
-                                    fontSize: 11.5, color: hintGrey),
+                                style: TextStyle(
+                                    fontSize: isSmallScreen ? 10.5 : 11.5,
+                                    color: hintGrey),
                               ),
                             ),
                             StatusBadge(
@@ -808,23 +834,23 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                 ),
                               );
                             },
-                            icon:
-                                const Icon(Icons.visibility_outlined, size: 16),
-                            label: const Row(
+                            icon: const Icon(Icons.visibility_outlined, size: 16),
+                            label: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text('Lihat Detail',
+                                const Text('Lihat Detail',
                                     style: TextStyle(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w700)),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Icon(Icons.chevron_right_rounded, size: 16),
                               ],
                             ),
                             style: TextButton.styleFrom(
                               foregroundColor: navy,
-                              backgroundColor: navy.withOpacity(0.06),
-                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              backgroundColor: navy.withValues(alpha: 0.06),
+                              padding: EdgeInsets.symmetric(
+                                  vertical: isSmallScreen ? 9.0 : 11.0),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10)),
                             ),
