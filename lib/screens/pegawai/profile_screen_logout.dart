@@ -1,24 +1,7 @@
-// =====================================================================
-// PATCH untuk profile_screen.dart — HANYA bagian _confirmLogout() yang
-// berubah. Seluruh bagian lain file (header, identity card, menu list,
-// dst) TIDAK perlu diubah karena sudah 100% dinamis (murni menampilkan
-// field dari `user` yang didapat dari Supabase saat login).
-//
-// CARA PAKAI: di profile_screen.dart, ganti isi method _confirmLogout()
-// dengan versi di bawah ini. Tambahkan juga import supabase_flutter di
-// bagian atas file.
-// =====================================================================
-
-// Tambahkan import ini di bagian atas profile_screen.dart:
-// import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:flutter/material.dart';
 import 'package:simpeg_mobile/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Menampilkan dialog konfirmasi sebelum benar-benar keluar, lalu
-/// memanggil Supabase signOut() supaya sesi login benar-benar berakhir
-/// (bukan cuma pindah halaman doang seperti versi lama).
 Future<void> confirmLogoutPatched(context) async {
   const danger = Color(0xFFE74C3C);
   const labelDark = Color(0xFF1B2733);
@@ -28,32 +11,89 @@ Future<void> confirmLogoutPatched(context) async {
     context: context,
     builder: (context) {
       return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Keluar Akun?',
-          style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.bold, color: labelDark),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 24,
+        shadowColor: Colors.black.withValues(alpha: 0.15),
+        backgroundColor: Colors.white.withValues(alpha: 0.95),
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: danger.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.logout_rounded,
+                color: danger,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Text(
+              'Keluar Akun?',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: labelDark,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
         ),
         content: const Text(
           'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
-          style: TextStyle(fontSize: 13, color: hintGrey, height: 1.4),
+          style: TextStyle(
+            fontSize: 14,
+            color: hintGrey,
+            height: 1.5,
+            letterSpacing: 0.1,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal',
-                style: TextStyle(color: hintGrey, fontSize: 13.5)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Batal',
+              style: TextStyle(
+                color: hintGrey,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: danger,
               foregroundColor: Colors.white,
-              elevation: 0,
+              elevation: 4,
+              shadowColor: danger.withValues(alpha: 0.3),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ya, Keluar', style: TextStyle(fontSize: 13.5)),
+            child: const Text(
+              'Ya, Keluar',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
           ),
         ],
       );
@@ -61,9 +101,6 @@ Future<void> confirmLogoutPatched(context) async {
   );
 
   if (konfirmasi == true && context.mounted) {
-    // PENTING: signOut dari Supabase dulu, baru pindah halaman.
-    // Tanpa ini, token sesi tetap tersimpan & auth.currentUser masih
-    // terisi walau UI sudah "kelihatan" logout.
     await Supabase.instance.client.auth.signOut();
 
     if (!context.mounted) return;

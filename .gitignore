@@ -1,6 +1,9 @@
-build/
+﻿build/
 .dart_tool/
-.gradle/
+.flutter-plugins
+.flutter-plugins-dependencies
+android/local.properties
+.idea/
+*.iml
+
 android/.gradle/
-android/app/build/
-*.lock

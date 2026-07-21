@@ -12,6 +12,7 @@ import 'profile_detail_screen.dart';
 import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
+import 'absensi_detail_screen.dart';
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
 /// login dari tabel `attendance` di Supabase (sama seperti di
@@ -87,6 +88,12 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   void _onBottomNavTap(int index) {
     setState(() => _bottomNavIndex = index);
+  }
+
+  void _openAbsensiDetail() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AbsensiDetailScreen()),
+    );
   }
 
   @override
@@ -175,19 +182,31 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                         color: Color(0xFF7F8C8D),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _accent.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Bulan ini',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _accent,
+                    InkWell(
+                      onTap: _openAbsensiDetail,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Text(
+                              'Detail',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: _accent,
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(Icons.chevron_right_rounded,
+                                size: 14, color: _accent),
+                          ],
                         ),
                       ),
                     ),
@@ -670,69 +689,81 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   }
 
   Widget _buildInfoBanner(AttendanceSummary summary) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFFE4F1FB), const Color(0xFFEAF5FB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openAbsensiDetail,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _accent.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: _accent.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            margin: const EdgeInsets.only(top: 1),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [_accent, _navy],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFFE4F1FB), const Color(0xFFEAF5FB)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _accent.withOpacity(0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: _accent.withOpacity(0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.info_outline_rounded,
-                color: Colors.white, size: 14),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hanya ${summary.telat} kali Telat dan ${summary.izin} kali Izin bulan ini',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: _navy,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                margin: const EdgeInsets.only(top: 1),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_accent, _navy],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Kehadiranmu sudah baik, pertahankan terus! ✨',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: _accent,
-                  ),
+                child: const Icon(Icons.info_outline_rounded,
+                    color: Colors.white, size: 14),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hanya ${summary.telat} kali Telat dan ${summary.izin} kali Izin bulan ini',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: _navy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Kehadiranmu sudah baik, pertahankan terus! ✨',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: _accent,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Icon(Icons.chevron_right_rounded,
+                    color: _accent, size: 18),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
