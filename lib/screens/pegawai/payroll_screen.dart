@@ -553,8 +553,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
 
   Future<Uint8List> _generatePayrollPdf(PayrollItem item) async {
     final doc = pw.Document();
-    final navyColor = PdfColor.fromInt(0xFF0D2C6E);
-    final greyColor = PdfColor.fromInt(0xFF8C97A6);
+    const navyColor = PdfColor.fromInt(0xFF0D2C6E);
+    const greyColor = PdfColor.fromInt(0xFF8C97A6);
 
     if (item.slip != null) {
       doc.addPage(

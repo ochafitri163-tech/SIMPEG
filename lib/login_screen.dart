@@ -7,6 +7,7 @@ import 'screens/dirut/dashboard_dirut_screen.dart';
 import 'screens/kadiv/dashboard_kadiv_screen.dart';
 import 'screens/kspi/dashboard_kspi_screen.dart';
 import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
+import 'screens/sdm/dashboard_sdm_screen.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -131,6 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return DashboardTpdpkScreen(user: user);
       case UserRole.direktur:
         return DashboardDirutScreen(user: user);
+      case UserRole.sdm:
+        return DashboardSdmScreen(user: user);
     }
   }
 
@@ -372,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: _accent.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.refresh_rounded,
                       color: _accent,
                       size: 22,

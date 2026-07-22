@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
+import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
 
 class StatusPengaduanScreen extends StatefulWidget {
+  final AppUser user;
   final bool showBackButton;
-  const StatusPengaduanScreen({super.key, this.showBackButton = true});
+  const StatusPengaduanScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<StatusPengaduanScreen> createState() => _StatusPengaduanScreenState();
@@ -706,9 +712,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
+          final id = p.supabaseId;
+          if (id == null) return;
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => DetailPengaduanScreen(pengaduan: p),
+              builder: (_) =>
+                  PengaduanDetailScreen(user: widget.user, pengaduanId: id),
             ),
           );
         },
@@ -827,22 +836,24 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                           width: double.infinity,
                           child: TextButton.icon(
                             onPressed: () {
+                              final id = p.supabaseId;
+                              if (id == null) return;
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      DetailPengaduanScreen(pengaduan: p),
+                                  builder: (_) => PengaduanDetailScreen(
+                                      user: widget.user, pengaduanId: id),
                                 ),
                               );
                             },
                             icon: const Icon(Icons.visibility_outlined, size: 16),
-                            label: Row(
+                            label: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text('Lihat Detail',
+                                Text('Lihat Detail',
                                     style: TextStyle(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w700)),
-                                const SizedBox(width: 4),
+                                SizedBox(width: 4),
                                 Icon(Icons.chevron_right_rounded, size: 16),
                               ],
                             ),

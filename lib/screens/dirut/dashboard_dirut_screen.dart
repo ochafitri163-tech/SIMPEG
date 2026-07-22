@@ -8,8 +8,11 @@ import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 
-/// Dashboard untuk role Direktur (DIRUT) — Tahap 3 & Tahap 4 (fungsional).
-/// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
+/// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
+/// alur:
+/// 1. Approval Tahap 1 (menungguDirutTahap1) — layak diinvestigasi?
+/// 2. Approval Tahap 2 (menungguDirutTahap2) — hasil investigasi diterima?
+/// 3. Pilih eksekutor tindak lanjut (menungguPilihEksekutorTindakLanjut)
 class DashboardDirutScreen extends StatefulWidget {
   final AppUser user;
   const DashboardDirutScreen({super.key, required this.user});
@@ -21,6 +24,8 @@ class DashboardDirutScreen extends StatefulWidget {
 class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
   static const Color _accent = Color(0xFF2E86AB);
+  static const Color _green = Color(0xFF27AE60);
+  static const Color _red = Color(0xFFE74C3C);
 
   late Future<List<Pengaduan>> _menungguFuture;
   late Future<List<Pengaduan>> _riwayatFuture;
@@ -29,7 +34,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   void initState() {
     super.initState();
     _menungguFuture = PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
-    _riwayatFuture = PengaduanService.riwayatKeputusanDirekturSebagaiObjek();
+    _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
   }
 
   Future<void> _refreshMenunggu() async {
@@ -44,7 +49,8 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     setState(() {
       _menungguFuture =
           PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
-      _riwayatFuture = PengaduanService.riwayatKeputusanDirekturSebagaiObjek();
+      _riwayatFuture =
+          PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
     });
     await Future.wait([_menungguFuture, _riwayatFuture]);
   }
@@ -124,9 +130,45 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     );
   }
 
-  // ---------- Keputusan Direktur ----------
-  Future<void> _bukaKeputusan(Pengaduan p) async {
-    KeputusanDirektur keputusan = KeputusanDirektur.setuju;
+  Widget _pilihanTerimaTolak(
+    Keputusan current,
+    void Function(void Function()) setSheetState,
+    void Function(Keputusan) onPick,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: ChoiceChip(
+            label: Text('Terima',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: current == Keputusan.terima ? Colors.white : _navy)),
+            selected: current == Keputusan.terima,
+            selectedColor: _green,
+            onSelected: (_) => setSheetState(() => onPick(Keputusan.terima)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ChoiceChip(
+            label: Text('Tolak',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: current == Keputusan.tolak ? Colors.white : _navy)),
+            selected: current == Keputusan.tolak,
+            selectedColor: _red,
+            onSelected: (_) => setSheetState(() => onPick(Keputusan.tolak)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------- Approval Tahap 1: layak diinvestigasi? ----------
+  Future<void> _bukaKeputusanTahap1(Pengaduan p) async {
+    Keputusan keputusan = Keputusan.terima;
     final catatanController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
@@ -136,58 +178,26 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            const Text('Keputusan Direktur',
+            const Text('Persetujuan Tahap 1',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Apakah pengaduan ini layak diinvestigasi?',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
                 style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
             const SizedBox(height: 14),
-            _infoBlok('Hasil Investigasi', p.hasilInvestigasi ?? '-'),
-            _infoBlok('Surat Rekomendasi', p.suratRekomendasi ?? '-'),
+            _infoBlok('Judul', p.judul),
+            _infoBlok('Deskripsi', p.deskripsi),
             const SizedBox(height: 6),
-            const Text('Pilih Keputusan',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _pilihanKeputusan(
-                    'Setuju',
-                    KeputusanDirektur.setuju,
-                    keputusan,
-                    const Color(0xFF27AE60),
-                    setSheetState,
-                    (v) => keputusan = v),
-                _pilihanKeputusan(
-                    'Tolak',
-                    KeputusanDirektur.tolak,
-                    keputusan,
-                    const Color(0xFFE74C3C),
-                    setSheetState,
-                    (v) => keputusan = v),
-                _pilihanKeputusan(
-                    'Peninjauan Kembali',
-                    KeputusanDirektur.peninjauanKembali,
-                    keputusan,
-                    const Color(0xFFD35400),
-                    setSheetState,
-                    (v) => keputusan = v),
-                _pilihanKeputusan(
-                    'Tindak Lanjut',
-                    KeputusanDirektur.tindakLanjut,
-                    keputusan,
-                    const Color(0xFF8E44AD),
-                    setSheetState,
-                    (v) => keputusan = v),
-              ],
-            ),
+            _pilihanTerimaTolak(keputusan, setSheetState, (v) => keputusan = v),
             const SizedBox(height: 16),
             TextField(
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: _labelCatatan(keputusan),
+                labelText: keputusan == Keputusan.tolak
+                    ? 'Alasan penolakan (wajib)'
+                    : 'Catatan (opsional)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -197,10 +207,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  final butuhCatatan = keputusan != KeputusanDirektur.setuju;
-                  if (butuhCatatan && catatanController.text.trim().isEmpty) {
-                    _showSnack('Catatan wajib diisi untuk keputusan ini.',
-                        const Color(0xFFE74C3C));
+                  if (keputusan == Keputusan.tolak &&
+                      catatanController.text.trim().isEmpty) {
+                    _showSnack('Alasan penolakan wajib diisi.', _red);
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -226,84 +235,121 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (id == null) return;
 
     try {
-      await PengaduanService.keputusanDirektur(
+      await PengaduanService.dirutTahap1Aksi(
         pengaduanId: id,
         oleh: widget.user.name,
-        keputusan: keputusan.name,
+        keputusan: keputusan,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
       );
 
-      if (keputusan == KeputusanDirektur.tolak ||
-          keputusan == KeputusanDirektur.peninjauanKembali) {
-        await NotificationService.kirimKeRole(
-          role: UserRole.kspi,
-          judul: keputusan == KeputusanDirektur.tolak
-              ? 'Pengaduan ditolak Direktur'
-              : 'Diminta peninjauan kembali',
-          pesan: '${p.nomorPengaduan}: ${catatanController.text.trim()}',
-          pengaduanId: id,
-        );
-      } else if (keputusan == KeputusanDirektur.setuju) {
-        final detail = await PengaduanService.detail(id);
-        final pelaporId = detail?['pelapor_id'] as String?;
-        if (pelaporId != null) {
-          await NotificationService.kirimKePegawai(
-            pegawaiId: pelaporId,
-            judul: 'Pengaduan selesai',
-            pesan:
-                '${p.nomorPengaduan} telah disetujui & dinyatakan selesai oleh Direktur.',
-            pengaduanId: id,
-          );
-        }
-      }
-
       if (!mounted) return;
-      _showSnack('Keputusan untuk ${p.nomorPengaduan} tersimpan.',
-          const Color(0xFF27AE60));
-
-      if (keputusan == KeputusanDirektur.tindakLanjut) {
-        await _bukaPilihEksekutorTindakLanjut(p);
-      }
-
+      _showSnack(
+        keputusan == Keputusan.terima
+            ? '${p.nomorPengaduan} disetujui, dikembalikan ke KSPI.'
+            : '${p.nomorPengaduan} ditolak & diarsipkan.',
+        keputusan == Keputusan.terima ? _green : _red,
+      );
       await _refreshSemua();
     } catch (e) {
       if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
-  Widget _pilihanKeputusan(
-    String label,
-    KeputusanDirektur value,
-    KeputusanDirektur current,
-    Color color,
-    void Function(void Function()) setSheetState,
-    void Function(KeputusanDirektur) onPick,
-  ) {
-    final selected = current == value;
-    return ChoiceChip(
-      label: Text(label,
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : _navy)),
-      selected: selected,
-      selectedColor: color,
-      onSelected: (_) => setSheetState(() => onPick(value)),
-    );
-  }
+  // ---------- Approval Tahap 2: hasil investigasi diterima? ----------
+  Future<void> _bukaKeputusanTahap2(Pengaduan p) async {
+    Keputusan keputusan = Keputusan.terima;
+    final catatanController = TextEditingController();
 
-  String _labelCatatan(KeputusanDirektur k) {
-    switch (k) {
-      case KeputusanDirektur.setuju:
-        return 'Keterangan penyelesaian (opsional)';
-      case KeputusanDirektur.tolak:
-        return 'Alasan penolakan (wajib)';
-      case KeputusanDirektur.peninjauanKembali:
-        return 'Catatan peninjauan kembali (wajib)';
-      case KeputusanDirektur.tindakLanjut:
-        return 'Instruksi tindak lanjut (wajib)';
+    final ok = await _openSheet<bool>((ctx, setSheetState) {
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _grip(),
+            const Text('Persetujuan Tahap 2',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Apakah hasil investigasi ini diterima?',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Text(p.nomorPengaduan,
+                style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+            const SizedBox(height: 14),
+            _infoBlok('Hasil Investigasi', p.hasilInvestigasi ?? '-'),
+            _infoBlok('Surat Rekomendasi', p.suratRekomendasi ?? '-'),
+            const SizedBox(height: 6),
+            _pilihanTerimaTolak(keputusan, setSheetState, (v) => keputusan = v),
+            const SizedBox(height: 16),
+            TextField(
+              controller: catatanController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: keputusan == Keputusan.tolak
+                    ? 'Alasan penolakan (wajib)'
+                    : 'Catatan (opsional)',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (keputusan == Keputusan.tolak &&
+                      catatanController.text.trim().isEmpty) {
+                    _showSnack('Alasan penolakan wajib diisi.', _red);
+                    return;
+                  }
+                  Navigator.pop(ctx, true);
+                },
+                icon: const Icon(Icons.gavel_rounded, size: 18),
+                label: const Text('Simpan Keputusan'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.direksiTahap2Aksi(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        keputusan: keputusan,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
+      );
+
+      if (!mounted) return;
+      _showSnack(
+        keputusan == Keputusan.terima
+            ? '${p.nomorPengaduan} diterima, silakan pilih eksekutor tindak lanjut.'
+            : '${p.nomorPengaduan} ditolak & diarsipkan.',
+        keputusan == Keputusan.terima ? _green : _red,
+      );
+
+      if (keputusan == Keputusan.terima) {
+        await _bukaPilihEksekutorTindakLanjut(p);
+      }
+
+      await _refreshSemua();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
     }
   }
 
@@ -373,26 +419,45 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       await PengaduanService.pilihEksekutorTindakLanjut(
         pengaduanId: id,
         oleh: widget.user.name,
-        eksekutor: eksekutorDipilih.name,
-      );
-
-      await NotificationService.kirimKeRole(
-        role: eksekutorDipilih == Eksekutor.kadiv
-            ? UserRole.kadivKategori
-            : UserRole.tpdpk,
-        judul: 'Tindak lanjut ditugaskan',
-        pesan:
-            '${p.nomorPengaduan}: mohon jalankan tindak lanjut sesuai instruksi Direktur.',
-        pengaduanId: id,
+        eksekutor: eksekutorDipilih,
       );
 
       if (!mounted) return;
       _showSnack(
           'Eksekutor tindak lanjut ditetapkan: ${eksekutorDipilih.label}.',
-          const Color(0xFF27AE60));
+          _green);
       await _refreshSemua();
     } catch (e) {
       if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
+    }
+  }
+
+  /// Menentukan aksi utama yang perlu dilakukan Direktur untuk [p], sesuai
+  /// status pengaduan saat ini. Return null kalau tidak ada aksi (seharusnya
+  /// tidak terjadi karena list sudah difilter, tapi dijaga untuk keamanan).
+  void Function()? _aksiUntuk(Pengaduan p) {
+    switch (p.status) {
+      case PengaduanStatus.menungguDirutTahap1:
+        return () => _bukaKeputusanTahap1(p);
+      case PengaduanStatus.menungguDirutTahap2:
+        return () => _bukaKeputusanTahap2(p);
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+        return () => _bukaPilihEksekutorTindakLanjut(p);
+      default:
+        return null;
+    }
+  }
+
+  String _labelAksi(Pengaduan p) {
+    switch (p.status) {
+      case PengaduanStatus.menungguDirutTahap1:
+        return 'Putuskan (Tahap 1)';
+      case PengaduanStatus.menungguDirutTahap2:
+        return 'Putuskan (Tahap 2)';
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+        return 'Pilih Eksekutor';
+      default:
+        return 'Proses';
     }
   }
 
@@ -507,8 +572,8 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   return RefreshIndicator(
                     onRefresh: () async {
                       setState(() {
-                        _riwayatFuture = PengaduanService
-                            .riwayatKeputusanDirekturSebagaiObjek();
+                        _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(
+                            UserRole.direktur);
                       });
                       await _riwayatFuture;
                     },
@@ -598,6 +663,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   }
 
   Widget _buildPengaduanCard(Pengaduan p) {
+    final aksi = _aksiUntuk(p);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -643,20 +709,30 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 style: const TextStyle(
                     fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Rekomendasi: ${p.suratRekomendasi ?? '-'}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+            Text(
+              p.status == PengaduanStatus.menungguDirutTahap2
+                  ? 'Rekomendasi: ${p.suratRekomendasi ?? '-'}'
+                  : p.deskripsi,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => DetailPengaduanScreen(pengaduan: p)),
-                    ),
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
@@ -671,10 +747,10 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _bukaKeputusan(p),
+                    onPressed: aksi,
                     icon: const Icon(Icons.gavel_rounded, size: 16),
-                    label:
-                        const Text('Putuskan', style: TextStyle(fontSize: 12)),
+                    label: Text(_labelAksi(p),
+                        style: const TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _navy,
                       foregroundColor: Colors.white,

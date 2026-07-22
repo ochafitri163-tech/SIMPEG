@@ -257,6 +257,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         await PengaduanService.kirimHasilInvestigasi(
           pengaduanId: id,
           oleh: widget.user.name,
+          role: UserRole.tpdpk,
           hasil: hasilController.text.trim(),
           rekomendasi: rekomendasiController.text.trim(),
         );
@@ -665,11 +666,17 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => DetailPengaduanScreen(pengaduan: p)),
-                    ),
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(

@@ -28,7 +28,7 @@ Future<void> confirmLogoutPatched(context) async {
                 color: danger.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.logout_rounded,
                 color: danger,
                 size: 22,

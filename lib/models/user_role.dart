@@ -1,16 +1,18 @@
-/// Daftar role/aktor yang berlaku pada alur Pengaduan Pegawai.
+/// Daftar role/aktor pada alur Pengaduan Pegawai.
 ///
-/// Urutan alur: Pegawai -> Kadiv Kategori -> KSPI -> TPDPK -> KSPI -> Direktur.
+/// Alur: Pegawai -> Kadiv (per divisi) -> Dirut (tahap 1) -> KSPI (pilih
+/// eksekutor) -> Kadiv/TPDPK (investigasi) -> Direksi (tahap 2, akun Dirut
+/// yang sama) -> Kadiv/TPDPK (tindak lanjut) -> SDM -> Selesai.
 enum UserRole {
   pegawai,
   kadivKategori,
   kspi,
   tpdpk,
   direktur,
+  sdm,
 }
 
 extension UserRoleX on UserRole {
-  /// Label tampilan role (dipakai di header dashboard, badge, riwayat, dsb).
   String get label {
     switch (this) {
       case UserRole.pegawai:
@@ -23,10 +25,11 @@ extension UserRoleX on UserRole {
         return 'TPDPK';
       case UserRole.direktur:
         return 'Direktur (DIRUT)';
+      case UserRole.sdm:
+        return 'SDM';
     }
   }
 
-  /// Kode singkat role, dipakai pada riwayat status & log.
   String get kode {
     switch (this) {
       case UserRole.pegawai:
@@ -39,10 +42,11 @@ extension UserRoleX on UserRole {
         return 'TPDPK';
       case UserRole.direktur:
         return 'DIRUT';
+      case UserRole.sdm:
+        return 'SDM';
     }
   }
 
-  /// Dipakai untuk menyimpan/membaca role dari string (mis. hasil API nanti).
   static UserRole fromKode(String kode) {
     switch (kode.toUpperCase()) {
       case 'KADIV':
@@ -53,10 +57,55 @@ extension UserRoleX on UserRole {
         return UserRole.tpdpk;
       case 'DIRUT':
         return UserRole.direktur;
+      case 'SDM':
+        return UserRole.sdm;
       case 'PEGAWAI':
       default:
         return UserRole.pegawai;
     }
+  }
+}
+
+/// Divisi Kadiv — menentukan Kadiv mana yang menerima notifikasi
+/// pengaduan, berdasarkan kategori yang dipilih Pegawai saat submit
+/// ("Pelanggaran Administrasi" -> administrasi, "Pelanggaran Teknik" ->
+/// teknik).
+enum DivisiKadiv { administrasi, teknik }
+
+extension DivisiKadivX on DivisiKadiv {
+  String get label {
+    switch (this) {
+      case DivisiKadiv.administrasi:
+        return 'Kadiv Administrasi';
+      case DivisiKadiv.teknik:
+        return 'Kadiv Teknik';
+    }
+  }
+}
+
+enum KategoriDivisi { devAdmin, devTeknik }
+
+extension KategoriDivisiX on KategoriDivisi {
+  String get label {
+    switch (this) {
+      case KategoriDivisi.devAdmin:
+        return 'Divisi Administrasi';
+      case KategoriDivisi.devTeknik:
+        return 'Divisi Teknik';
+    }
+  }
+}
+
+/// Memetakan kategori pengaduan (dipilih Pegawai di form) ke divisi Kadiv
+/// yang berwenang menanganinya. Return null kalau kategori tidak dikenal.
+DivisiKadiv? divisiKadivDariKategori(String kategori) {
+  switch (kategori) {
+    case 'Pelanggaran Administrasi':
+      return DivisiKadiv.administrasi;
+    case 'Pelanggaran Teknik':
+      return DivisiKadiv.teknik;
+    default:
+      return null;
   }
 }
 
@@ -68,9 +117,6 @@ class AppUser {
   final String unitKerja;
   final String unitKerjaSingkat;
   final String golongan;
-  // Teks golongan lengkap sesuai format resmi di slip Gaji/THR/Insentif,
-  // mis. "GOL. B.1 - MASA KERJA 1 THN, 0 BLN / ISTRI 0 ANAK 0". Kalau null,
-  // PDF akan jatuh ke "GOL. <golongan>" sebagai fallback.
   final String? golonganDetail;
   final String status;
   final String tempatTanggalLahir;
@@ -78,10 +124,11 @@ class AppUser {
   final String alamat;
   final String noTelp;
 
-  /// Role/aktor pengguna pada alur Pengaduan (dan sistem secara umum).
-  /// Default `UserRole.pegawai` supaya kode lama yang belum menentukan role
-  /// tetap kompatibel.
   final UserRole role;
+
+  /// Hanya relevan kalau role == UserRole.kadivKategori. Menentukan
+  /// pengaduan kategori apa yang muncul di kotak masuk Kadiv ini.
+  final DivisiKadiv? divisiKadiv;
 
   const AppUser({
     required this.nik,
@@ -98,12 +145,11 @@ class AppUser {
     this.alamat = 'Blok Panggang RT.03 RW.01, Tegalsembadra, Balongan',
     this.noTelp = '0877-2764-1009',
     this.role = UserRole.pegawai,
+    this.divisiKadiv,
   });
 
-  /// Teks golongan lengkap untuk kop dokumen resmi (Gaji/THR/Insentif).
   String get golonganUntukSlip => golonganDetail ?? 'GOL. $golongan';
 
-  /// Inisial nama untuk avatar (mis. "Bayu Aji" -> "BA").
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '';
@@ -112,8 +158,6 @@ class AppUser {
   }
 }
 
-/// Model kredensial akun demo (belum terhubung ke API/database sungguhan).
-/// Ganti/gabungkan dengan hasil autentikasi backend saat sudah tersedia.
 class DemoAccount {
   final String nik;
   final String password;
@@ -125,6 +169,7 @@ class DemoAccount {
   final String golongan;
   final String golonganDetail;
   final UserRole role;
+  final DivisiKadiv? divisiKadiv;
 
   const DemoAccount({
     required this.nik,
@@ -137,16 +182,13 @@ class DemoAccount {
     this.golongan = 'B.3 / Pelaksana',
     this.golonganDetail = '',
     this.role = UserRole.pegawai,
+    this.divisiKadiv,
   });
 }
 
-/// Daftar akun demo untuk masing-masing role.
-/// TODO: hapus/nonaktifkan daftar ini setelah autentikasi API sungguhan siap.
-/// Kop dokumen PDF (Gaji/THR/Insentif) selalu mengikuti identitas pegawai
-/// yang sedang login di bawah ini — bukan data pegawai contoh dari PDF
-/// resmi manapun.
+/// TODO: hapus/nonaktifkan setelah autentikasi API sungguhan siap.
 final List<DemoAccount> demoAccounts = [
-  DemoAccount(
+  const DemoAccount(
     nik: '3000000003',
     password: 'pegawai123',
     name: 'Budi Santoso',
@@ -157,18 +199,31 @@ final List<DemoAccount> demoAccounts = [
     golongan: 'B.3 / Pelaksana',
     role: UserRole.pegawai,
   ),
-  DemoAccount(
+  const DemoAccount(
     nik: '4000000001',
-    password: 'kadiv123',
+    password: 'kadivadmin123',
     name: 'Siti Rahmawati',
     email: 'siti.rahmawati@pdam.co.id',
-    jabatan: 'Kepala Divisi Produksi',
+    jabatan: 'Kepala Divisi Administrasi',
     unitKerja: 'Kantor Pusat',
     unitKerjaSingkat: 'Kantor Pusat',
     golongan: 'A.2 / Struktural',
     role: UserRole.kadivKategori,
+    divisiKadiv: DivisiKadiv.administrasi,
   ),
-  DemoAccount(
+  const DemoAccount(
+    nik: '4000000004',
+    password: 'kadivteknik123',
+    name: 'Bambang Wijaya',
+    email: 'bambang.wijaya@pdam.co.id',
+    jabatan: 'Kepala Divisi Teknik',
+    unitKerja: 'Kantor Pusat',
+    unitKerjaSingkat: 'Kantor Pusat',
+    golongan: 'A.2 / Struktural',
+    role: UserRole.kadivKategori,
+    divisiKadiv: DivisiKadiv.teknik,
+  ),
+  const DemoAccount(
     nik: '4000000002',
     password: 'kspi123',
     name: 'Ahmad Fauzi',
@@ -179,7 +234,7 @@ final List<DemoAccount> demoAccounts = [
     golongan: 'A.1 / Struktural',
     role: UserRole.kspi,
   ),
-  DemoAccount(
+  const DemoAccount(
     nik: '4000000003',
     password: 'tpdpk123',
     name: 'Dedi Kurniawan',
@@ -190,7 +245,7 @@ final List<DemoAccount> demoAccounts = [
     golongan: 'A.2 / Struktural',
     role: UserRole.tpdpk,
   ),
-  DemoAccount(
+  const DemoAccount(
     nik: '5000000001',
     password: 'dirut123',
     name: 'H. Dedi Supriadi',
@@ -201,10 +256,19 @@ final List<DemoAccount> demoAccounts = [
     golongan: 'A.1 / Struktural',
     role: UserRole.direktur,
   ),
+  const DemoAccount(
+    nik: '6000000001',
+    password: 'sdm123',
+    name: 'Rina Amelia',
+    email: 'rina.amelia@pdam.co.id',
+    jabatan: 'Staf SDM',
+    unitKerja: 'Kantor Pusat',
+    unitKerjaSingkat: 'Kantor Pusat',
+    golongan: 'B.1 / Pelaksana',
+    role: UserRole.sdm,
+  ),
 ];
 
-/// Mencari akun demo berdasarkan NIK & password. Mengembalikan null jika
-/// tidak cocok.
 DemoAccount? findDemoAccount(String nik, String password) {
   for (final acc in demoAccounts) {
     if (acc.nik == nik && acc.password == password) {

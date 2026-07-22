@@ -416,8 +416,8 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   Future<Uint8List> _generatePendidikanPdf(
       PendidikanTunjanganDetail slip) async {
     final doc = pw.Document();
-    final navyColor = PdfColor.fromInt(0xFF0D2C6E);
-    final greyColor = PdfColor.fromInt(0xFF8C97A6);
+    const navyColor = PdfColor.fromInt(0xFF0D2C6E);
+    const greyColor = PdfColor.fromInt(0xFF8C97A6);
 
     doc.addPage(
       pw.Page(
@@ -441,7 +441,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
               pw.Center(
                 child: pw.Text(
                   'DAFTAR TUNJANGAN PENDIDIKAN & POTONGAN BULAN : ${slip.bulanLabel}',
-                  style: pw.TextStyle(fontSize: 10.5, color: greyColor),
+                  style: const pw.TextStyle(fontSize: 10.5, color: greyColor),
                 ),
               ),
               pw.SizedBox(height: 12),
@@ -538,7 +538,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
                 'Slip gaji ini sudah disetujui oleh Direksi. Segala bentuk '
                 'penyalahgunaan slip gaji bukan menjadi tanggung jawab '
                 'Perumdam Tirta Darma Ayu.',
-                style: pw.TextStyle(fontSize: 8, color: greyColor),
+                style: const pw.TextStyle(fontSize: 8, color: greyColor),
               ),
             ],
           );

@@ -120,7 +120,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           index: _bottomNavIndex,
           children: [
             _buildBerandaTab(),
-            const StatusPengaduanScreen(showBackButton: false),
+            StatusPengaduanScreen(user: widget.user, showBackButton: false),
             ProfileDetailScreen(user: widget.user, showBackButton: false),
           ],
         ),
@@ -433,10 +433,10 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 ),
               ),
               const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
                 child: IconTheme(
-                  data: const IconThemeData(color: Colors.white),
+                  data: IconThemeData(color: Colors.white),
                   child: NotificationBell(role: UserRole.pegawai),
                 ),
               ),
@@ -772,7 +772,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 width: 28,
                 height: 28,
                 margin: const EdgeInsets.only(top: 1),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [_accent, _navy],
                     begin: Alignment.topLeft,
@@ -888,7 +888,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: isActive
-                  ? LinearGradient(
+                  ? const LinearGradient(
                       colors: [_accent, _navy],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -980,7 +980,7 @@ class _QuickMenuCircle extends StatelessWidget {
               width: containerSize,
               height: containerSize,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [_accent, _navy],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,

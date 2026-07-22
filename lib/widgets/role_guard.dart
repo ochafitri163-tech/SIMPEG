@@ -153,6 +153,13 @@ class Authz {
           'Surat Rekomendasi',
           'Riwayat',
         ];
+      case UserRole.sdm:
+        return const [
+          'Menunggu Tindak Lanjut SDM',
+          'Detail Pengaduan',
+          'Selesaikan Tindak Lanjut',
+          'Riwayat',
+        ];
     }
   }
 

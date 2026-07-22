@@ -219,9 +219,9 @@ class ProfileDetailScreen extends StatelessWidget {
                   Container(
                     width: isSmallScreen ? 52.0 : 64.0,
                     height: isSmallScreen ? 52.0 : 64.0,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,

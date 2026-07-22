@@ -3,13 +3,8 @@ import 'user_role.dart';
 import 'pengaduan_model.dart';
 
 /// Mengubah satu baris hasil query Supabase (Map) menjadi object
-/// [Pengaduan] dari model lama, supaya seluruh UI yang sudah ada (yang
-/// memakai getter seperti p.status.label, p.status.color, dst dari
-/// enum PengaduanStatusX) tetap berfungsi tanpa perlu diubah sama sekali.
-///
-/// [riwayat] opsional -- kalau tidak diisi, riwayatStatus akan kosong
-/// (dipakai untuk daftar/list, di mana riwayat detail belum diperlukan).
-/// Untuk halaman detail, isi dengan hasil [PengaduanService.riwayatStatus].
+/// [Pengaduan], supaya UI yang sudah ada (getter status.label/.color/.icon,
+/// dst) tetap berfungsi tanpa perlu diubah.
 Pengaduan pengaduanFromRow(
   Map<String, dynamic> row, {
   List<StatusHistoryEntry> riwayat = const [],
@@ -17,8 +12,13 @@ Pengaduan pengaduanFromRow(
   PengaduanStatus parseStatus(String? s) {
     return PengaduanStatus.values.firstWhere(
       (e) => e.name == s,
-      orElse: () => PengaduanStatus.draft,
+      orElse: () => PengaduanStatus.menungguKadiv,
     );
+  }
+
+  Keputusan? parseKeputusan(String? s) {
+    if (s == null) return null;
+    return Keputusan.values.firstWhere((e) => e.name == s);
   }
 
   KategoriDivisi? parseKategoriDivisi(String? s) {
@@ -31,21 +31,15 @@ Pengaduan pengaduanFromRow(
 
   Eksekutor? parseEksekutor(String? s) {
     if (s == null) return null;
-    return Eksekutor.values.firstWhere(
-      (e) => e.name == s,
-      orElse: () => Eksekutor.kadiv,
-    );
-  }
-
-  KeputusanDirektur? parseKeputusan(String? s) {
-    if (s == null) return null;
-    return KeputusanDirektur.values.firstWhere(
-      (e) => e.name == s,
-      orElse: () => KeputusanDirektur.tindakLanjut,
-    );
+    return Eksekutor.values.firstWhere((e) => e.name == s);
   }
 
   final pengaduan = Pengaduan(
+    tindakLanjutDiminta: row['tindak_lanjut_diminta'] as String?,
+    alasanPenolakanDirektur: row['alasan_penolakan_direktur'] as String?,
+    catatanPeninjauanKembali: row['catatan_peninjauan_kembali'] as String?,
+    catatanReviewHasilKspi: row['catatan_review_hasil_kspi'] as String?,
+    kategoriDivisi: parseKategoriDivisi(row['kategori_divisi'] as String?),
     nomorPengaduan: row['nomor_pengaduan'] as String,
     kategori: row['kategori'] as String,
     judul: row['judul'] as String,
@@ -60,9 +54,11 @@ Pengaduan pengaduanFromRow(
     fotoBukti: List<String>.from(row['foto_bukti'] ?? const []),
     dokumenPendukung: List<String>.from(row['dokumen_pendukung'] ?? const []),
     riwayatStatus: riwayat,
-    kategoriDivisi: parseKategoriDivisi(row['kategori_divisi'] as String?),
-    catatanVerifikasiKadiv: row['catatan_verifikasi_kadiv'] as String?,
-    catatanReviewKspi: row['catatan_review_kspi'] as String?,
+    keputusanKadiv: parseKeputusan(row['keputusan_kadiv'] as String?),
+    catatanKadiv: row['catatan_kadiv'] as String?,
+    keputusanDirutTahap1:
+        parseKeputusan(row['keputusan_dirut_tahap1'] as String?),
+    catatanDirutTahap1: row['catatan_dirut_tahap1'] as String?,
     eksekutor: parseEksekutor(row['eksekutor'] as String?),
     petugasInvestigasi: row['petugas_investigasi'] as String?,
     hasilInvestigasi: row['hasil_investigasi'] as String?,
@@ -70,70 +66,200 @@ Pengaduan pengaduanFromRow(
     tanggalHasilInvestigasi: row['tanggal_hasil_investigasi'] != null
         ? DateTime.parse(row['tanggal_hasil_investigasi'] as String)
         : null,
-    catatanReviewHasilKspi: row['catatan_review_hasil_kspi'] as String?,
-    hasilSesuaiMenurutKspi: row['hasil_sesuai_menurut_kspi'] as bool?,
-    keputusanDirektur: parseKeputusan(row['keputusan_direktur'] as String?),
-    alasanPenolakanDirektur: row['alasan_penolakan_direktur'] as String?,
-    catatanPeninjauanKembali: row['catatan_peninjauan_kembali'] as String?,
-    tindakLanjutDiminta: row['tindak_lanjut_diminta'] as String?,
+    keputusanDirutTahap2:
+        parseKeputusan(row['keputusan_dirut_tahap2'] as String?),
+    catatanDirutTahap2: row['catatan_dirut_tahap2'] as String?,
     eksekutorTindakLanjut:
         parseEksekutor(row['eksekutor_tindak_lanjut'] as String?),
-    keteranganSelesai: row['keterangan_selesai'] as String?,
+    catatanTindakLanjutSelesai: row['catatan_tindak_lanjut_selesai'] as String?,
+    catatanSdm: row['catatan_sdm'] as String?,
+    arsipPadaTahap: row['arsip_pada_tahap'] as String?,
+    alasanArsip: row['alasan_arsip'] as String?,
   );
 
-  // Simpan id baris Supabase supaya bisa dipakai lagi saat memanggil
-  // PengaduanService (mis. untuk fetch riwayat / update status).
-  // Ditempel lewat extension di bawah karena class Pengaduan asli tidak
-  // punya field id (murni in-memory dulu).
   _pengaduanIdMap[pengaduan] = row['id'] as int;
-
   return pengaduan;
 }
 
-/// Menyimpan id baris Supabase per-object Pengaduan (workaround karena
-/// class Pengaduan dari model lama tidak punya field id bawaan).
 final Map<Pengaduan, int> _pengaduanIdMap = {};
 
 extension PengaduanIdX on Pengaduan {
-  /// id baris di tabel Supabase, hanya terisi kalau object ini dibuat
-  /// lewat [pengaduanFromRow]. Null kalau object dibuat manual (mis. data
-  /// dummy lama yang belum dihapus).
   int? get supabaseId => _pengaduanIdMap[this];
 }
 
 /// =============================================================
-/// PengaduanService — menggantikan PengaduanRepository in-memory lama.
-/// Semua method di sini query langsung ke tabel `pengaduan_pegawai`,
-/// `riwayat_status_pengaduan`, dan `notifikasi` di Supabase, sehingga
-/// data tersimpan permanen & sinkron real-time antar user/role.
+/// PengaduanService — semua method query langsung ke tabel
+/// `pengaduan_pegawai`, `riwayat_status_pengaduan`, dan `notifikasi` di
+/// Supabase. Alur baru (lihat pengaduan_model.dart untuk detail status):
 ///
-/// CATATAN: enum PengaduanStatus, KategoriDivisi, Eksekutor, dan
-/// KeputusanDirektur tetap dipakai di sisi Flutter (untuk label, warna,
-/// icon di UI) -- hanya *penyimpanan datanya* yang pindah ke Supabase.
-/// Konversi enum <-> string database pakai `.name` (nama enum persis).
+/// Pegawai submit -> Kadiv (terima/tolak) -> [otomatis] Dirut tahap 1
+/// (terima/tolak) -> KSPI pilih eksekutor -> investigasi -> Direksi
+/// tahap 2 (terima/tolak) -> pilih eksekutor tindak lanjut -> tindak
+/// lanjut -> SDM -> selesai. Tolak di titik manapun -> arsip.
+///
+/// CATATAN SKEMA TABEL `pegawai`: perlu kolom `divisi_kadiv` (nilai
+/// 'administrasi' / 'teknik', hanya diisi untuk role kadivKategori) agar
+/// notifikasi pengaduan baru hanya terkirim ke Kadiv yang relevan.
 /// =============================================================
 class PengaduanService {
   PengaduanService._();
 
   static final _client = Supabase.instance.client;
 
-  /// Generate nomor pengaduan unik, format: PGD-YYYYMM-XXX
   static Future<String> generateNomorPengaduan() async {
     final now = DateTime.now();
     final prefix = 'PGD-${now.year}${now.month.toString().padLeft(2, '0')}';
-
-    // Hitung berapa banyak pengaduan bulan ini untuk nomor urut.
     final rows = await _client
         .from('pengaduan_pegawai')
         .select('id')
         .like('nomor_pengaduan', '$prefix%');
-
     final urut = ((rows as List).length + 1).toString().padLeft(3, '0');
     return '$prefix-$urut';
   }
 
-  /// Submit pengaduan baru oleh pegawai yang sedang login.
-  /// [user] dipakai untuk snapshot identitas pelapor (nama, nik, dst).
+  /// KADIV — verifikasi & kategorisasi, teruskan ke KSPI.
+  static Future<void> verifikasiKadiv({
+    required int pengaduanId,
+    required String oleh,
+    required String kategoriDivisi,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguVerifikasiKadiv.name,
+      statusBaru: PengaduanStatus.reviewKspi.name,
+      oleh: oleh,
+      role: UserRole.kadivKategori,
+      aksi: 'Verifikasi & kategorisasi, diteruskan ke KSPI',
+      catatan: catatan,
+      kolomTambahan: {'kategori_divisi': kategoriDivisi},
+    );
+  }
+
+  /// KSPI — review awal & pilih eksekutor investigasi.
+  static Future<void> reviewDanPilihEksekutor({
+    required int pengaduanId,
+    required String oleh,
+    required String eksekutor, // 'kadiv' | 'tpdpk'
+    String? petugas,
+    String? catatan,
+  }) async {
+    final statusBaru = eksekutor == 'tpdpk'
+        ? PengaduanStatus.menungguInvestigasi.name
+        : PengaduanStatus.investigasiBerjalan.name;
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.reviewKspi.name,
+      statusBaru: statusBaru,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: 'Review & memilih eksekutor: $eksekutor',
+      catatan: catatan,
+      kolomTambahan: {
+        'eksekutor': eksekutor,
+        'petugas_investigasi': petugas,
+      },
+    );
+  }
+
+  /// KSPI — review hasil investigasi. Sesuai -> Direktur, tidak -> revisi.
+  static Future<void> reviewHasilInvestigasi({
+    required int pengaduanId,
+    required String oleh,
+    required bool sesuai,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguReviewKspi.name,
+      statusBaru: sesuai
+          ? PengaduanStatus.menungguDirutTahap2.name
+          : PengaduanStatus.revisiInvestigasi.name,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: sesuai
+          ? 'Hasil investigasi sesuai, diteruskan ke Direktur'
+          : 'Hasil investigasi dikembalikan untuk revisi',
+      catatan: catatan,
+      kolomTambahan: {'catatan_review_hasil_kspi': catatan},
+    );
+  }
+
+  /// KSPI — kirim ulang setelah ditolak Direktur.
+  static Future<void> kirimUlangSetelahRevisiKspi({
+    required int pengaduanId,
+    required String oleh,
+    required String catatanRevisi,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.ditolakDirektur.name,
+      statusBaru: PengaduanStatus.menungguDirutTahap2.name,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: 'Revisi setelah penolakan Direktur, dikirim ulang',
+      catatan: catatanRevisi,
+    );
+  }
+
+  /// KSPI — kirim untuk investigasi ulang (peninjauan kembali).
+  static Future<void> kirimUntukInvestigasiUlang({
+    required int pengaduanId,
+    required String oleh,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.peninjauanKembali.name,
+      statusBaru: PengaduanStatus.revisiInvestigasi.name,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: 'Dikirim untuk investigasi ulang (peninjauan kembali)',
+      catatan: catatan,
+    );
+  }
+
+  /// TPDPK — tetapkan petugas & mulai investigasi.
+  static Future<void> tpdpkPilihPetugas({
+    required int pengaduanId,
+    required String oleh,
+    required String petugas,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguInvestigasi.name,
+      statusBaru: PengaduanStatus.investigasiBerjalan.name,
+      oleh: oleh,
+      role: UserRole.tpdpk,
+      aksi: 'Menetapkan petugas investigasi',
+      kolomTambahan: {'petugas_investigasi': petugas},
+    );
+  }
+
+  /// TPDPK — kirim ulang hasil investigasi (revisi) ke KSPI.
+  static Future<void> kirimRevisiInvestigasi({
+    required int pengaduanId,
+    required String oleh,
+    required String hasil,
+    required String rekomendasi,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.revisiInvestigasi.name,
+      statusBaru: PengaduanStatus.menungguReviewKspi.name,
+      oleh: oleh,
+      role: UserRole.tpdpk,
+      aksi: 'Mengirim ulang hasil investigasi (revisi)',
+      kolomTambahan: {
+        'hasil_investigasi': hasil,
+        'surat_rekomendasi': rekomendasi,
+        'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+
+  /// Submit pengaduan baru oleh pegawai. Kategori pengaduan (dipilih
+  /// pegawai di form) menentukan Kadiv divisi mana yang diberi notifikasi.
   static Future<void> submit({
     required AppUser user,
     required String kategori,
@@ -163,28 +289,31 @@ class PengaduanService {
           'golongan': user.golongan,
           'anonim': anonim,
           'foto_bukti': fotoBukti,
-          'status': 'menungguVerifikasiKadiv',
+          'status': PengaduanStatus.menungguKadiv.name,
         })
         .select()
         .single();
 
     final pengaduanId = inserted['id'] as int;
 
-    // Catat riwayat status awal.
     await _client.from('riwayat_status_pengaduan').insert({
       'pengaduan_id': pengaduanId,
-      'status': 'menungguVerifikasiKadiv',
+      'status': PengaduanStatus.menungguKadiv.name,
       'status_lama': null,
       'oleh': 'Sistem',
       'aksi': 'Pengaduan dibuat',
     });
 
-    // Beri notifikasi ke semua Kadiv (siapapun dengan role kadivKategori).
-    // Catatan: ini query dari client, sehingga bergantung pada RLS yang
-    // mengizinkan SELECT id pegawai ber-role kadiv. Kalau RLS ketat,
-    // sebaiknya langkah ini dipindah ke Supabase Edge Function/trigger.
-    final kadivList =
-        await _client.from('pegawai').select('id').eq('role', 'kadivKategori');
+    // Notifikasi hanya ke Kadiv divisi yang sesuai kategori.
+    final divisi = divisiKadivDariKategori(kategori);
+    var kadivQuery = _client
+        .from('pegawai')
+        .select('id')
+        .eq('role', UserRole.kadivKategori.name);
+    if (divisi != null) {
+      kadivQuery = kadivQuery.eq('divisi_kadiv', divisi.name);
+    }
+    final kadivList = await kadivQuery;
 
     for (final kadiv in (kadivList as List)) {
       await _client.from('notifikasi').insert({
@@ -196,26 +325,17 @@ class PengaduanService {
     }
   }
 
-  /// Ambil daftar pengaduan milik pegawai yang sedang login (riwayat
-  /// pengaduan yang pernah dia buat sendiri).
   static Future<List<Map<String, dynamic>>> punyaSaya() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
-
     final rows = await _client
         .from('pengaduan_pegawai')
         .select()
         .eq('pelapor_id', userId)
         .order('tanggal_pengaduan', ascending: false);
-
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  /// Ambil daftar pengaduan yang perlu ditindaklanjuti oleh role tertentu
-  /// (Kadiv/KSPI/TPDPK/Direktur) sesuai status saat ini. RLS di Supabase
-  /// sudah membatasi baris yang boleh dilihat masing-masing role, jadi
-  /// query di sini cukup select semua & filter status di sisi klien
-  /// sebagai lapisan tambahan (bukan pengganti RLS).
   static Future<List<Map<String, dynamic>>> untukRole(UserRole role) async {
     final rows = await _client
         .from('pengaduan_pegawai')
@@ -224,7 +344,6 @@ class PengaduanService {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  /// Ambil detail satu pengaduan + riwayat statusnya.
   static Future<Map<String, dynamic>?> detail(int pengaduanId) async {
     final row = await _client
         .from('pengaduan_pegawai')
@@ -244,33 +363,23 @@ class PengaduanService {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  /// Ambil daftar pengaduan milik pegawai yang sedang login (riwayat
-  /// pengaduan yang pernah dia buat sendiri), sudah dalam bentuk object
-  /// [Pengaduan] siap pakai oleh UI lama (StatusPengaduanScreen, dst).
-  /// Riwayat status TIDAK ikut di-fetch di sini (kosong) supaya list
-  /// tetap ringan -- untuk detail lengkap, panggil [detailLengkap].
   static Future<List<Pengaduan>> punyaSayaSebagaiObjek() async {
     final rows = await punyaSaya();
     return rows.map((row) => pengaduanFromRow(row)).toList();
   }
 
-  /// Ambil satu pengaduan lengkap dengan riwayat statusnya, dalam bentuk
-  /// object [Pengaduan] siap pakai (dipakai oleh halaman detail).
-  static Future<Pengaduan?> detailLengkap(int pengaduanId) async {
-    final row = await detail(pengaduanId);
-    if (row == null) return null;
-
-    final riwayatRows = await riwayatStatus(pengaduanId);
-    final riwayat = riwayatRows.map((r) {
+  static List<StatusHistoryEntry> _parseRiwayat(
+      List<Map<String, dynamic>> riwayatRows) {
+    return riwayatRows.map((r) {
       return StatusHistoryEntry(
         status: PengaduanStatus.values.firstWhere(
           (e) => e.name == r['status'],
-          orElse: () => PengaduanStatus.draft,
+          orElse: () => PengaduanStatus.menungguKadiv,
         ),
         statusLama: r['status_lama'] != null
             ? PengaduanStatus.values.firstWhere(
                 (e) => e.name == r['status_lama'],
-                orElse: () => PengaduanStatus.draft,
+                orElse: () => PengaduanStatus.menungguKadiv,
               )
             : null,
         tanggal: DateTime.parse(r['tanggal'] as String),
@@ -282,19 +391,20 @@ class PengaduanService {
         aksi: r['aksi'] as String,
       );
     }).toList();
-
-    return pengaduanFromRow(row, riwayat: riwayat);
   }
 
-  /// Ambil daftar pengaduan untuk role tertentu (Kadiv/KSPI/dst) dalam
-  /// bentuk object [Pengaduan] siap pakai. RLS Supabase sudah membatasi
-  /// baris yang dikembalikan sesuai role & status yang relevan.
+  static Future<Pengaduan?> detailLengkap(int pengaduanId) async {
+    final row = await detail(pengaduanId);
+    if (row == null) return null;
+    final riwayatRows = await riwayatStatus(pengaduanId);
+    return pengaduanFromRow(row, riwayat: _parseRiwayat(riwayatRows));
+  }
+
   static Future<List<Pengaduan>> untukRoleSebagaiObjek(UserRole role) async {
     final rows = await untukRole(role);
     return rows.map((row) => pengaduanFromRow(row)).toList();
   }
 
-  /// sekaligus, supaya konsisten (dipanggil oleh semua aksi role di bawah).
   static Future<void> _ubahStatus({
     required int pengaduanId,
     required String statusLama,
@@ -322,148 +432,239 @@ class PengaduanService {
     });
   }
 
-  /// KADIV — verifikasi & tentukan kategori divisi, otomatis diteruskan
-  /// ke KSPI.
-  static Future<void> verifikasiKadiv({
+  /// KADIV — terima/tolak. Tolak -> arsip. Terima -> otomatis diteruskan
+  /// (lewat KSPI) ke Dirut tahap 1, & KSPI diberi notifikasi.
+  static Future<void> kadivAksi({
     required int pengaduanId,
     required String oleh,
-    required String kategoriDivisi, // 'devAdmin' atau 'devTeknis'
+    required Keputusan keputusan,
     String? catatan,
   }) async {
+    if (keputusan == Keputusan.tolak) {
+      await _ubahStatus(
+        pengaduanId: pengaduanId,
+        statusLama: PengaduanStatus.menungguKadiv.name,
+        statusBaru: PengaduanStatus.arsip.name,
+        oleh: oleh,
+        role: UserRole.kadivKategori,
+        aksi: 'Menolak, pengaduan diarsipkan',
+        catatan: catatan,
+        kolomTambahan: {
+          'keputusan_kadiv': keputusan.name,
+          'catatan_kadiv': catatan,
+          'arsip_pada_tahap': 'kadiv',
+          'alasan_arsip': catatan,
+        },
+      );
+      return;
+    }
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'menungguVerifikasiKadiv',
-      statusBaru: 'reviewKspi',
+      statusLama: PengaduanStatus.menungguKadiv.name,
+      statusBaru: PengaduanStatus.menungguDirutTahap1.name,
       oleh: oleh,
       role: UserRole.kadivKategori,
-      aksi: 'Verifikasi & kategorisasi ($kategoriDivisi), diteruskan ke KSPI',
+      aksi: 'Menerima pengaduan, diteruskan otomatis (via KSPI) ke Dirut',
       catatan: catatan,
       kolomTambahan: {
-        'kategori_divisi': kategoriDivisi,
-        'catatan_verifikasi_kadiv': catatan,
+        'keputusan_kadiv': keputusan.name,
+        'catatan_kadiv': catatan,
       },
+    );
+
+    await NotificationService.kirimKeRole(
+      role: UserRole.direktur,
+      judul: 'Pengaduan menunggu persetujuan',
+      pesan: 'Ada pengaduan yang perlu persetujuan tahap 1.',
+      pengaduanId: pengaduanId,
     );
   }
 
-  /// KSPI — review lalu pilih eksekutor (Kadiv atau TPDPK).
-  static Future<void> reviewDanPilihEksekutor({
+  /// DIRUT — approval tahap 1 (layak diinvestigasi?). Tolak -> arsip.
+  /// Terima -> balik ke KSPI untuk pilih eksekutor.
+  static Future<void> dirutTahap1Aksi({
     required int pengaduanId,
     required String oleh,
-    required String eksekutor, // 'kadiv' atau 'tpdpk'
+    required Keputusan keputusan,
+    String? catatan,
+  }) async {
+    if (keputusan == Keputusan.tolak) {
+      await _ubahStatus(
+        pengaduanId: pengaduanId,
+        statusLama: PengaduanStatus.menungguDirutTahap1.name,
+        statusBaru: PengaduanStatus.arsip.name,
+        oleh: oleh,
+        role: UserRole.direktur,
+        aksi: 'Menolak, pengaduan diarsipkan',
+        catatan: catatan,
+        kolomTambahan: {
+          'keputusan_dirut_tahap1': keputusan.name,
+          'catatan_dirut_tahap1': catatan,
+          'arsip_pada_tahap': 'dirutTahap1',
+          'alasan_arsip': catatan,
+        },
+      );
+      return;
+    }
+
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguDirutTahap1.name,
+      statusBaru: PengaduanStatus.menungguPilihEksekutor.name,
+      oleh: oleh,
+      role: UserRole.direktur,
+      aksi: 'Menyetujui (layak diinvestigasi), dikembalikan ke KSPI',
+      catatan: catatan,
+      kolomTambahan: {
+        'keputusan_dirut_tahap1': keputusan.name,
+        'catatan_dirut_tahap1': catatan,
+      },
+    );
+
+    await NotificationService.kirimKeRole(
+      role: UserRole.kspi,
+      judul: 'Pilih eksekutor investigasi',
+      pesan: 'Dirut menyetujui pengaduan, silakan pilih eksekutor investigasi.',
+      pengaduanId: pengaduanId,
+    );
+  }
+
+  /// KSPI — pilih eksekutor investigasi (Kadiv/TPDPK).
+  static Future<void> kspiPilihEksekutor({
+    required int pengaduanId,
+    required String oleh,
+    required Eksekutor eksekutor,
     String? petugas,
     String? catatan,
   }) async {
-    final statusBaru =
-        eksekutor == 'kadiv' ? 'investigasiBerjalan' : 'menungguInvestigasi';
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'reviewKspi',
-      statusBaru: statusBaru,
+      statusLama: PengaduanStatus.menungguPilihEksekutor.name,
+      statusBaru: PengaduanStatus.investigasiBerjalan.name,
       oleh: oleh,
       role: UserRole.kspi,
-      aksi: 'Review KSPI, eksekutor: $eksekutor',
+      aksi: 'Memilih eksekutor investigasi: ${eksekutor.label}'
+          '${petugas != null ? ' (petugas: $petugas)' : ''}',
       catatan: catatan,
       kolomTambahan: {
-        'eksekutor': eksekutor,
+        'eksekutor': eksekutor.name,
         'petugas_investigasi': petugas,
-        'catatan_review_kspi': catatan,
       },
+    );
+
+    final roleEksekutor =
+        eksekutor == Eksekutor.kadiv ? UserRole.kadivKategori : UserRole.tpdpk;
+    await NotificationService.kirimKeRole(
+      role: roleEksekutor,
+      judul: 'Ditunjuk sebagai eksekutor investigasi',
+      pesan: 'Silakan lakukan investigasi & kirim hasilnya.',
+      pengaduanId: pengaduanId,
     );
   }
 
-  /// TPDPK — kirim hasil investigasi & surat rekomendasi ke KSPI.
+  /// EKSEKUTOR (Kadiv/TPDPK) — kirim hasil investigasi & surat
+  /// rekomendasi, otomatis diteruskan ke Direksi (tahap 2).
   static Future<void> kirimHasilInvestigasi({
     required int pengaduanId,
     required String oleh,
+    required UserRole role,
     required String hasil,
     required String rekomendasi,
   }) async {
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'investigasiBerjalan',
-      statusBaru: 'menungguReviewKspi',
+      statusLama: PengaduanStatus.investigasiBerjalan.name,
+      statusBaru: PengaduanStatus.menungguReviewKspi.name,
       oleh: oleh,
-      role: UserRole.tpdpk,
-      aksi: 'Mengirim hasil investigasi & surat rekomendasi ke KSPI',
+      role: role,
+      aksi: 'Mengirim hasil investigasi & surat rekomendasi, '
+          'diteruskan otomatis ke Direksi',
       kolomTambahan: {
         'hasil_investigasi': hasil,
         'surat_rekomendasi': rekomendasi,
         'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
       },
     );
-  }
 
-  /// KSPI — review hasil investigasi: sesuai -> Direktur, tidak -> revisi.
-  static Future<void> reviewHasilInvestigasi({
-    required int pengaduanId,
-    required String oleh,
-    required bool sesuai,
-    String? catatan,
-  }) async {
-    final statusBaru =
-        sesuai ? 'menungguPersetujuanDirektur' : 'revisiInvestigasi';
-    await _ubahStatus(
+    await NotificationService.kirimKeRole(
+      role: UserRole.direktur,
+      judul: 'Hasil investigasi menunggu persetujuan',
+      pesan: 'Hasil investigasi & surat rekomendasi telah masuk.',
       pengaduanId: pengaduanId,
-      statusLama: 'menungguReviewKspi',
-      statusBaru: statusBaru,
-      oleh: oleh,
-      role: UserRole.kspi,
-      aksi: sesuai
-          ? 'Hasil investigasi disetujui, dikirim ke Direktur'
-          : 'Hasil investigasi dikembalikan untuk revisi',
-      catatan: catatan,
-      kolomTambahan: {
-        'hasil_sesuai_menurut_kspi': sesuai,
-        'catatan_review_hasil_kspi': catatan,
-      },
     );
   }
 
-  /// DIREKTUR — keputusan akhir: setuju/tolak/peninjauan kembali/tindak lanjut.
-  static Future<void> keputusanDirektur({
+  /// DIREKSI (akun Dirut) — approval tahap 2 (hasil investigasi
+  /// diterima?). Tolak -> arsip. Terima -> menunggu pilih eksekutor
+  /// tindak lanjut.
+  static Future<void> direksiTahap2Aksi({
     required int pengaduanId,
     required String oleh,
-    required String
-        keputusan, // 'setuju'|'tolak'|'peninjauanKembali'|'tindakLanjut'
+    required Keputusan keputusan,
     String? catatan,
   }) async {
-    late String statusBaru;
-    final kolom = <String, dynamic>{'keputusan_direktur': keputusan};
-
-    switch (keputusan) {
-      case 'setuju':
-        statusBaru = 'selesai';
-        kolom['keterangan_selesai'] = catatan ?? 'Disetujui oleh Direktur.';
-        break;
-      case 'tolak':
-        statusBaru = 'ditolakDirektur';
-        kolom['alasan_penolakan_direktur'] = catatan;
-        break;
-      case 'peninjauanKembali':
-        statusBaru = 'peninjauanKembali';
-        kolom['catatan_peninjauan_kembali'] = catatan;
-        break;
-      case 'tindakLanjut':
-        statusBaru = 'tindakLanjut';
-        kolom['tindak_lanjut_diminta'] = catatan;
-        break;
-      default:
-        throw ArgumentError('Keputusan tidak dikenal: $keputusan');
+    if (keputusan == Keputusan.tolak) {
+      await _ubahStatus(
+        pengaduanId: pengaduanId,
+        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusBaru: PengaduanStatus.arsip.name,
+        oleh: oleh,
+        role: UserRole.direktur,
+        aksi: 'Menolak hasil investigasi, pengaduan diarsipkan',
+        catatan: catatan,
+        kolomTambahan: {
+          'keputusan_dirut_tahap2': keputusan.name,
+          'catatan_dirut_tahap2': catatan,
+          'arsip_pada_tahap': 'dirutTahap2',
+          'alasan_arsip': catatan,
+        },
+      );
+      return;
     }
 
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'menungguPersetujuanDirektur',
-      statusBaru: statusBaru,
+      statusLama: PengaduanStatus.menungguDirutTahap2.name,
+      statusBaru: PengaduanStatus.menungguPilihEksekutorTindakLanjut.name,
       oleh: oleh,
       role: UserRole.direktur,
-      aksi: 'Keputusan Direktur: $keputusan',
+      aksi: 'Menerima hasil investigasi (ditindaklanjuti)',
       catatan: catatan,
-      kolomTambahan: kolom,
+      kolomTambahan: {
+        'keputusan_dirut_tahap2': keputusan.name,
+        'catatan_dirut_tahap2': catatan,
+      },
     );
   }
 
-  /// Eksekutor (Kadiv/TPDPK) menandai tindak lanjut selesai.
+  /// DIREKTUR — memilih eksekutor tindak lanjut (Kadiv/TPDPK).
+  static Future<void> pilihEksekutorTindakLanjut({
+    required int pengaduanId,
+    required String oleh,
+    required Eksekutor eksekutor,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguPilihEksekutorTindakLanjut.name,
+      statusBaru: PengaduanStatus.tindakLanjutBerjalan.name,
+      oleh: oleh,
+      role: UserRole.direktur,
+      aksi: 'Memilih eksekutor tindak lanjut: ${eksekutor.label}',
+      kolomTambahan: {'eksekutor_tindak_lanjut': eksekutor.name},
+    );
+
+    final roleEksekutor =
+        eksekutor == Eksekutor.kadiv ? UserRole.kadivKategori : UserRole.tpdpk;
+    await NotificationService.kirimKeRole(
+      role: roleEksekutor,
+      judul: 'Ditunjuk sebagai eksekutor tindak lanjut',
+      pesan: 'Silakan jalankan tindak lanjut yang diminta Direktur.',
+      pengaduanId: pengaduanId,
+    );
+  }
+
+  /// EKSEKUTOR (Kadiv/TPDPK) — tindak lanjut selesai, diteruskan ke SDM.
   static Future<void> selesaikanTindakLanjut({
     required int pengaduanId,
     required String oleh,
@@ -472,164 +673,57 @@ class PengaduanService {
   }) async {
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'tindakLanjut',
-      statusBaru: 'selesai',
+      statusLama: PengaduanStatus.tindakLanjutBerjalan.name,
+      statusBaru: PengaduanStatus.menungguSdm.name,
       oleh: oleh,
       role: role,
-      aksi: 'Menyelesaikan tindak lanjut',
+      aksi: 'Tindak lanjut selesai dijalankan, diteruskan ke SDM',
       catatan: catatan,
-      kolomTambahan: {
-        'keterangan_selesai': catatan ?? 'Tindak lanjut telah dijalankan.',
-      },
+      kolomTambahan: {'catatan_tindak_lanjut_selesai': catatan},
     );
-  }
 
-  /// KSPI — merevisi lalu mengirim ulang ke Direktur setelah pesan
-  /// penolakan diterima.
-  static Future<void> kirimUlangSetelahRevisiKspi({
-    required int pengaduanId,
-    required String oleh,
-    required String catatanRevisi,
-  }) async {
-    await _ubahStatus(
+    await NotificationService.kirimKeRole(
+      role: UserRole.sdm,
+      judul: 'Menunggu tindak lanjut administratif',
+      pesan: 'Ada pengaduan yang perlu ditindaklanjuti secara administratif.',
       pengaduanId: pengaduanId,
-      statusLama: 'ditolakDirektur',
-      statusBaru: 'menungguPersetujuanDirektur',
-      oleh: oleh,
-      role: UserRole.kspi,
-      aksi: 'Revisi selesai, mengirim ulang ke Direktur',
-      catatan: catatanRevisi,
     );
   }
 
-  /// KSPI — menindaklanjuti permintaan peninjauan kembali dari Direktur
-  /// dengan mengirim ulang untuk investigasi ulang.
-  static Future<void> kirimUntukInvestigasiUlang({
+  /// SDM — menandai tindak lanjut administratif selesai. Titik akhir alur,
+  /// & memberi tahu pelapor asli bahwa pengaduannya selesai.
+  static Future<void> sdmSelesaikan({
     required int pengaduanId,
     required String oleh,
     String? catatan,
   }) async {
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: 'peninjauanKembali',
-      statusBaru: 'menungguInvestigasi',
+      statusLama: PengaduanStatus.menungguSdm.name,
+      statusBaru: PengaduanStatus.selesai.name,
       oleh: oleh,
-      role: UserRole.kspi,
-      aksi: 'Mengirim ulang untuk investigasi ulang',
+      role: UserRole.sdm,
+      aksi: 'Menyelesaikan tindak lanjut administratif',
       catatan: catatan,
+      kolomTambahan: {'catatan_sdm': catatan},
     );
-  }
 
-  /// TPDPK — dipanggil saat eksekutor = TPDPK dan TPDPK memilih petugas
-  /// investigasinya sendiri.
-  static Future<void> tpdpkPilihPetugas({
-    required int pengaduanId,
-    required String oleh,
-    required String petugas,
-  }) async {
-    await _ubahStatus(
-      pengaduanId: pengaduanId,
-      statusLama: 'menungguInvestigasi',
-      statusBaru: 'investigasiBerjalan',
-      oleh: oleh,
-      role: UserRole.tpdpk,
-      aksi: 'Menetapkan petugas investigasi: $petugas',
-      kolomTambahan: {'petugas_investigasi': petugas},
-    );
-  }
-
-  /// TPDPK — mengirim ulang hasil investigasi setelah revisi diminta KSPI.
-  static Future<void> kirimRevisiInvestigasi({
-    required int pengaduanId,
-    required String oleh,
-    required String hasil,
-    required String rekomendasi,
-  }) async {
-    await _ubahStatus(
-      pengaduanId: pengaduanId,
-      statusLama: 'revisiInvestigasi',
-      statusBaru: 'menungguReviewKspi',
-      oleh: oleh,
-      role: UserRole.tpdpk,
-      aksi: 'Mengirim ulang hasil investigasi (revisi) ke KSPI',
-      kolomTambahan: {
-        'hasil_investigasi': hasil,
-        'surat_rekomendasi': rekomendasi,
-        'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
-      },
-    );
-  }
-
-  /// DIREKTUR — memilih eksekutor tindak lanjut (dipanggil setelah
-  /// keputusanDirektur bernilai 'tindakLanjut').
-  static Future<void> pilihEksekutorTindakLanjut({
-    required int pengaduanId,
-    required String oleh,
-    required String eksekutor, // 'kadiv' atau 'tpdpk'
-  }) async {
-    await _client.from('pengaduan_pegawai').update({
-      'eksekutor_tindak_lanjut': eksekutor,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', pengaduanId);
-
-    await _client.from('riwayat_status_pengaduan').insert({
-      'pengaduan_id': pengaduanId,
-      'status': 'tindakLanjut',
-      'status_lama': 'tindakLanjut',
-      'oleh': oleh,
-      'role': UserRole.direktur.name,
-      'aksi': 'Memilih eksekutor tindak lanjut: $eksekutor',
-    });
-  }
-
-  /// Riwayat seluruh pengaduan yang PERNAH diputuskan oleh Direktur (kolom
-  /// `keputusan_direktur` terisi), dalam bentuk object [Pengaduan] lengkap
-  /// dengan riwayat statusnya. Dipakai tab "Riwayat" di dashboard Direktur.
-  static Future<List<Pengaduan>> riwayatKeputusanDirekturSebagaiObjek() async {
-    final rows = await _client
-        .from('pengaduan_pegawai')
-        .select()
-        .not('keputusan_direktur', 'is', null)
-        .order('updated_at', ascending: false);
-
-    final hasil = <Pengaduan>[];
-    for (final row in (rows as List)) {
-      final id = row['id'] as int;
-      final riwayatRows = await riwayatStatus(id);
-      final riwayat = riwayatRows.map((r) {
-        return StatusHistoryEntry(
-          status: PengaduanStatus.values.firstWhere(
-            (e) => e.name == r['status'],
-            orElse: () => PengaduanStatus.draft,
-          ),
-          statusLama: r['status_lama'] != null
-              ? PengaduanStatus.values.firstWhere(
-                  (e) => e.name == r['status_lama'],
-                  orElse: () => PengaduanStatus.draft,
-                )
-              : null,
-          tanggal: DateTime.parse(r['tanggal'] as String),
-          keterangan: r['keterangan'] as String?,
-          oleh: r['oleh'] as String,
-          role: r['role'] != null
-              ? UserRole.values.firstWhere((e) => e.name == r['role'])
-              : null,
-          aksi: r['aksi'] as String,
-        );
-      }).toList();
-
-      hasil
-          .add(pengaduanFromRow(row as Map<String, dynamic>, riwayat: riwayat));
+    final row = await detail(pengaduanId);
+    final pelaporId = row?['pelapor_id'] as String?;
+    if (pelaporId != null) {
+      await NotificationService.kirimKePegawai(
+        pegawaiId: pelaporId,
+        judul: 'Pengaduan selesai',
+        pesan: 'Pengaduan Anda (${row?['nomor_pengaduan']}) telah selesai '
+            'ditindaklanjuti.',
+        pengaduanId: pengaduanId,
+      );
     }
-
-    return hasil;
   }
-
-  // Method aksi lain yang mengikuti pola sama sudah lengkap semua di atas.
 }
 
 /// =============================================================
-/// NotificationService — menggantikan NotificationCenter in-memory.
+/// NotificationService
 /// =============================================================
 class NotificationService {
   NotificationService._();
@@ -639,7 +733,6 @@ class NotificationService {
   static Future<List<Map<String, dynamic>>> untukSaya() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
-
     final rows = await _client
         .from('notifikasi')
         .select()
@@ -651,7 +744,6 @@ class NotificationService {
   static Future<int> belumDibaca() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return 0;
-
     final rows = await _client
         .from('notifikasi')
         .select('id')
@@ -663,7 +755,6 @@ class NotificationService {
   static Future<void> tandaiSemuaDibaca() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
-
     await _client
         .from('notifikasi')
         .update({'dibaca': true})
@@ -671,10 +762,6 @@ class NotificationService {
         .eq('dibaca', false);
   }
 
-  /// Kirim notifikasi yang sama ke SEMUA pegawai dengan role tertentu
-  /// (mis. semua KSPI, semua Direktur). Dipakai saat aksi satu role perlu
-  /// memberi tahu role berikutnya dalam alur (Kadiv -> KSPI, KSPI ->
-  /// Direktur, dst).
   static Future<void> kirimKeRole({
     required UserRole role,
     required String judul,
@@ -694,9 +781,6 @@ class NotificationService {
     }
   }
 
-  /// Kirim notifikasi ke SATU pegawai spesifik berdasarkan id-nya. Dipakai
-  /// saat aksi perlu memberi tahu pelapor asli (bukan semua orang di satu
-  /// role), mis. saat pengaduan pegawai dinyatakan selesai.
   static Future<void> kirimKePegawai({
     required String pegawaiId,
     required String judul,

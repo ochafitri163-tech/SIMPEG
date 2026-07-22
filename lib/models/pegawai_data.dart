@@ -1,6 +1,7 @@
 /// Model & data dummy untuk seluruh fitur "Menu Cepat" pegawai.
 /// TODO: ganti seluruh data di file ini dengan hasil pemanggilan API
 /// (JSON layer di atas backend PHP/MySQL) setelah tersedia.
+library;
 
 class PendidikanItem {
   final String jenjang;
@@ -922,14 +923,14 @@ final List<JabatanItem> dummyJabatan = [
 // daftar "Riwayat per Bulan". `slip` pada item pertama berisi rincian
 // lengkap persis format PDF resmi perusahaan (kolom Pendapatan & Potongan).
 final List<PayrollItem> dummyPayroll = [
-  PayrollItem(
+  const PayrollItem(
     periode: 'Juni 2026',
     gajiPokok: 2218400,
     tunjanganKeluarga: 0,
     tunjanganJabatan: 0,
     potongan: 1718271,
     status: 'Sudah Dibayar',
-    slip: const PayrollSlipDetail(
+    slip: PayrollSlipDetail(
       bulanLabel: 'JUNI 2026',
       nik: '3000000003',
       nama: 'BUDI SANTOSO',
@@ -995,14 +996,14 @@ final List<PayrollItem> dummyPayroll = [
 // daftar "Riwayat per Tahun". `slip` pada item pertama berisi rincian
 // lengkap persis format PDF resmi perusahaan (kolom Pendapatan & Potongan).
 final List<ThrItem> dummyThr = [
-  ThrItem(
+  const ThrItem(
     tahun: '2026',
     jumlah: 7639300, // = jumlahDiterima pada slip di bawah
     tanggalCair: '31 Maret 2026',
     status: 'Sudah Cair',
     gajiPokok: 4436800,
     tunjanganTetap: 4348952, // total tunjangan di luar gaji pokok
-    slip: const ThrSlipDetail(
+    slip: ThrSlipDetail(
       bulanLabel: 'MARET 2026',
       nik: '3000000003',
       nama: 'BUDI SANTOSO',
@@ -1083,11 +1084,11 @@ final List<Gaji13Item> dummyGaji13 = [
 ];
 
 final List<InsentifItem> dummyInsentif = [
-  InsentifItem(
+  const InsentifItem(
     judul: 'Insentif Kinerja Triwulan II',
     periode: 'Juli 2026',
     jumlah: 2295000, // = jumlahDiterima pada slip di bawah
-    slip: const InsentifSlipDetail(
+    slip: InsentifSlipDetail(
       bulanLabel: 'JULI 2026',
       nik: '3000000003',
       nama: 'BUDI SANTOSO',

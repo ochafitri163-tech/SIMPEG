@@ -117,8 +117,8 @@ class _LemburScreenState extends State<LemburScreen> {
                           width: 34,
                           height: 34,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
                               colors: [
                                 FeatureScaffold.accent,
                                 FeatureScaffold.navy,
