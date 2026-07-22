@@ -91,6 +91,9 @@ class _LoginScreenState extends State<LoginScreen> {
         golongan: data['golongan'] as String,
         golonganDetail: data['golongan_detail'] as String?,
         role: UserRole.values.byName(data['role'] as String),
+        divisiKadiv: data['divisi_kadiv'] != null
+            ? DivisiKadiv.values.byName(data['divisi_kadiv'] as String)
+            : null,
       );
 
       if (!mounted) return;

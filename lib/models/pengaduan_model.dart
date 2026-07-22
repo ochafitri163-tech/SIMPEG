@@ -38,183 +38,149 @@ enum PengaduanStatus {
 extension PengaduanStatusX on PengaduanStatus {
   String get label {
     switch (this) {
+      case PengaduanStatus.menungguKadiv:
+        return 'Menunggu Kadiv';
       case PengaduanStatus.menungguVerifikasiKadiv:
         return 'Menunggu Verifikasi Kadiv';
-      case PengaduanStatus.tindakLanjut:
-        return 'Tindak Lanjut';
+      case PengaduanStatus.menungguDirutTahap1:
+        return 'Menunggu Persetujuan Dirut (Tahap 1)';
+      case PengaduanStatus.menungguPilihEksekutor:
+        return 'Menunggu Pilih Eksekutor';
       case PengaduanStatus.reviewKspi:
         return 'Review KSPI';
       case PengaduanStatus.menungguReviewKspi:
         return 'Menunggu Review KSPI';
+      case PengaduanStatus.menungguInvestigasi:
+        return 'Menunggu Investigasi';
+      case PengaduanStatus.investigasiBerjalan:
+        return 'Investigasi Berjalan';
+      case PengaduanStatus.revisiInvestigasi:
+        return 'Revisi Investigasi';
+      case PengaduanStatus.menungguDirutTahap2:
+        return 'Menunggu Persetujuan Dirut (Tahap 2)';
       case PengaduanStatus.ditolakDirektur:
         return 'Ditolak Direktur';
       case PengaduanStatus.peninjauanKembali:
         return 'Peninjauan Kembali';
-      case PengaduanStatus.menungguInvestigasi:
-        return 'Menunggu Investigasi';
-      case PengaduanStatus.revisiInvestigasi:
-        return 'Revisi Investigasi';
-      case PengaduanStatus.menungguKadiv:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap1:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguPilihEksekutor:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.investigasiBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap2:
-        // TODO: Handle this case.
-        throw UnimplementedError();
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Menunggu Pilih Eksekutor Tindak Lanjut';
       case PengaduanStatus.tindakLanjutBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Tindak Lanjut Berjalan';
+      case PengaduanStatus.tindakLanjut:
+        return 'Tindak Lanjut';
       case PengaduanStatus.menungguSdm:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Menunggu SDM';
       case PengaduanStatus.selesai:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Selesai';
       case PengaduanStatus.arsip:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Diarsipkan';
     }
   }
 
   Color get color {
     switch (this) {
+      case PengaduanStatus.menungguKadiv:
       case PengaduanStatus.menungguVerifikasiKadiv:
         return const Color(0xFF95A5A6);
-      case PengaduanStatus.tindakLanjut:
-        return const Color(0xFF27AE60);
+      case PengaduanStatus.menungguDirutTahap1:
+      case PengaduanStatus.menungguDirutTahap2:
+        return const Color(0xFFE67E22);
+      case PengaduanStatus.menungguPilihEksekutor:
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+        return const Color(0xFF2E86AB);
       case PengaduanStatus.reviewKspi:
         return const Color(0xFF2E86AB);
       case PengaduanStatus.menungguReviewKspi:
         return const Color(0xFFE67E22);
+      case PengaduanStatus.menungguInvestigasi:
+        return const Color(0xFFE67E22);
+      case PengaduanStatus.investigasiBerjalan:
+      case PengaduanStatus.tindakLanjutBerjalan:
+        return const Color(0xFF2E86AB);
+      case PengaduanStatus.revisiInvestigasi:
+        return const Color(0xFFD35400);
       case PengaduanStatus.ditolakDirektur:
         return const Color(0xFFE74C3C);
       case PengaduanStatus.peninjauanKembali:
         return const Color(0xFF8E44AD);
-      case PengaduanStatus.menungguInvestigasi:
-        return const Color(0xFFE67E22);
-      case PengaduanStatus.revisiInvestigasi:
-        return const Color(0xFFD35400);
-      case PengaduanStatus.menungguKadiv:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap1:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguPilihEksekutor:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.investigasiBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap2:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.tindakLanjutBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+      case PengaduanStatus.tindakLanjut:
+        return const Color(0xFF27AE60);
       case PengaduanStatus.menungguSdm:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return const Color(0xFFE67E22);
       case PengaduanStatus.selesai:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return const Color(0xFF27AE60);
       case PengaduanStatus.arsip:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return const Color(0xFF7F8C8D);
     }
   }
 
   IconData get icon {
     switch (this) {
+      case PengaduanStatus.menungguKadiv:
       case PengaduanStatus.menungguVerifikasiKadiv:
         return Icons.hourglass_top_rounded;
-      case PengaduanStatus.tindakLanjut:
-        return Icons.flag_rounded;
+      case PengaduanStatus.menungguDirutTahap1:
+      case PengaduanStatus.menungguDirutTahap2:
+        return Icons.fact_check_rounded;
+      case PengaduanStatus.menungguPilihEksekutor:
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+        return Icons.person_search_rounded;
       case PengaduanStatus.reviewKspi:
         return Icons.rate_review_rounded;
       case PengaduanStatus.menungguReviewKspi:
         return Icons.fact_check_rounded;
+      case PengaduanStatus.menungguInvestigasi:
+        return Icons.search_rounded;
+      case PengaduanStatus.investigasiBerjalan:
+      case PengaduanStatus.tindakLanjutBerjalan:
+        return Icons.autorenew_rounded;
+      case PengaduanStatus.revisiInvestigasi:
+        return Icons.autorenew_rounded;
       case PengaduanStatus.ditolakDirektur:
         return Icons.gpp_bad_rounded;
       case PengaduanStatus.peninjauanKembali:
         return Icons.replay_rounded;
-      case PengaduanStatus.menungguInvestigasi:
-        return Icons.search_rounded;
-      case PengaduanStatus.revisiInvestigasi:
-        return Icons.autorenew_rounded;
-      case PengaduanStatus.menungguKadiv:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap1:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguPilihEksekutor:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.investigasiBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguDirutTahap2:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case PengaduanStatus.tindakLanjutBerjalan:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+      case PengaduanStatus.tindakLanjut:
+        return Icons.flag_rounded;
       case PengaduanStatus.menungguSdm:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return Icons.assignment_ind_rounded;
       case PengaduanStatus.selesai:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return Icons.check_circle_rounded;
       case PengaduanStatus.arsip:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return Icons.archive_rounded;
     }
   }
 
-  /// Urutan tahap pada alur normal (dipakai timeline linear). `arsip`
-  /// bukan bagian dari urutan linear karena bisa terjadi di 3 titik
-  /// berbeda (lihat `arsipPadaTahap`).
   int get stepOrder {
     switch (this) {
       case PengaduanStatus.menungguKadiv:
+      case PengaduanStatus.menungguVerifikasiKadiv:
         return 1;
       case PengaduanStatus.menungguDirutTahap1:
         return 2;
       case PengaduanStatus.menungguPilihEksekutor:
+      case PengaduanStatus.reviewKspi:
         return 3;
+      case PengaduanStatus.menungguInvestigasi:
       case PengaduanStatus.investigasiBerjalan:
         return 4;
-      case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguReviewKspi:
+      case PengaduanStatus.revisiInvestigasi:
         return 5;
-      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+      case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.ditolakDirektur:
+      case PengaduanStatus.peninjauanKembali:
         return 6;
-      case PengaduanStatus.tindakLanjutBerjalan:
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
         return 7;
-      case PengaduanStatus.menungguSdm:
+      case PengaduanStatus.tindakLanjutBerjalan:
+      case PengaduanStatus.tindakLanjut:
         return 8;
-      case PengaduanStatus.selesai:
+      case PengaduanStatus.menungguSdm:
         return 9;
+      case PengaduanStatus.selesai:
+        return 10;
       case PengaduanStatus.arsip:
-        return -1;
-      default:
         return -1;
     }
   }

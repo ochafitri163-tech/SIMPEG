@@ -29,6 +29,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
   @override
   void initState() {
     super.initState();
+    print('Current auth uid: ${Supabase.instance.client.auth.currentUser?.id}');
+    print('Expected pegawai id: 5aa2fe97-09a0-44c5-b1ec-b8122622b310');
     _future = PengaduanService.untukRoleSebagaiObjek(UserRole.kadivKategori);
   }
 
@@ -367,6 +369,10 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
             final menungguVerifikasi = semua
                 .where(
                     (p) => p.status == PengaduanStatus.menungguVerifikasiKadiv)
+                .where((p) => widget.user.divisiKadiv == null
+                    ? true
+                    : divisiKadivDariKategori(p.kategori) ==
+                        widget.user.divisiKadiv)
                 .toList();
             final tindakLanjut = semua
                 .where((p) => p.status == PengaduanStatus.tindakLanjut)
