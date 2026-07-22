@@ -248,6 +248,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       await storage.from('pengaduan-bukti').uploadBinary(
             fileName,
             foto.bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
       final url = storage.from('pengaduan-bukti').getPublicUrl(fileName);
