@@ -90,6 +90,10 @@ class _LoginScreenState extends State<LoginScreen> {
         unitKerjaSingkat: data['unit_kerja_singkat'] as String,
         golongan: data['golongan'] as String,
         golonganDetail: data['golongan_detail'] as String?,
+        // Sebelumnya kolom foto tidak pernah dipetakan ke AppUser, jadi
+        // fotoUrl selalu null dan ProfileIdentityCard selalu jatuh ke
+        // fallback inisial walau kolomnya sudah terisi di database.
+        fotoUrl: data['foto_url'] as String?,
         role: UserRole.values.byName(data['role'] as String),
         divisiKadiv: data['divisi_kadiv'] != null
             ? DivisiKadiv.values.byName(data['divisi_kadiv'] as String)

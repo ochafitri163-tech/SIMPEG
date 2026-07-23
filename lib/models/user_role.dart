@@ -123,6 +123,7 @@ class AppUser {
   final String statusPernikahan;
   final String alamat;
   final String noTelp;
+  final String? fotoUrl;
 
   final UserRole role;
 
@@ -144,6 +145,7 @@ class AppUser {
     this.statusPernikahan = 'Sudah Menikah',
     this.alamat = 'Blok Panggang RT.03 RW.01, Tegalsembadra, Balongan',
     this.noTelp = '0877-2764-1009',
+    this.fotoUrl,
     this.role = UserRole.pegawai,
     this.divisiKadiv,
   });

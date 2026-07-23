@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
+import '../../widgets/profile_identity_card.dart';
 import 'absensi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -45,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildIdentityCard(isSmallScreen),
+                  ProfileIdentityCard(user: user, isSmallScreen: isSmallScreen),
                   const SizedBox(height: 22),
                   const _SectionLabel('INFORMASI SAYA'),
                   const SizedBox(height: 10),
