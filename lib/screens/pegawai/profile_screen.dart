@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
-import '../../widgets/profile_identity_card.dart';
 import 'absensi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -46,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ProfileIdentityCard(user: user, isSmallScreen: isSmallScreen),
+                  _buildIdentityCard(isSmallScreen),
                   const SizedBox(height: 22),
                   const _SectionLabel('INFORMASI SAYA'),
                   const SizedBox(height: 10),
@@ -166,11 +165,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            navy,
-            navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85)
-          ],
+          colors: [navy, navy.withValues(alpha: 0.85), const Color(0xFF123A85)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -276,14 +271,23 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  user.initials,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isSmallScreen ? 17.0 : 20.0,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: user.fotoUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          user.fotoUrl!,
+                          width: isSmallScreen ? 50.0 : 60.0,
+                          height: isSmallScreen ? 50.0 : 60.0,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Text(
+                        user.initials,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 17.0 : 20.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               Positioned(
                 right: 0,
@@ -356,8 +360,8 @@ class ProfileScreen extends StatelessWidget {
       height: isSmallScreen ? 44.0 : 50.0,
       child: OutlinedButton.icon(
         onPressed: () => _confirmLogout(context),
-        icon: Icon(Icons.logout_rounded, size: isSmallScreen ? 16.0 : 18.0,
-            color: danger),
+        icon: Icon(Icons.logout_rounded,
+            size: isSmallScreen ? 16.0 : 18.0, color: danger),
         label: Text(
           'Keluar',
           style: TextStyle(
@@ -367,8 +371,8 @@ class ProfileScreen extends StatelessWidget {
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: danger, width: 1.2),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -521,8 +525,8 @@ class _MenuTile extends StatelessWidget {
                   color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(icon, size: isSmallScreen ? 17.0 : 19.0,
-                    color: iconColor),
+                child: Icon(icon,
+                    size: isSmallScreen ? 17.0 : 19.0, color: iconColor),
               ),
               const SizedBox(width: 14),
               Expanded(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/user_role.dart';
-import '../../widgets/profile_identity_card.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
@@ -30,118 +29,103 @@ class ProfileDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: ListView(
-            padding: EdgeInsets.zero,
+      body: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
             children: [
               _buildHeader(context, isSmallScreen),
-              Transform.translate(
-                // Satu translate untuk SEMUA konten di bawah header (kartu
-                // identitas + ringkasan + tab + data pribadi/kepegawaian),
-                // persis seperti pola di ProfileScreen. Kalau cuma kartu
-                // identitas saja yang di-translate, sisa ruang kosong
-                // setinggi setengah avatar akan "nempel" jadi jarak
-                // kosong sebelum card berikutnya — itu penyebab jarak
-                // NIK -> Golongan kelihatan jauh sebelumnya.
-                offset: Offset(
-                  0,
-                  -ProfileIdentityCard.avatarSizeFor(
-                        prominent: true,
-                        isSmallScreen: isSmallScreen,
-                      ) /
-                      2,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ProfileIdentityCard(
-                        user: user,
-                        isSmallScreen: isSmallScreen,
-                        prominent: true,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildSummaryCard(isSmallScreen),
-                      const SizedBox(height: 20),
-                      _buildTabs(context, isSmallScreen),
-                      const SizedBox(height: 20),
-                      const _SectionLabel('DATA PRIBADI'),
-                      const SizedBox(height: 10),
-                      _CardContainer(
-                        child: Column(
-                          children: [
-                            _DataRow(
-                              icon: Icons.calendar_today_rounded,
-                              label: 'Tempat & Tgl. Lahir',
-                              value: user.tempatTanggalLahir,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                            const _RowDivider(),
-                            _DataRow(
-                              icon: Icons.favorite_border_rounded,
-                              label: 'Status Pernikahan',
-                              value: user.statusPernikahan,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                            const _RowDivider(),
-                            _DataRow(
-                              icon: Icons.location_on_outlined,
-                              label: 'Alamat Rumah',
-                              value: user.alamat,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                            const _RowDivider(),
-                            _DataRow(
-                              icon: Icons.phone_outlined,
-                              label: 'No. Telp / HP',
-                              value: user.noTelp,
-                              isLast: true,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      const _SectionLabel('KEPEGAWAIAN'),
-                      const SizedBox(height: 10),
-                      _CardContainer(
-                        child: Column(
-                          children: [
-                            _DataRow(
-                              icon: Icons.swap_horiz_rounded,
-                              label: 'Jabatan',
-                              value: user.jabatan,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                            const _RowDivider(),
-                            _DataRow(
-                              icon: Icons.work_outline_rounded,
-                              label: 'Unit Kerja',
-                              value: user.unitKerja,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                            const _RowDivider(),
-                            _DataRow(
-                              icon: Icons.wb_sunny_outlined,
-                              label: 'Golongan',
-                              value: user.golongan,
-                              isLast: true,
-                              isSmallScreen: isSmallScreen,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: -46,
+                child: _buildSummaryCard(isSmallScreen),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 62),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildTabs(context, isSmallScreen),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SectionLabel('DATA PRIBADI'),
+                const SizedBox(height: 10),
+                _CardContainer(
+                  child: Column(
+                    children: [
+                      _DataRow(
+                        icon: Icons.calendar_today_rounded,
+                        label: 'Tempat & Tgl. Lahir',
+                        value: user.tempatTanggalLahir,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _RowDivider(),
+                      _DataRow(
+                        icon: Icons.favorite_border_rounded,
+                        label: 'Status Pernikahan',
+                        value: user.statusPernikahan,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _RowDivider(),
+                      _DataRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Alamat Rumah',
+                        value: user.alamat,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _RowDivider(),
+                      _DataRow(
+                        icon: Icons.phone_outlined,
+                        label: 'No. Telp / HP',
+                        value: user.noTelp,
+                        isLast: true,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const _SectionLabel('KEPEGAWAIAN'),
+                const SizedBox(height: 10),
+                _CardContainer(
+                  child: Column(
+                    children: [
+                      _DataRow(
+                        icon: Icons.swap_horiz_rounded,
+                        label: 'Jabatan',
+                        value: user.jabatan,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _RowDivider(),
+                      _DataRow(
+                        icon: Icons.work_outline_rounded,
+                        label: 'Unit Kerja',
+                        value: user.unitKerja,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _RowDivider(),
+                      _DataRow(
+                        icon: Icons.wb_sunny_outlined,
+                        label: 'Golongan',
+                        value: user.golongan,
+                        isLast: true,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -153,15 +137,11 @@ class ProfileDetailScreen extends StatelessWidget {
         20,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 12.0),
         20,
-        isSmallScreen ? 34.0 : 40.0,
+        isSmallScreen ? 48.0 : 56.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            navy,
-            navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85)
-          ],
+          colors: [navy, navy.withValues(alpha: 0.85), const Color(0xFF123A85)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -223,6 +203,106 @@ class ProfileDetailScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(width: isSmallScreen ? 28.0 : 36.0),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: isSmallScreen ? 52.0 : 64.0,
+                    height: isSmallScreen ? 52.0 : 64.0,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: user.fotoUrl != null
+                        ? ClipOval(
+                            child: Image.network(
+                              user.fotoUrl!,
+                              width: isSmallScreen ? 52.0 : 64.0,
+                              height: isSmallScreen ? 52.0 : 64.0,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Text(
+                            user.initials,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 18.0 : 22.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                  Positioned(
+                    right: 1,
+                    bottom: 1,
+                    child: Container(
+                      width: isSmallScreen ? 12.0 : 14.0,
+                      height: isSmallScreen ? 12.0 : 14.0,
+                      decoration: BoxDecoration(
+                        color: green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: navy, width: 2.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isSmallScreen ? 14.0 : 16.5,
+                        fontWeight: FontWeight.bold,
+                        height: 1.25,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      user.jabatan,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: isSmallScreen ? 11.0 : 12.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'NIK ${user.nik}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 10.5 : 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -373,7 +453,8 @@ class _CircleIconButton extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: Colors.white, size: isSmallScreen ? 18.0 : 22.0),
+        child:
+            Icon(icon, color: Colors.white, size: isSmallScreen ? 18.0 : 22.0),
       ),
     );
   }
@@ -557,7 +638,8 @@ class _DataRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, size: isSmallScreen ? 16.0 : 18.0,
+            child: Icon(icon,
+                size: isSmallScreen ? 16.0 : 18.0,
                 color: ProfileDetailScreen.accent),
           ),
           const SizedBox(width: 12),

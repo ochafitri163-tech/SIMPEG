@@ -469,13 +469,19 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
                 .toList();
             final berjalan = semua
-                .where((p) => p.status == PengaduanStatus.investigasiBerjalan)
+                .where((p) =>
+                    p.status == PengaduanStatus.investigasiBerjalan &&
+                    p.eksekutor == Eksekutor.tpdpk)
                 .toList();
             final revisi = semua
-                .where((p) => p.status == PengaduanStatus.revisiInvestigasi)
+                .where((p) =>
+                    p.status == PengaduanStatus.revisiInvestigasi &&
+                    p.eksekutor == Eksekutor.tpdpk)
                 .toList();
             final tindakLanjut = semua
-                .where((p) => p.status == PengaduanStatus.tindakLanjut)
+                .where((p) =>
+                    p.status == PengaduanStatus.tindakLanjutBerjalan &&
+                    p.eksekutorTindakLanjut == Eksekutor.tpdpk)
                 .toList();
 
             return RefreshIndicator(
@@ -569,9 +575,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white,
-            child: Text(widget.user.initials,
-                style: const TextStyle(
-                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+            backgroundImage: widget.user.fotoUrl != null
+                ? NetworkImage(widget.user.fotoUrl!)
+                : null,
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(widget.user.initials,
+                    style: const TextStyle(
+                        color: _navy,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(

@@ -102,8 +102,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
           children: [
             _grip(),
             const Text('Selesaikan Tindak Lanjut Administratif',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
                 style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
@@ -274,9 +273,16 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white,
-            child: Text(widget.user.initials,
-                style: const TextStyle(
-                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+            backgroundImage: widget.user.fotoUrl != null
+                ? NetworkImage(widget.user.fotoUrl!)
+                : null,
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(widget.user.initials,
+                    style: const TextStyle(
+                        color: _navy,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(

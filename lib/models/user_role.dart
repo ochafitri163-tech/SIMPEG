@@ -123,6 +123,7 @@ class AppUser {
   final String statusPernikahan;
   final String alamat;
   final String noTelp;
+
   final String? fotoUrl;
 
   final UserRole role;

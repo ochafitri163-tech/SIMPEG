@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'services/notification_service.dart';
 import 'services/theme_controller.dart';
-import 'screens/splash_screen.dart';
+
 // Ganti dengan URL & anon key project Supabase kamu
 // Ambil di: Supabase Dashboard > Settings > API
 const String supabaseUrl = 'https://jyywrknlkqwmiqokmcju.supabase.co';
@@ -59,7 +59,7 @@ class SimpegApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
           ),
-          home: const SplashScreen(),
+          home: const LoginScreen(),
         );
       },
     );

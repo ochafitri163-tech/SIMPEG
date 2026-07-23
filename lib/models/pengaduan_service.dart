@@ -289,7 +289,7 @@ class PengaduanService {
           'golongan': user.golongan,
           'anonim': anonim,
           'foto_bukti': fotoBukti,
-          'status': PengaduanStatus.menungguVerifikasiKadiv.name,
+          'status': PengaduanStatus.menungguKadiv.name,
         })
         .select()
         .single();
@@ -340,20 +340,10 @@ class PengaduanService {
     UserRole role, {
     String? divisiKadiv,
   }) async {
-    var query = _client.from('pengaduan_pegawai').select();
-
-    switch (role) {
-      case UserRole.kadivKategori:
-        query = query.or(
-          'status.eq.${PengaduanStatus.menungguVerifikasiKadiv.name},'
-          'status.eq.${PengaduanStatus.tindakLanjut.name}',
-        );
-        break;
-      default:
-        break;
-    }
-
-    final rows = await query.order('tanggal_pengaduan', ascending: false);
+    final rows = await _client
+        .from('pengaduan_pegawai')
+        .select()
+        .order('tanggal_pengaduan', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
@@ -660,15 +650,18 @@ class PengaduanService {
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutorTindakLanjut.name,
-      statusBaru: PengaduanStatus.tindakLanjut.name,
+      statusBaru: PengaduanStatus.tindakLanjutBerjalan.name,
       oleh: oleh,
       role: UserRole.direktur,
       aksi: 'Memilih eksekutor tindak lanjut: ${eksekutor.label}',
       kolomTambahan: {'eksekutor_tindak_lanjut': eksekutor.name},
     );
 
-    final roleEksekutor =
-        eksekutor == Eksekutor.kadiv ? UserRole.kadivKategori : UserRole.tpdpk;
+    final roleEksekutor = eksekutor == Eksekutor.kadiv
+        ? UserRole.kadivKategori
+        : eksekutor == Eksekutor.kspi
+            ? UserRole.kspi
+            : UserRole.tpdpk;
     await NotificationService.kirimKeRole(
       role: roleEksekutor,
       judul: 'Ditunjuk sebagai eksekutor tindak lanjut',

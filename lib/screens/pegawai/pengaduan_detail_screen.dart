@@ -191,7 +191,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  Future<Eksekutor?> _dialogPilihEksekutor({required String judul}) async {
+  Future<Eksekutor?> _dialogPilihEksekutor(
+      {required String judul,
+      List<Eksekutor> opsi = const [Eksekutor.kadiv, Eksekutor.tpdpk]}) async {
     return showModalBottomSheet<Eksekutor>(
       context: context,
       backgroundColor: Colors.white,
@@ -220,7 +222,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                         fontWeight: FontWeight.bold,
                         color: navy)),
               ),
-              for (final e in Eksekutor.values)
+              for (final e in opsi)
                 ListTile(
                   leading: const Icon(Icons.person_pin_circle_outlined,
                       color: accent),
@@ -578,6 +580,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             );
           },
         );
+      } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
+          p.eksekutorTindakLanjut == Eksekutor.kspi) {
+        panel = _panelSelesaikanTindakLanjut(p, oleh, UserRole.kspi);
       }
     } else if (role == UserRole.tpdpk) {
       if (p.status == PengaduanStatus.investigasiBerjalan &&
@@ -653,6 +658,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           PengaduanStatus.menungguPilihEksekutorTindakLanjut) {
         panel = _panelPilihEksekutor(
           judul: 'Pilih Eksekutor Tindak Lanjut',
+          opsi: const [Eksekutor.kspi, Eksekutor.tpdpk],
           onPilih: (e) => _jalankan(
             () => PengaduanService.pilihEksekutorTindakLanjut(
               pengaduanId: p.supabaseId!,
@@ -772,6 +778,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   Widget _panelPilihEksekutor({
     required String judul,
     required void Function(Eksekutor) onPilih,
+    List<Eksekutor> opsi = const [Eksekutor.kadiv, Eksekutor.tpdpk],
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,7 +792,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             onPressed: _isProcessing
                 ? null
                 : () async {
-                    final e = await _dialogPilihEksekutor(judul: judul);
+                    final e = await _dialogPilihEksekutor(judul: judul, opsi: opsi);
                     if (e != null) onPilih(e);
                   },
             icon: const Icon(Icons.person_search_rounded, size: 18),

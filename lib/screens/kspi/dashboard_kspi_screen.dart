@@ -58,6 +58,19 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     );
   }
 
+  Future<void> _bukaDetail(Pengaduan p) async {
+    final id = p.supabaseId;
+    if (id == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PengaduanDetailScreen(user: widget.user, pengaduanId: id),
+      ),
+    );
+    await _refresh();
+  }
+
   Future<T?> _openSheet<T>(
       Widget Function(BuildContext, void Function(void Function())) builder) {
     return showModalBottomSheet<T>(
@@ -570,13 +583,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
 
             final semua = snapshot.data ?? [];
             final reviewAwal = semua
-                .where((p) => p.status == PengaduanStatus.reviewKspi)
+                .where(
+                    (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
                 .toList();
             final reviewHasil = semua
                 .where((p) => p.status == PengaduanStatus.menungguReviewKspi)
                 .toList();
             final ditolak = semua
-                .where((p) => p.status == PengaduanStatus.ditolakDirektur)
+                .where((p) =>
+                    p.status == PengaduanStatus.tindakLanjutBerjalan &&
+                    p.eksekutorTindakLanjut == Eksekutor.kspi)
                 .toList();
             final peninjauan = semua
                 .where((p) => p.status == PengaduanStatus.peninjauanKembali)
@@ -590,11 +606,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   _buildHeaderCard(semua.length),
                   const SizedBox(height: 20),
                   _buildSection(
-                      'REVIEW AWAL — PILIH EKSEKUTOR',
+                      'PILIH EKSEKUTOR INVESTIGASI',
                       reviewAwal,
-                      _bukaReviewEksekutor,
-                      'Belum ada pengaduan dari Kadiv.',
-                      'Review'),
+                      _bukaDetail,
+                      'Belum ada pengaduan siap ditugaskan.',
+                      'Pilih Eksekutor'),
                   _buildSection(
                       'REVIEW HASIL INVESTIGASI',
                       reviewHasil,
@@ -602,11 +618,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       'Belum ada hasil investigasi masuk.',
                       'Review Hasil'),
                   _buildSection(
-                      'PESAN PENOLAKAN DARI DIREKTUR',
+                      'TINDAK LANJUT DITUGASKAN',
                       ditolak,
-                      _bukaRevisiPenolakan,
-                      'Tidak ada penolakan dari Direktur.',
-                      'Revisi'),
+                      _bukaDetail,
+                      'Tidak ada tindak lanjut yang ditugaskan.',
+                      'Jalankan'),
                   _buildSection(
                       'PENINJAUAN KEMBALI DARI DIREKTUR',
                       peninjauan,
@@ -669,9 +685,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white,
-            child: Text(widget.user.initials,
-                style: const TextStyle(
-                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+            backgroundImage: widget.user.fotoUrl != null
+                ? NetworkImage(widget.user.fotoUrl!)
+                : null,
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(widget.user.initials,
+                    style: const TextStyle(
+                        color: _navy,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(

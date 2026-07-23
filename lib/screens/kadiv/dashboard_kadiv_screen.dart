@@ -62,6 +62,19 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     );
   }
 
+  Future<void> _bukaDetail(Pengaduan p) async {
+    final id = p.supabaseId;
+    if (id == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PengaduanDetailScreen(user: widget.user, pengaduanId: id),
+      ),
+    );
+    await _refresh();
+  }
+
   Future<void> _bukaVerifikasi(Pengaduan p) async {
     KategoriDivisi kategoriDipilih = KategoriDivisi.devAdmin;
     final catatanController = TextEditingController();
@@ -367,15 +380,16 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
 
             final semua = snapshot.data ?? [];
             final menungguVerifikasi = semua
-                .where(
-                    (p) => p.status == PengaduanStatus.menungguVerifikasiKadiv)
+                .where((p) => p.status == PengaduanStatus.menungguKadiv)
                 .where((p) => widget.user.divisiKadiv == null
                     ? true
                     : divisiKadivDariKategori(p.kategori) ==
                         widget.user.divisiKadiv)
                 .toList();
             final tindakLanjut = semua
-                .where((p) => p.status == PengaduanStatus.tindakLanjut)
+                .where((p) =>
+                    p.status == PengaduanStatus.investigasiBerjalan &&
+                    p.eksekutor == Eksekutor.kadiv)
                 .toList();
 
             return RefreshIndicator(
@@ -402,11 +416,11 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     ...menungguVerifikasi.map((p) => _buildPengaduanCard(
                           p,
                           tombolLabel: 'Verifikasi',
-                          onAksi: () => _bukaVerifikasi(p),
+                          onAksi: () => _bukaDetail(p),
                         )),
                   const SizedBox(height: 20),
                   const Text(
-                    'TINDAK LANJUT DARI DIREKTUR',
+                    'INVESTIGASI DITUGASKAN',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -416,12 +430,12 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   ),
                   const SizedBox(height: 10),
                   if (tindakLanjut.isEmpty)
-                    _buildEmptyState('Tidak ada tindak lanjut yang ditugaskan.')
+                    _buildEmptyState('Tidak ada investigasi yang ditugaskan.')
                   else
                     ...tindakLanjut.map((p) => _buildPengaduanCard(
                           p,
-                          tombolLabel: 'Selesaikan',
-                          onAksi: () => _bukaSelesaikanTindakLanjut(p),
+                          tombolLabel: 'Kirim Hasil',
+                          onAksi: () => _bukaDetail(p),
                         )),
                 ],
               ),
@@ -449,14 +463,19 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white,
-            child: Text(
-              widget.user.initials,
-              style: const TextStyle(
-                color: _navy,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
+            backgroundImage: widget.user.fotoUrl != null
+                ? NetworkImage(widget.user.fotoUrl!)
+                : null,
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(
+                    widget.user.initials,
+                    style: const TextStyle(
+                      color: _navy,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(

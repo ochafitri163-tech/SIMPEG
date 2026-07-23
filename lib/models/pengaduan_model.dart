@@ -199,13 +199,15 @@ extension KeputusanX on Keputusan {
 
 /// Eksekutor yang dipilih KSPI (investigasi) atau Direktur (tindak
 /// lanjut). KSPI sendiri tidak pernah menjadi eksekutor.
-enum Eksekutor { kadiv, tpdpk }
+enum Eksekutor { kadiv, kspi, tpdpk }
 
 extension EksekutorX on Eksekutor {
   String get label {
     switch (this) {
       case Eksekutor.kadiv:
         return 'Kadiv Kategori';
+      case Eksekutor.kspi:
+        return 'KSPI';
       case Eksekutor.tpdpk:
         return 'TPDPK';
     }

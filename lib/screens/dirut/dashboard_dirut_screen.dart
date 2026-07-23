@@ -355,7 +355,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
 
   // ---------- Pilih eksekutor tindak lanjut ----------
   Future<void> _bukaPilihEksekutorTindakLanjut(Pengaduan p) async {
-    Eksekutor eksekutorDipilih = Eksekutor.kadiv;
+    Eksekutor eksekutorDipilih = Eksekutor.kspi;
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
         child: Column(
@@ -370,7 +370,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
             const SizedBox(height: 16),
             Row(
-              children: Eksekutor.values.map((e) {
+              children: const [Eksekutor.kspi, Eksekutor.tpdpk].map((e) {
                 final selected = eksekutorDipilih == e;
                 return Expanded(
                   child: Padding(
@@ -619,9 +619,16 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white,
-            child: Text(widget.user.initials,
-                style: const TextStyle(
-                    color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+            backgroundImage: widget.user.fotoUrl != null
+                ? NetworkImage(widget.user.fotoUrl!)
+                : null,
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(widget.user.initials,
+                    style: const TextStyle(
+                        color: _navy,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
           ),
           const SizedBox(width: 14),
           Expanded(
