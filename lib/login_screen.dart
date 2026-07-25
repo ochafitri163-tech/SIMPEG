@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/user_role.dart';
-import 'screens/dirut/dashboard_dirut_screen.dart';
-import 'screens/kadiv/dashboard_kadiv_screen.dart';
-import 'screens/kspi/dashboard_kspi_screen.dart';
-import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
-import 'screens/sdm/dashboard_sdm_screen.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -131,20 +126,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    switch (user.role) {
-      case UserRole.pegawai:
-        return PegawaiDashboard(user: user);
-      case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: user);
-      case UserRole.kspi:
-        return DashboardKspiScreen(user: user);
-      case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: user);
-      case UserRole.direktur:
-        return DashboardDirutScreen(user: user);
-      case UserRole.sdm:
-        return DashboardSdmScreen(user: user);
-    }
+    // Semua role (Pegawai, Kadiv, KSPI, TPDPK, Direktur, SDM) kini masuk ke
+    // satu tampilan dashboard yang sama (PegawaiDashboard), karena setiap
+    // pemegang role approval tetap seorang pegawai juga. Fitur dashboard
+    // khusus per-role (verifikasi/approval pengaduan) ditampilkan sebagai
+    // tab tambahan di footer, hanya untuk role selain Pegawai biasa — lihat
+    // PegawaiDashboard._buildBottomNav().
+    return PegawaiDashboard(user: user);
   }
 
   void _showSnackBar(String message, Color color) {

@@ -470,135 +470,201 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
         length: 2,
         child: Scaffold(
           backgroundColor: const Color(0xFFF3F6F9),
-          appBar: AppBar(
-            backgroundColor: _navy,
-            foregroundColor: Colors.white,
-            title: const Text('Dashboard Direktur (DIRUT)'),
-            actions: [
-              const NotificationBell(role: UserRole.direktur),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded),
-                tooltip: 'Keluar',
-                onPressed: _logout,
-              ),
-            ],
-            bottom: const TabBar(
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              tabs: [
-                Tab(text: 'Menunggu Persetujuan'),
-                Tab(text: 'Riwayat'),
-              ],
-            ),
-          ),
-          body: TabBarView(
+          body: Column(
             children: [
-              FutureBuilder<List<Pengaduan>>(
-                future: _menungguFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          'Gagal memuat data: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final menunggu = snapshot.data ?? [];
-
-                  return RefreshIndicator(
-                    onRefresh: _refreshMenunggu,
-                    child: ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: [
-                        _buildHeaderCard(menunggu.length),
-                        const SizedBox(height: 20),
-                        if (menunggu.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                Icon(Icons.inbox_rounded,
-                                    size: 48, color: Colors.grey[300]),
-                                const SizedBox(height: 10),
-                                Text(
-                                    'Tidak ada pengaduan yang menunggu persetujuan.',
-                                    style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.grey[500])),
-                              ],
-                            ),
-                          )
-                        else
-                          ...menunggu.map((p) => _buildPengaduanCard(p)),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              FutureBuilder<List<Pengaduan>>(
-                future: _riwayatFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          'Gagal memuat riwayat: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final riwayat = snapshot.data ?? [];
-
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      setState(() {
-                        _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(
-                            UserRole.direktur);
-                      });
-                      await _riwayatFuture;
-                    },
-                    child: ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: riwayat.isEmpty
-                          ? [
-                              Container(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 40),
-                                alignment: Alignment.center,
-                                child: Text('Belum ada riwayat keputusan.',
-                                    style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.grey[500])),
+              _buildTopHeader(context),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    FutureBuilder<List<Pengaduan>>(
+                      future: _menungguFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Text(
+                                'Gagal memuat data: ${snapshot.error}',
+                                textAlign: TextAlign.center,
+                                style:
+                                    TextStyle(color: Colors.grey[600], fontSize: 13),
                               ),
-                            ]
-                          : riwayat.map((p) => _buildRiwayatCard(p)).toList(),
+                            ),
+                          );
+                        }
+
+                        final menunggu = snapshot.data ?? [];
+
+                        return RefreshIndicator(
+                          onRefresh: _refreshMenunggu,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                            children: [
+                              Transform.translate(
+                                offset: const Offset(0, -22),
+                                child: _buildHeaderCard(menunggu.length),
+                              ),
+                              const SizedBox(height: 8),
+                              if (menunggu.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 40),
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.inbox_rounded,
+                                          size: 48, color: Colors.grey[300]),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                          'Tidak ada pengaduan yang menunggu persetujuan.',
+                                          style: TextStyle(
+                                              fontSize: 12.5,
+                                              color: Colors.grey[500])),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ...menunggu.map((p) => _buildPengaduanCard(p)),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                    FutureBuilder<List<Pengaduan>>(
+                      future: _riwayatFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Text(
+                                'Gagal memuat riwayat: ${snapshot.error}',
+                                textAlign: TextAlign.center,
+                                style:
+                                    TextStyle(color: Colors.grey[600], fontSize: 13),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final riwayat = snapshot.data ?? [];
+
+                        return RefreshIndicator(
+                          onRefresh: () async {
+                            setState(() {
+                              _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(
+                                  UserRole.direktur);
+                            });
+                            await _riwayatFuture;
+                          },
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                            children: riwayat.isEmpty
+                                ? [
+                                    Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(vertical: 40),
+                                      alignment: Alignment.center,
+                                      child: Text('Belum ada riwayat keputusan.',
+                                          style: TextStyle(
+                                              fontSize: 12.5,
+                                              color: Colors.grey[500])),
+                                    ),
+                                  ]
+                                : riwayat.map((p) => _buildRiwayatCard(p)).toList(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 16.0 : 20.0,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
+        isSmallScreen ? 12.0 : 14.0,
+        0,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_navy, _accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Tugas Persetujuan Direktur',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 18.0 : 21.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const NotificationBell(role: UserRole.direktur),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                tooltip: 'Keluar',
+                onPressed: _logout,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Setujui & pantau riwayat keputusan pengaduan',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: isSmallScreen ? 11.0 : 12.5,
+            ),
+          ),
+          SizedBox(height: isSmallScreen ? 8.0 : 10.0),
+          const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: [
+              Tab(text: 'Menunggu Persetujuan'),
+              Tab(text: 'Riwayat'),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -612,7 +678,14 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             colors: [_navy, _accent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [

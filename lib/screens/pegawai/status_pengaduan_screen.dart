@@ -104,20 +104,24 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           builder: (context, setSheetState) {
             final isSmallScreen = MediaQuery.of(context).size.width < 400;
             return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: isSmallScreen ? 16.0 : 20.0,
-                  right: isSmallScreen ? 16.0 : 20.0,
-                  top: 10,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: isSmallScreen ? 16.0 : 20.0,
+                    right: isSmallScreen ? 16.0 : 20.0,
+                    top: 10,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 14),
                         decoration: BoxDecoration(
@@ -315,6 +319,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             );
@@ -336,10 +341,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         future: _pengaduanFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Column(
-              children: [
-                _buildHeader(isSmallScreen),
-                const Expanded(
+            return CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(isSmallScreen)),
+                const SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(child: CircularProgressIndicator()),
                 ),
               ],
@@ -347,10 +356,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           }
 
           if (snapshot.hasError) {
-            return Column(
-              children: [
-                _buildHeader(isSmallScreen),
-                Expanded(
+            return CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(isSmallScreen)),
+                SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(40),
@@ -369,37 +382,55 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           final semua = snapshot.data ?? [];
           final items = _filter(semua);
 
-          return Column(
-            children: [
-              _buildHeader(isSmallScreen),
-              _buildRingkasanBar(items.length, semua, isSmallScreen),
-              Expanded(
-                child: items.isEmpty
-                    ? EmptyState(
-                        message: _adaFilterAktif
-                            ? 'Tidak ada pengaduan yang cocok dengan filter ini.'
-                            : 'Belum ada pengaduan yang cocok dengan pencarian.',
-                        icon: Icons.fact_check_outlined,
-                      )
-                    : RefreshIndicator(
-                        color: accent,
-                        onRefresh: _refresh,
-                        child: ListView.separated(
-                          padding: EdgeInsets.fromLTRB(
-                            isSmallScreen ? 16.0 : 20.0,
-                            4,
-                            isSmallScreen ? 16.0 : 20.0,
-                            24,
-                          ),
-                          itemCount: items.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) =>
-                              _buildPengaduanCard(items[index], isSmallScreen),
-                        ),
-                      ),
+          return RefreshIndicator(
+            color: accent,
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              // Header & ringkasan ikut scroll bersama konten (tidak sticky),
+              // sesuai permintaan — cukup taruh di dalam CustomScrollView
+              // sebagai sliver biasa, bukan lagi Column tetap di luar list.
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-            ],
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(isSmallScreen)),
+                SliverToBoxAdapter(
+                  child: _buildRingkasanBar(items.length, semua, isSmallScreen),
+                ),
+                if (items.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      message: _adaFilterAktif
+                          ? 'Tidak ada pengaduan yang cocok dengan filter ini.'
+                          : 'Belum ada pengaduan yang cocok dengan pencarian.',
+                      icon: Icons.fact_check_outlined,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      isSmallScreen ? 16.0 : 20.0,
+                      4,
+                      isSmallScreen ? 16.0 : 20.0,
+                      24,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index.isOdd) {
+                            return const SizedBox(height: 12);
+                          }
+                          final itemIndex = index ~/ 2;
+                          return _buildPengaduanCard(
+                              items[itemIndex], isSmallScreen);
+                        },
+                        childCount: items.isEmpty ? 0 : items.length * 2 - 1,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),
@@ -412,50 +443,96 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       color: const Color(0xFFF3F6F9),
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16.0 : 20.0,
-        isSmallScreen ? 10.0 : 14.0,
+        isSmallScreen ? 14.0 : 18.0,
         isSmallScreen ? 16.0 : 20.0,
-        _adaFilterAktif ? (isSmallScreen ? 2.0 : 4.0) : (isSmallScreen ? 6.0 : 10.0),
+        _adaFilterAktif ? (isSmallScreen ? 6.0 : 8.0) : (isSmallScreen ? 10.0 : 14.0),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.fact_check_rounded, size: isSmallScreen ? 12.0 : 14.0, color: hintGrey),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '$jumlah pengaduan ditemukan',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 11.0 : 12.0,
-                    fontWeight: FontWeight.w600,
-                    color: hintGrey,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 14.0 : 16.0,
+          vertical: isSmallScreen ? 10.0 : 12.0,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: isSmallScreen ? 26.0 : 30.0,
+                  height: isSmallScreen ? 26.0 : 30.0,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(9),
                   ),
+                  child: Icon(Icons.fact_check_rounded,
+                      size: isSmallScreen ? 14.0 : 16.0, color: accent),
                 ),
-              ),
-              if (_adaFilterAktif)
-                InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => setState(() {
-                    _filterStatus = {};
-                    _filterCabang = null;
-                    _filterTanggal = null;
-                  }),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    child: Text(
-                      'Hapus semua filter',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 10.5 : 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                      ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$jumlah ',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 13.0 : 14.0,
+                            fontWeight: FontWeight.w800,
+                            color: labelDark,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'pengaduan ditemukan',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11.5 : 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: hintGrey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          ),
-          if (_adaFilterAktif) ...[
+                if (_adaFilterAktif)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => setState(() {
+                      _filterStatus = {};
+                      _filterCabang = null;
+                      _filterTanggal = null;
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Hapus filter',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 10.5 : 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (_adaFilterAktif) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -483,7 +560,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ],
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -542,9 +620,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: navy.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -629,7 +714,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -669,7 +761,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       height: isSmallScreen ? 38.0 : 44.0,
                       decoration: BoxDecoration(
                         color: _adaFilterAktif ? accent : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Icon(
                         Icons.tune_rounded,
@@ -708,9 +807,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   Widget _buildPengaduanCard(Pengaduan p, bool isSmallScreen) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           final id = p.supabaseId;
           if (id == null) return;
@@ -723,156 +822,192 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         },
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFEEF1F5)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 5,
-                  decoration: BoxDecoration(
-                    color: p.status.color,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      bottomLeft: Radius.circular(16),
-                    ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Strip status di atas kartu — lebih mudah dipindai mata
+              // dibanding badge kecil di pojok.
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 14.0 : 16.0,
+                  vertical: isSmallScreen ? 8.0 : 9.0,
+                ),
+                decoration: BoxDecoration(
+                  color: p.status.color.withValues(alpha: 0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
                   ),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      isSmallScreen ? 12.0 : 14.0,
-                      isSmallScreen ? 12.0 : 16.0,
-                      isSmallScreen ? 12.0 : 16.0,
-                      isSmallScreen ? 12.0 : 16.0,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: p.status.color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                    child: Column(
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        p.status.label,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 10.5 : 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: p.status.color,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      p.nomorPengaduan,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 9.5 : 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: hintGrey,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isSmallScreen ? 14.0 : 16.0,
+                  isSmallScreen ? 12.0 : 14.0,
+                  isSmallScreen ? 14.0 : 16.0,
+                  isSmallScreen ? 12.0 : 14.0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: isSmallScreen ? 32.0 : 38.0,
-                              height: isSmallScreen ? 32.0 : 38.0,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Icon(
-                                _iconForKategori(p.kategori),
-                                size: isSmallScreen ? 16.0 : 18.0,
-                                color: accent,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    p.nomorPengaduan,
-                                    style: TextStyle(
-                                      fontSize: isSmallScreen ? 9.5 : 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: hintGrey,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    p.judul,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: isSmallScreen ? 13.0 : 14.0,
-                                      fontWeight: FontWeight.bold,
-                                      color: labelDark,
-                                      height: 1.25,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    p.kategori,
-                                    style: TextStyle(
-                                        fontSize: isSmallScreen ? 10.5 : 11.5,
-                                        color: accent),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        Container(
+                          width: isSmallScreen ? 40.0 : 46.0,
+                          height: isSmallScreen ? 40.0 : 46.0,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: p.status.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(
+                            _iconForKategori(p.kategori),
+                            size: isSmallScreen ? 19.0 : 21.0,
+                            color: p.status.color,
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(Icons.calendar_today_rounded,
-                                size: isSmallScreen ? 12.0 : 13.0,
-                                color: hintGrey),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                formatTanggalIndonesia(p.tanggalPengaduan),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p.judul,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                    fontSize: isSmallScreen ? 10.5 : 11.5,
-                                    color: hintGrey),
-                              ),
-                            ),
-                            StatusBadge(
-                                label: p.status.label, color: p.status.color),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              final id = p.supabaseId;
-                              if (id == null) return;
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => PengaduanDetailScreen(
-                                      user: widget.user, pengaduanId: id),
+                                  fontSize: isSmallScreen ? 13.5 : 14.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: labelDark,
+                                  height: 1.25,
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.visibility_outlined, size: 16),
-                            label: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Lihat Detail',
-                                    style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700)),
-                                SizedBox(width: 4),
-                                Icon(Icons.chevron_right_rounded, size: 16),
-                              ],
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: navy,
-                              backgroundColor: navy.withValues(alpha: 0.06),
-                              padding: EdgeInsets.symmetric(
-                                  vertical: isSmallScreen ? 9.0 : 11.0),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  p.kategori,
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 10.0 : 11.0,
+                                    fontWeight: FontWeight.w700,
+                                    color: accent,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded,
+                            size: isSmallScreen ? 12.0 : 13.0,
+                            color: hintGrey),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            formatTanggalIndonesia(p.tanggalPengaduan),
+                            style: TextStyle(
+                                fontSize: isSmallScreen ? 10.5 : 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: hintGrey),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: isSmallScreen ? 38.0 : 42.0,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final id = p.supabaseId;
+                          if (id == null) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PengaduanDetailScreen(
+                                  user: widget.user, pengaduanId: id),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Lihat Detail',
+                                style: TextStyle(
+                                    fontSize: isSmallScreen ? 12.0 : 12.5,
+                                    fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded, size: 16),
+                          ],
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: navy,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(11)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

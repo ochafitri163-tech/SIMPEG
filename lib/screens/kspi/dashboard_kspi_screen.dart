@@ -549,91 +549,154 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       allowedRoles: const [UserRole.kspi],
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F6F9),
-        appBar: AppBar(
-          backgroundColor: _navy,
-          foregroundColor: Colors.white,
-          title: const Text('Dashboard KSPI'),
-          actions: [
-            const NotificationBell(role: UserRole.kspi),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Keluar',
-              onPressed: _logout,
+        body: Column(
+          children: [
+            _buildTopHeader(context),
+            Expanded(
+              child: FutureBuilder<List<Pengaduan>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text(
+                          'Gagal memuat data: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final semua = snapshot.data ?? [];
+                  final reviewAwal = semua
+                      .where(
+                          (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
+                      .toList();
+                  final reviewHasil = semua
+                      .where((p) => p.status == PengaduanStatus.menungguReviewKspi)
+                      .toList();
+                  final ditolak = semua
+                      .where((p) =>
+                          p.status == PengaduanStatus.tindakLanjutBerjalan &&
+                          p.eksekutorTindakLanjut == Eksekutor.kspi)
+                      .toList();
+                  final peninjauan = semua
+                      .where((p) => p.status == PengaduanStatus.peninjauanKembali)
+                      .toList();
+
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(0, -22),
+                          child: _buildHeaderCard(semua.length),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildSection(
+                            'PILIH EKSEKUTOR INVESTIGASI',
+                            reviewAwal,
+                            _bukaDetail,
+                            'Belum ada pengaduan siap ditugaskan.',
+                            'Pilih Eksekutor'),
+                        _buildSection(
+                            'REVIEW HASIL INVESTIGASI',
+                            reviewHasil,
+                            _bukaReviewHasil,
+                            'Belum ada hasil investigasi masuk.',
+                            'Review Hasil'),
+                        _buildSection(
+                            'TINDAK LANJUT DITUGASKAN',
+                            ditolak,
+                            _bukaDetail,
+                            'Tidak ada tindak lanjut yang ditugaskan.',
+                            'Jalankan'),
+                        _buildSection(
+                            'PENINJAUAN KEMBALI DARI DIREKTUR',
+                            peninjauan,
+                            _bukaPeninjauanKembali,
+                            'Tidak ada permintaan peninjauan kembali.',
+                            'Tindak Lanjuti'),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
-        body: FutureBuilder<List<Pengaduan>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: Text(
-                    'Gagal memuat data: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 16.0 : 20.0,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
+        isSmallScreen ? 12.0 : 14.0,
+        isSmallScreen ? 20.0 : 24.0,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_navy, _accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Tugas Investigasi Pengaduan',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 18.0 : 21.0,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              );
-            }
-
-            final semua = snapshot.data ?? [];
-            final reviewAwal = semua
-                .where(
-                    (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
-                .toList();
-            final reviewHasil = semua
-                .where((p) => p.status == PengaduanStatus.menungguReviewKspi)
-                .toList();
-            final ditolak = semua
-                .where((p) =>
-                    p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                    p.eksekutorTindakLanjut == Eksekutor.kspi)
-                .toList();
-            final peninjauan = semua
-                .where((p) => p.status == PengaduanStatus.peninjauanKembali)
-                .toList();
-
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _buildHeaderCard(semua.length),
-                  const SizedBox(height: 20),
-                  _buildSection(
-                      'PILIH EKSEKUTOR INVESTIGASI',
-                      reviewAwal,
-                      _bukaDetail,
-                      'Belum ada pengaduan siap ditugaskan.',
-                      'Pilih Eksekutor'),
-                  _buildSection(
-                      'REVIEW HASIL INVESTIGASI',
-                      reviewHasil,
-                      _bukaReviewHasil,
-                      'Belum ada hasil investigasi masuk.',
-                      'Review Hasil'),
-                  _buildSection(
-                      'TINDAK LANJUT DITUGASKAN',
-                      ditolak,
-                      _bukaDetail,
-                      'Tidak ada tindak lanjut yang ditugaskan.',
-                      'Jalankan'),
-                  _buildSection(
-                      'PENINJAUAN KEMBALI DARI DIREKTUR',
-                      peninjauan,
-                      _bukaPeninjauanKembali,
-                      'Tidak ada permintaan peninjauan kembali.',
-                      'Tindak Lanjuti'),
-                ],
               ),
-            );
-          },
-        ),
+              const NotificationBell(role: UserRole.kspi),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                tooltip: 'Keluar',
+                onPressed: _logout,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pilih eksekutor & review hasil investigasi',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: isSmallScreen ? 11.0 : 12.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -678,7 +741,14 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             colors: [_navy, _accent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -20,6 +22,8 @@ class ProfileDetailScreen extends StatelessWidget {
   static const Color green = Color(0xFF27AE60);
   static const Color iconBg = Color(0xFFEAF2FB);
   static const Color labelGrey = Color(0xFF8B98A9);
+  static const Color labelDark = Color(0xFF1B2733);
+  static const Color danger = Color(0xFFE74C3C);
 
   @override
   Widget build(BuildContext context) {
@@ -32,97 +36,89 @@ class ProfileDetailScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _buildHeader(context, isSmallScreen),
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: -46,
-                child: _buildSummaryCard(isSmallScreen),
+          _buildHeader(context, isSmallScreen),
+          Transform.translate(
+            offset: const Offset(0, -28),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSummaryCard(context, isSmallScreen),
+                  const SizedBox(height: 22),
+                  _buildTabs(context, isSmallScreen),
+                  const SizedBox(height: 20),
+                  const _SectionLabel('DATA PRIBADI'),
+                  const SizedBox(height: 10),
+                  _CardContainer(
+                    child: Column(
+                      children: [
+                        _DataRow(
+                          icon: Icons.calendar_today_rounded,
+                          label: 'Tempat & Tgl. Lahir',
+                          value: user.tempatTanggalLahir,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                        const _RowDivider(),
+                        _DataRow(
+                          icon: Icons.favorite_border_rounded,
+                          label: 'Status Pernikahan',
+                          value: user.statusPernikahan,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                        const _RowDivider(),
+                        _DataRow(
+                          icon: Icons.location_on_outlined,
+                          label: 'Alamat Rumah',
+                          value: user.alamat,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                        const _RowDivider(),
+                        _DataRow(
+                          icon: Icons.phone_outlined,
+                          label: 'No. Telp / HP',
+                          value: user.noTelp,
+                          isLast: true,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  const _SectionLabel('KEPEGAWAIAN'),
+                  const SizedBox(height: 10),
+                  _CardContainer(
+                    child: Column(
+                      children: [
+                        _DataRow(
+                          icon: Icons.swap_horiz_rounded,
+                          label: 'Jabatan',
+                          value: user.jabatan,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                        const _RowDivider(),
+                        _DataRow(
+                          icon: Icons.work_outline_rounded,
+                          label: 'Unit Kerja',
+                          value: user.unitKerja,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                        const _RowDivider(),
+                        _DataRow(
+                          icon: Icons.wb_sunny_outlined,
+                          label: 'Golongan',
+                          value: user.golongan,
+                          isLast: true,
+                          isSmallScreen: isSmallScreen,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  _buildLogoutButton(context, isSmallScreen),
+                  const SizedBox(height: 24),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 62),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildTabs(context, isSmallScreen),
-          ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SectionLabel('DATA PRIBADI'),
-                const SizedBox(height: 10),
-                _CardContainer(
-                  child: Column(
-                    children: [
-                      _DataRow(
-                        icon: Icons.calendar_today_rounded,
-                        label: 'Tempat & Tgl. Lahir',
-                        value: user.tempatTanggalLahir,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                      const _RowDivider(),
-                      _DataRow(
-                        icon: Icons.favorite_border_rounded,
-                        label: 'Status Pernikahan',
-                        value: user.statusPernikahan,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                      const _RowDivider(),
-                      _DataRow(
-                        icon: Icons.location_on_outlined,
-                        label: 'Alamat Rumah',
-                        value: user.alamat,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                      const _RowDivider(),
-                      _DataRow(
-                        icon: Icons.phone_outlined,
-                        label: 'No. Telp / HP',
-                        value: user.noTelp,
-                        isLast: true,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                const _SectionLabel('KEPEGAWAIAN'),
-                const SizedBox(height: 10),
-                _CardContainer(
-                  child: Column(
-                    children: [
-                      _DataRow(
-                        icon: Icons.swap_horiz_rounded,
-                        label: 'Jabatan',
-                        value: user.jabatan,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                      const _RowDivider(),
-                      _DataRow(
-                        icon: Icons.work_outline_rounded,
-                        label: 'Unit Kerja',
-                        value: user.unitKerja,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                      const _RowDivider(),
-                      _DataRow(
-                        icon: Icons.wb_sunny_outlined,
-                        label: 'Golongan',
-                        value: user.golongan,
-                        isLast: true,
-                        isSmallScreen: isSmallScreen,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
             ),
           ),
         ],
@@ -137,7 +133,7 @@ class ProfileDetailScreen extends StatelessWidget {
         20,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 12.0),
         20,
-        isSmallScreen ? 48.0 : 56.0,
+        isSmallScreen ? 56.0 : 64.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -205,189 +201,236 @@ class ProfileDetailScreen extends StatelessWidget {
               SizedBox(width: isSmallScreen ? 28.0 : 36.0),
             ],
           ),
-          const SizedBox(height: 20),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: isSmallScreen ? 52.0 : 64.0,
-                    height: isSmallScreen ? 52.0 : 64.0,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: user.fotoUrl != null
-                        ? ClipOval(
-                            child: Image.network(
-                              user.fotoUrl!,
-                              width: isSmallScreen ? 52.0 : 64.0,
-                              height: isSmallScreen ? 52.0 : 64.0,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Text(
-                            user.initials,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSmallScreen ? 18.0 : 22.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                  Positioned(
-                    right: 1,
-                    bottom: 1,
-                    child: Container(
-                      width: isSmallScreen ? 12.0 : 14.0,
-                      height: isSmallScreen ? 12.0 : 14.0,
-                      decoration: BoxDecoration(
-                        color: green,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: navy, width: 2.5),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isSmallScreen ? 14.0 : 16.5,
-                        fontWeight: FontWeight.bold,
-                        height: 1.25,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      user.jabatan,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: isSmallScreen ? 11.0 : 12.5,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'NIK ${user.nik}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: isSmallScreen ? 10.5 : 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(bool isSmallScreen) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: isSmallScreen ? 12.0 : 16.0,
-        horizontal: isSmallScreen ? 4.0 : 0,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+  Widget _buildSummaryCard(BuildContext context, bool isSmallScreen) {
+    final avatarSize = isSmallScreen ? 68.0 : 78.0;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          width: double.infinity,
+          margin: EdgeInsets.only(top: avatarSize / 2),
+          padding: EdgeInsets.fromLTRB(
+            isSmallScreen ? 14.0 : 18.0,
+            avatarSize / 2 + (isSmallScreen ? 10.0 : 14.0),
+            isSmallScreen ? 14.0 : 18.0,
+            isSmallScreen ? 14.0 : 18.0,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryColumn(
-              label: 'GOLONGAN',
-              isSmallScreen: isSmallScreen,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  user.golongan,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: isSmallScreen ? 10.0 : 11.5,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
-            ),
+            ],
           ),
-          Container(width: 1, height: 34, color: const Color(0xFFEDF1F5)),
-          Expanded(
-            child: _SummaryColumn(
-              label: 'UNIT KERJA',
-              isSmallScreen: isSmallScreen,
-              child: Text(
-                user.unitKerjaSingkat,
+          child: Column(
+            children: [
+              Text(
+                '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: isSmallScreen ? 11.0 : 12.5,
+                  fontSize: isSmallScreen ? 14.5 : 16.0,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF1B2733),
                 ),
               ),
-            ),
-          ),
-          Container(width: 1, height: 34, color: const Color(0xFFEDF1F5)),
-          Expanded(
-            child: _SummaryColumn(
-              label: 'STATUS',
-              isSmallScreen: isSmallScreen,
-              child: Text(
-                user.status,
+              const SizedBox(height: 3),
+              Text(
+                user.jabatan,
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: isSmallScreen ? 11.0 : 12.5,
-                  fontWeight: FontWeight.bold,
+                  fontSize: isSmallScreen ? 11.0 : 12.0,
+                  color: labelGrey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'NIK ${user.nik}',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: isSmallScreen ? 10.0 : 11.0,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              SizedBox(height: isSmallScreen ? 14.0 : 18.0),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SummaryColumn(
+                      label: 'GOLONGAN',
+                      isSmallScreen: isSmallScreen,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          user.golongan,
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: isSmallScreen ? 10.0 : 11.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                      width: 1, height: 34, color: const Color(0xFFEDF1F5)),
+                  Expanded(
+                    child: _SummaryColumn(
+                      label: 'UNIT KERJA',
+                      isSmallScreen: isSmallScreen,
+                      child: Text(
+                        user.unitKerjaSingkat,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1B2733),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                      width: 1, height: 34, color: const Color(0xFFEDF1F5)),
+                  Expanded(
+                    child: _SummaryColumn(
+                      label: 'STATUS',
+                      isSmallScreen: isSmallScreen,
+                      child: Text(
+                        user.status,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: green,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: isSmallScreen ? 16.0 : 20.0),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _QuickAction(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Golongan',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const GolonganScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.school_rounded,
+                    label: 'Pendidikan',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const PendidikanScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.diversity_3_rounded,
+                    label: 'Keluarga',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const KeluargaScreen()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: user.fotoUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        user.fotoUrl!,
+                        width: avatarSize - 6,
+                        height: avatarSize - 6,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      user.initials,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isSmallScreen ? 19.0 : 22.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: Container(
+                width: isSmallScreen ? 12.0 : 14.0,
+                height: isSmallScreen ? 12.0 : 14.0,
+                decoration: BoxDecoration(
                   color: green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.4),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -427,6 +470,139 @@ class ProfileDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildLogoutButton(BuildContext context, bool isSmallScreen) {
+    return SizedBox(
+      width: double.infinity,
+      height: isSmallScreen ? 44.0 : 50.0,
+      child: OutlinedButton.icon(
+        onPressed: () => _confirmLogout(context),
+        icon: Icon(Icons.logout_rounded,
+            size: isSmallScreen ? 16.0 : 18.0, color: danger),
+        label: Text(
+          'Keluar',
+          style: TextStyle(
+              fontSize: isSmallScreen ? 13.0 : 14.0,
+              fontWeight: FontWeight.w700,
+              color: danger),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: danger, width: 1.2),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  /// Menampilkan dialog konfirmasi sebelum benar-benar keluar, supaya
+  /// pengguna tidak tidak sengaja ter-logout saat salah ketuk.
+  Future<void> _confirmLogout(BuildContext context) async {
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 24,
+          shadowColor: Colors.black.withValues(alpha: 0.15),
+          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+          contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: danger.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: danger,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Text(
+                'Keluar Akun?',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: labelDark,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
+            style: TextStyle(
+              fontSize: 14,
+              color: labelGrey,
+              height: 1.5,
+              letterSpacing: 0.1,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Batal',
+                style: TextStyle(
+                  color: labelGrey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: danger,
+                foregroundColor: Colors.white,
+                elevation: 4,
+                shadowColor: danger.withValues(alpha: 0.3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Ya, Keluar',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (konfirmasi == true && context.mounted) {
+      await Supabase.instance.client.auth.signOut();
+
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 }
 
@@ -488,6 +664,54 @@ class _SummaryColumn extends StatelessWidget {
         const SizedBox(height: 6),
         child,
       ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isSmallScreen;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isSmallScreen = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: isSmallScreen ? 42.0 : 46.0,
+            height: isSmallScreen ? 42.0 : 46.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F6F9),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon,
+                size: isSmallScreen ? 18.0 : 20.0,
+                color: ProfileDetailScreen.accent),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 9.5 : 10.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1B2733),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

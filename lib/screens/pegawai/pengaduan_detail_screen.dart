@@ -240,11 +240,14 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F9),
       body: Column(
         children: [
-          _buildHeader(context),
+          _buildHeader(context, isSmallScreen),
           Expanded(
             child: FutureBuilder<Pengaduan?>(
               future: _future,
@@ -258,19 +261,24 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       child: Text('Pengaduan tidak ditemukan.'));
                 }
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  padding: EdgeInsets.fromLTRB(
+                    isSmallScreen ? 16.0 : 20.0,
+                    isSmallScreen ? 16.0 : 20.0,
+                    isSmallScreen ? 16.0 : 20.0,
+                    24,
+                  ),
                   children: [
-                    _buildInfoCard(p),
-                    const SizedBox(height: 16),
+                    _buildInfoCard(p, isSmallScreen),
+                    const SizedBox(height: 18),
                     if (p.fotoBukti.isNotEmpty) ...[
-                      _buildSectionTitle('Foto Bukti'),
-                      const SizedBox(height: 8),
-                      _buildFotoBukti(p),
-                      const SizedBox(height: 16),
+                      _buildSectionTitle('Foto Bukti', isSmallScreen),
+                      const SizedBox(height: 10),
+                      _buildFotoBukti(p, isSmallScreen),
+                      const SizedBox(height: 18),
                     ],
-                    _buildSectionTitle('Riwayat Status'),
-                    const SizedBox(height: 8),
-                    _buildTimeline(p),
+                    _buildSectionTitle('Riwayat Status', isSmallScreen),
+                    const SizedBox(height: 10),
+                    _buildTimeline(p, isSmallScreen),
                     const SizedBox(height: 20),
                     _buildActionPanel(p),
                   ],
@@ -283,25 +291,32 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isSmallScreen) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-        20,
-        MediaQuery.of(context).padding.top + 12,
-        20,
-        22,
+        isSmallScreen ? 16.0 : 20.0,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
+        isSmallScreen ? 16.0 : 20.0,
+        isSmallScreen ? 18.0 : 22.0,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           colors: [navyDark, navy],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: navy.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -309,56 +324,64 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             borderRadius: BorderRadius.circular(10),
             onTap: () => Navigator.maybePop(context),
             child: Container(
-              width: 36,
-              height: 36,
+              width: isSmallScreen ? 32.0 : 36.0,
+              height: isSmallScreen ? 32.0 : 36.0,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.chevron_left_rounded,
-                  color: Colors.white, size: 22),
+              child: Icon(Icons.chevron_left_rounded,
+                  color: Colors.white, size: isSmallScreen ? 19.0 : 22.0),
             ),
           ),
-          const SizedBox(width: 14),
-          const Text(
-            'Detail Pengaduan',
-            style: TextStyle(
-                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          SizedBox(width: isSmallScreen ? 12.0 : 14.0),
+          Expanded(
+            child: Text(
+              'Detail Pengaduan',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isSmallScreen ? 15.0 : 17.0,
+                  fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard(Pengaduan p) {
+  Widget _buildInfoCard(Pengaduan p, bool isSmallScreen) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 14.0 : 18.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3)),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(p.nomorPengaduan,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: hintGrey)),
+                    style: TextStyle(
+                        fontSize: isSmallScreen ? 11.0 : 12.0,
+                        fontWeight: FontWeight.w700,
+                        color: hintGrey,
+                        letterSpacing: 0.3)),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 9.0 : 11.0,
+                    vertical: isSmallScreen ? 5.0 : 6.0),
                 decoration: BoxDecoration(
                   color: p.status.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -366,44 +389,79 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(p.status.icon, size: 12, color: p.status.color),
+                    Icon(p.status.icon,
+                        size: isSmallScreen ? 11.0 : 12.0,
+                        color: p.status.color),
                     const SizedBox(width: 5),
                     Text(p.status.label,
                         style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
+                            fontSize: isSmallScreen ? 9.5 : 10.5,
+                            fontWeight: FontWeight.w700,
                             color: p.status.color)),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: isSmallScreen ? 10.0 : 12.0),
           Text(p.judul,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: labelDark)),
+              style: TextStyle(
+                  fontSize: isSmallScreen ? 15.5 : 17.0,
+                  fontWeight: FontWeight.bold,
+                  color: labelDark,
+                  height: 1.25)),
           const SizedBox(height: 6),
-          Text(p.kategori,
-              style: const TextStyle(
-                  fontSize: 12.5, color: accent, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(p.kategori,
+                style: TextStyle(
+                    fontSize: isSmallScreen ? 10.5 : 11.5,
+                    color: accent,
+                    fontWeight: FontWeight.w700)),
+          ),
+          SizedBox(height: isSmallScreen ? 12.0 : 14.0),
+          Container(height: 1, color: const Color(0xFFEFF2F6)),
+          SizedBox(height: isSmallScreen ? 12.0 : 14.0),
           Text(p.deskripsi,
-              style:
-                  const TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
-          const SizedBox(height: 14),
-          Row(
+              style: TextStyle(
+                  fontSize: isSmallScreen ? 12.5 : 13.5,
+                  height: 1.5,
+                  color: labelDark)),
+          SizedBox(height: isSmallScreen ? 14.0 : 16.0),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              const Icon(Icons.person_outline_rounded,
-                  size: 15, color: hintGrey),
-              const SizedBox(width: 6),
-              Text(p.anonim ? 'Anonim' : p.namaPegawai,
-                  style: const TextStyle(fontSize: 12, color: hintGrey)),
-              const SizedBox(width: 14),
-              const Icon(Icons.calendar_today_outlined,
-                  size: 13, color: hintGrey),
-              const SizedBox(width: 6),
-              Text(formatTanggalIndonesia(p.tanggalPengaduan),
-                  style: const TextStyle(fontSize: 12, color: hintGrey)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_outline_rounded,
+                      size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
+                  const SizedBox(width: 6),
+                  Text(p.anonim ? 'Anonim' : p.namaPegawai,
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.0,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.calendar_today_outlined,
+                      size: isSmallScreen ? 12.0 : 13.0, color: hintGrey),
+                  const SizedBox(width: 6),
+                  Text(formatTanggalIndonesia(p.tanggalPengaduan),
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.0,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
             ],
           ),
         ],
@@ -411,24 +469,25 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  Widget _buildFotoBukti(Pengaduan p) {
+  Widget _buildFotoBukti(Pengaduan p, bool isSmallScreen) {
+    final size = isSmallScreen ? 78.0 : 92.0;
     return SizedBox(
-      height: 90,
+      height: size,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: p.fotoBukti.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           return ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: Image.network(
               p.fotoBukti[i],
-              width: 90,
-              height: 90,
+              width: size,
+              height: size,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
-                width: 90,
-                height: 90,
+                width: size,
+                height: size,
                 color: Colors.white,
                 child: const Icon(Icons.broken_image_outlined, color: hintGrey),
               ),
@@ -439,32 +498,44 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String text) {
+  Widget _buildSectionTitle(String text, [bool isSmallScreen = false]) {
     return Text(text,
-        style: const TextStyle(
-            fontSize: 13.5, fontWeight: FontWeight.bold, color: labelDark));
+        style: TextStyle(
+            fontSize: isSmallScreen ? 13.0 : 14.0,
+            fontWeight: FontWeight.bold,
+            color: labelDark));
   }
 
-  Widget _buildTimeline(Pengaduan p) {
+  Widget _buildTimeline(Pengaduan p, bool isSmallScreen) {
     if (p.riwayatStatus.isEmpty) {
       return const Text('Belum ada riwayat.',
           style: TextStyle(fontSize: 12.5, color: hintGrey));
     }
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(isSmallScreen ? 14.0 : 16.0),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
+        ],
+      ),
       child: Column(
         children: [
           for (int i = 0; i < p.riwayatStatus.length; i++)
             _buildTimelineItem(p.riwayatStatus[i],
-                isLast: i == p.riwayatStatus.length - 1),
+                isLast: i == p.riwayatStatus.length - 1,
+                isSmallScreen: isSmallScreen),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineItem(StatusHistoryEntry h, {required bool isLast}) {
+  Widget _buildTimelineItem(StatusHistoryEntry h,
+      {required bool isLast, required bool isSmallScreen}) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,14 +561,16 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(h.aksi,
-                      style: const TextStyle(
-                          fontSize: 12.5,
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 12.0 : 12.5,
                           fontWeight: FontWeight.w600,
                           color: labelDark)),
                   const SizedBox(height: 2),
                   Text(
                       '${h.oleh}${h.role != null ? ' (${h.role!.label})' : ''} · ${formatTanggalJam(h.tanggal)}',
-                      style: const TextStyle(fontSize: 11, color: hintGrey)),
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 10.5 : 11.0,
+                          color: hintGrey)),
                   if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(h.keterangan!,

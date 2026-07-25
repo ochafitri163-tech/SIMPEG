@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import 'absensi_screen.dart';
@@ -45,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildIdentityCard(isSmallScreen),
+                  _buildIdentityCard(context, isSmallScreen),
                   const SizedBox(height: 22),
                   const _SectionLabel('INFORMASI SAYA'),
                   const SizedBox(height: 10),
@@ -239,118 +240,183 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIdentityCard(bool isSmallScreen) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isSmallScreen ? 14.0 : 18.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+  Widget _buildIdentityCard(BuildContext context, bool isSmallScreen) {
+    final avatarSize = isSmallScreen ? 68.0 : 78.0;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          width: double.infinity,
+          margin: EdgeInsets.only(top: avatarSize / 2),
+          padding: EdgeInsets.fromLTRB(
+            isSmallScreen ? 14.0 : 18.0,
+            avatarSize / 2 + (isSmallScreen ? 10.0 : 14.0),
+            isSmallScreen ? 14.0 : 18.0,
+            isSmallScreen ? 14.0 : 18.0,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: isSmallScreen ? 50.0 : 60.0,
-                height: isSmallScreen ? 50.0 : 60.0,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: user.fotoUrl != null
-                    ? ClipOval(
-                        child: Image.network(
-                          user.fotoUrl!,
-                          width: isSmallScreen ? 50.0 : 60.0,
-                          height: isSmallScreen ? 50.0 : 60.0,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Text(
-                        user.initials,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: isSmallScreen ? 17.0 : 20.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: isSmallScreen ? 11.0 : 13.0,
-                  height: isSmallScreen ? 11.0 : 13.0,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF27AE60),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.4),
-                  ),
-                ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 14.0 : 15.5,
-                    fontWeight: FontWeight.bold,
-                    color: labelDark,
-                  ),
+          child: Column(
+            children: [
+              Text(
+                '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 14.5 : 16.0,
+                  fontWeight: FontWeight.bold,
+                  color: labelDark,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  user.jabatan,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 11.0 : 12.0,
-                    color: hintGrey,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                user.jabatan,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 11.0 : 12.0,
+                  color: hintGrey,
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'NIK ${user.nik}',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 10.0 : 11.0,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
+              ),
+              SizedBox(height: isSmallScreen ? 14.0 : 18.0),
+              Row(
+                children: [
+                  Expanded(
+                    child: _StatColumn(
+                      icon: Icons.arrow_upward_rounded,
+                      iconColor: const Color(0xFF27AE60),
+                      label: 'Golongan',
+                      value: user.golongan,
+                      isSmallScreen: isSmallScreen,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Container(
+                      width: 1,
+                      height: isSmallScreen ? 30.0 : 34.0,
+                      color: const Color(0xFFEDF1F5)),
+                  Expanded(
+                    child: _StatColumn(
+                      icon: Icons.arrow_downward_rounded,
+                      iconColor: danger,
+                      label: 'NIK',
+                      value: user.nik,
+                      isSmallScreen: isSmallScreen,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: isSmallScreen ? 16.0 : 20.0),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _QuickAction(
+                    icon: Icons.fact_check_rounded,
+                    label: 'Absensi',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AbsensiScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Golongan',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const GolonganScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.school_rounded,
+                    label: 'Pendidikan',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const PendidikanScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.diversity_3_rounded,
+                    label: 'Keluarga',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: user.fotoUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        user.fotoUrl!,
+                        width: avatarSize - 6,
+                        height: avatarSize - 6,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      user.initials,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isSmallScreen ? 19.0 : 22.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: Container(
+                width: isSmallScreen ? 12.0 : 14.0,
+                height: isSmallScreen ? 12.0 : 14.0,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF27AE60),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.4),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -385,33 +451,91 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Keluar Akun?',
-            style: TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold, color: labelDark),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 24,
+          shadowColor: Colors.black.withValues(alpha: 0.15),
+          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+          contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: danger.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: danger,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Text(
+                'Keluar Akun?',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: labelDark,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
           ),
           content: const Text(
             'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
-            style: TextStyle(fontSize: 13, color: hintGrey, height: 1.4),
+            style: TextStyle(
+              fontSize: 14,
+              color: hintGrey,
+              height: 1.5,
+              letterSpacing: 0.1,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal',
-                  style: TextStyle(color: hintGrey, fontSize: 13.5)),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Batal',
+                style: TextStyle(
+                  color: hintGrey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: danger,
                 foregroundColor: Colors.white,
-                elevation: 0,
+                elevation: 4,
+                shadowColor: danger.withValues(alpha: 0.3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Ya, Keluar', style: TextStyle(fontSize: 13.5)),
+              child: const Text(
+                'Ya, Keluar',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ),
           ],
         );
@@ -419,11 +543,114 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (konfirmasi == true && context.mounted) {
+      await Supabase.instance.client.auth.signOut();
+
+      if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
     }
+  }
+}
+
+class _StatColumn extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final bool isSmallScreen;
+
+  const _StatColumn({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    this.isSmallScreen = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: isSmallScreen ? 12.0 : 14.0, color: iconColor),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 9.5 : 10.5,
+                color: ProfileScreen.hintGrey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 12.0 : 13.5,
+            fontWeight: FontWeight.bold,
+            color: ProfileScreen.labelDark,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isSmallScreen;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isSmallScreen = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: isSmallScreen ? 42.0 : 46.0,
+            height: isSmallScreen ? 42.0 : 46.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F6F9),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon,
+                size: isSmallScreen ? 18.0 : 20.0,
+                color: ProfileScreen.accent),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 9.5 : 10.5,
+              fontWeight: FontWeight.w600,
+              color: ProfileScreen.labelDark,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

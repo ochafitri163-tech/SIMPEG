@@ -3,6 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import '../../widgets/notification_bell.dart';
+import '../dirut/dashboard_dirut_screen.dart';
+import '../kadiv/dashboard_kadiv_screen.dart';
+import '../kspi/dashboard_kspi_screen.dart';
+import '../tpdpk/dashboard_tpdpk_screen.dart';
+import '../sdm/dashboard_sdm_screen.dart';
 import 'tunjangan_pendidikan_screen.dart';
 import 'insentif_screen.dart';
 import 'lembur_screen.dart';
@@ -93,6 +98,32 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   int _bottomNavIndex = 0;
   late Future<AttendanceSummary> _attendanceFuture;
 
+  /// True kalau user login sebagai role approval (Kadiv, KSPI, TPDPK,
+  /// Direktur, SDM) — bukan Pegawai biasa. Role-role ini tetap punya
+  /// dashboard pegawai standar (Beranda/Status Pengaduan/Profil), hanya
+  /// ditambah satu tab khusus di footer untuk fitur verifikasi/approval
+  /// pengaduan sesuai role masing-masing.
+  bool get _hasRoleFeature => widget.user.role != UserRole.pegawai;
+
+  /// Dashboard khusus role approval yang ditampilkan di tab tambahan
+  /// footer. Kalau role-nya Pegawai biasa, tab ini tidak pernah dipakai.
+  Widget _buildRoleDashboardTab() {
+    switch (widget.user.role) {
+      case UserRole.kadivKategori:
+        return DashboardKadivScreen(user: widget.user);
+      case UserRole.kspi:
+        return DashboardKspiScreen(user: widget.user);
+      case UserRole.tpdpk:
+        return DashboardTpdpkScreen(user: widget.user);
+      case UserRole.direktur:
+        return DashboardDirutScreen(user: widget.user);
+      case UserRole.sdm:
+        return DashboardSdmScreen(user: widget.user);
+      case UserRole.pegawai:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -120,7 +151,13 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           index: _bottomNavIndex,
           children: [
             _buildBerandaTab(),
-            StatusPengaduanScreen(user: widget.user, showBackButton: false),
+            // Tab tengah: role approval (Kadiv, KSPI, TPDPK, Direktur, SDM)
+            // menampilkan dashboard tugasnya sendiri (verifikasi/approval
+            // pengaduan) di sini, karena tugas itu sudah menggantikan
+            // "Status Pengaduan" milik Pegawai biasa.
+            _hasRoleFeature
+                ? _buildRoleDashboardTab()
+                : StatusPengaduanScreen(user: widget.user, showBackButton: false),
             ProfileDetailScreen(user: widget.user, showBackButton: false),
           ],
         ),
@@ -148,7 +185,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       _QuickMenuItem(
           label: 'Pengaduan',
           icon: Icons.chat_bubble_rounded,
-          builder: (_) => PengaduanPegawaiScreen(user: widget.user)),
+          builder: (_) => _hasRoleFeature
+              ? _buildRoleDashboardTab()
+              : PengaduanPegawaiScreen(user: widget.user)),
       _QuickMenuItem(
           label: 'Lembur',
           icon: Icons.access_time_filled_rounded,
@@ -822,9 +861,14 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   // ==================== BOTTOM NAVIGATION BAR ====================
   Widget _buildBottomNav() {
-    const items = [
+    final items = [
       (icon: Icons.home_rounded, index: 0),
-      (icon: Icons.fact_check_rounded, index: 1),
+      (
+        icon: _hasRoleFeature
+            ? Icons.admin_panel_settings_rounded
+            : Icons.fact_check_rounded,
+        index: 1
+      ),
       (icon: Icons.person_rounded, index: 2),
     ];
 

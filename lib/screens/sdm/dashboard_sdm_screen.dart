@@ -166,62 +166,125 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       allowedRoles: const [UserRole.sdm],
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F6F9),
-        appBar: AppBar(
-          backgroundColor: _navy,
-          foregroundColor: Colors.white,
-          title: const Text('Dashboard SDM'),
-          actions: [
-            const NotificationBell(role: UserRole.sdm),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Keluar',
-              onPressed: _logout,
+        body: Column(
+          children: [
+            _buildTopHeader(context),
+            Expanded(
+              child: FutureBuilder<List<Pengaduan>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text(
+                          'Gagal memuat data: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final semua = snapshot.data ?? [];
+                  final menungguSdm = semua
+                      .where((p) => p.status == PengaduanStatus.menungguSdm)
+                      .toList();
+
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(0, -22),
+                          child: _buildHeaderCard(menungguSdm.length),
+                        ),
+                        const SizedBox(height: 6),
+                        _buildSection(
+                          'MENUNGGU TINDAK LANJUT SDM',
+                          menungguSdm,
+                          (p) => _bukaSelesaikan(p),
+                          'Tidak ada pengaduan yang perlu ditindaklanjuti.',
+                          'Selesaikan',
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
-        body: FutureBuilder<List<Pengaduan>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: Text(
-                    'Gagal memuat data: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 16.0 : 20.0,
+        MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
+        isSmallScreen ? 12.0 : 14.0,
+        isSmallScreen ? 20.0 : 24.0,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_navy, _accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Tugas Tindak Lanjut SDM',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 18.0 : 21.0,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              );
-            }
-
-            final semua = snapshot.data ?? [];
-            final menungguSdm = semua
-                .where((p) => p.status == PengaduanStatus.menungguSdm)
-                .toList();
-
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildHeaderCard(menungguSdm.length),
-                  const SizedBox(height: 18),
-                  _buildSection(
-                    'MENUNGGU TINDAK LANJUT SDM',
-                    menungguSdm,
-                    (p) => _bukaSelesaikan(p),
-                    'Tidak ada pengaduan yang perlu ditindaklanjuti.',
-                    'Selesaikan',
-                  ),
-                ],
               ),
-            );
-          },
-        ),
+              const NotificationBell(role: UserRole.sdm),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                tooltip: 'Keluar',
+                onPressed: _logout,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Selesaikan tindak lanjut administratif pegawai',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: isSmallScreen ? 11.0 : 12.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -266,7 +329,14 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             colors: [_navy, _accent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _navy.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [

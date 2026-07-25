@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/theme_controller.dart';
 
@@ -59,7 +60,7 @@ class SimpegApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
           ),
-          home: const LoginScreen(),
+          home: const SplashScreen(),
         );
       },
     );
