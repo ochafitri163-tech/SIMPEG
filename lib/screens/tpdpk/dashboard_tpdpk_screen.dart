@@ -254,6 +254,13 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           hasil: hasilController.text.trim(),
           rekomendasi: rekomendasiController.text.trim(),
         );
+        await NotificationService.kirimKeRole(
+          role: UserRole.kspi,
+          judul: 'Hasil investigasi masuk',
+          pesan:
+              '${p.nomorPengaduan} dikirim ulang (revisi), menunggu review KSPI.',
+          pengaduanId: id,
+        );
       } else {
         await PengaduanService.kirimHasilInvestigasi(
           pengaduanId: id,
@@ -264,15 +271,11 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         );
       }
 
-      await NotificationService.kirimKeRole(
-        role: UserRole.kspi,
-        judul: 'Hasil investigasi masuk',
-        pesan: '${p.nomorPengaduan} sudah dikirim TPDPK, menunggu review KSPI.',
-        pengaduanId: id,
-      );
-
       if (!mounted) return;
-      _showSnack('Hasil investigasi ${p.nomorPengaduan} dikirim ke KSPI.',
+      _showSnack(
+          revisi
+              ? 'Hasil revisi ${p.nomorPengaduan} dikirim ke KSPI.'
+              : 'Hasil investigasi ${p.nomorPengaduan} diteruskan ke Dirut.',
           const Color(0xFF27AE60));
       await _refresh();
     } catch (e) {

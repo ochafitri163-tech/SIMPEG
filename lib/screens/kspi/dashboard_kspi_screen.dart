@@ -72,6 +72,73 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     await _refresh();
   }
 
+  // ---------- Teruskan ke Dirut (status reviewKspi) ----------
+  Future<void> _bukaTeruskanKeDirut(Pengaduan p) async {
+    final catatanController = TextEditingController();
+
+    final ok = await _openSheet<bool>((ctx, setSheetState) {
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _grip(),
+            _judulSheet('Teruskan ke Direktur', p),
+            _infoBlok('Judul', p.judul),
+            const SizedBox(height: 10),
+            _infoBlok('Deskripsi', p.deskripsi),
+            const SizedBox(height: 16),
+            TextField(
+              controller: catatanController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Catatan untuk Direktur (opsional)',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: const Text('Teruskan ke Dirut'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.kspiTeruskanKeDirut(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
+      );
+      if (!mounted) return;
+      _showSnack('${p.nomorPengaduan} diteruskan ke Direktur.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
+    }
+  }
+
   Future<T?> _openSheet<T>(
       Widget Function(BuildContext, void Function(void Function())) builder) {
     return showModalBottomSheet<T>(
@@ -574,6 +641,9 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   }
 
                   final semua = snapshot.data ?? [];
+                  final siapTeruskan = semua
+                      .where((p) => p.status == PengaduanStatus.reviewKspi)
+                      .toList();
                   final reviewAwal = semua
                       .where(
                           (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
@@ -601,9 +671,15 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         ),
                         const SizedBox(height: 8),
                         _buildSection(
+                            'SIAP DITERUSKAN KE DIRUT',
+                            siapTeruskan,
+                            _bukaTeruskanKeDirut,
+                            'Belum ada pengaduan untuk diteruskan ke Dirut.',
+                            'Teruskan ke Dirut'),
+                        _buildSection(
                             'PILIH EKSEKUTOR INVESTIGASI',
                             reviewAwal,
-                            _bukaDetail,
+                            _bukaReviewEksekutor,
                             'Belum ada pengaduan siap ditugaskan.',
                             'Pilih Eksekutor'),
                         _buildSection(

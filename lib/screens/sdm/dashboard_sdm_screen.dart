@@ -94,6 +94,8 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
   // ---------- Selesaikan tindak lanjut administratif ----------
   Future<void> _bukaSelesaikan(Pengaduan p) async {
     final catatanController = TextEditingController();
+    final nikController = TextEditingController();
+    final nominalController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -107,6 +109,61 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
                 style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDECEC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF3C2C2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.trending_down_rounded,
+                          size: 18, color: Color(0xFFC0392B)),
+                      SizedBox(width: 6),
+                      Text('Penurunan Gaji (Sanksi)',
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFC0392B))),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Opsional. Nominal akan langsung dipotong dari slip gaji '
+                    'periode terbaru pegawai (terintegrasi payroll).',
+                    style: TextStyle(fontSize: 11.5, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: nikController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'NIK pegawai',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: nominalController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Nominal penurunan (Rp)',
+                      prefixText: 'Rp ',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: catatanController,
@@ -142,6 +199,19 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     final id = p.supabaseId;
     if (id == null) return;
 
+    final nik = nikController.text.trim();
+    final nominal = int.tryParse(
+            nominalController.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+        0;
+
+    // Kalau salah satu field penurunan gaji diisi, keduanya wajib benar.
+    if ((nik.isNotEmpty && nominal <= 0) || (nik.isEmpty && nominal > 0)) {
+      _showSnack(
+          'Lengkapi NIK dan nominal penurunan gaji, atau kosongkan keduanya.',
+          Colors.red);
+      return;
+    }
+
     try {
       await PengaduanService.sdmSelesaikan(
         pengaduanId: id,
@@ -149,11 +219,17 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
+        nikTerlapor: nik.isEmpty ? null : nik,
+        nominalPenurunanGaji: nominal > 0 ? nominal : null,
       );
 
       if (!mounted) return;
       _showSnack(
-          '${p.nomorPengaduan} ditandai selesai.', const Color(0xFF27AE60));
+        nominal > 0
+            ? '${p.nomorPengaduan} selesai. Gaji NIK $nik diturunkan (Rp$nominal).'
+            : '${p.nomorPengaduan} ditandai selesai.',
+        const Color(0xFF27AE60),
+      );
       await _refresh();
     } catch (e) {
       if (mounted) _showSnack('Gagal memproses: $e', Colors.red);

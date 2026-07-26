@@ -7,6 +7,7 @@ import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
+import '../shared/riwayat_pengaduan_screen.dart';
 
 /// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
 /// alur:
@@ -338,14 +339,10 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       if (!mounted) return;
       _showSnack(
         keputusan == Keputusan.terima
-            ? '${p.nomorPengaduan} diterima, silakan pilih eksekutor tindak lanjut.'
+            ? '${p.nomorPengaduan} diterima & diteruskan ke SDM.'
             : '${p.nomorPengaduan} ditolak & diarsipkan.',
         keputusan == Keputusan.terima ? _green : _red,
       );
-
-      if (keputusan == Keputusan.terima) {
-        await _bukaPilihEksekutorTindakLanjut(p);
-      }
 
       await _refreshSemua();
     } catch (e) {
@@ -466,18 +463,14 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.direktur],
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: const Color(0xFFF3F6F9),
-          body: Column(
-            children: [
-              _buildTopHeader(context),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    FutureBuilder<List<Pengaduan>>(
-                      future: _menungguFuture,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F6F9),
+        body: Column(
+          children: [
+            _buildTopHeader(context),
+            Expanded(
+              child: FutureBuilder<List<Pengaduan>>(
+                future: _menungguFuture,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -533,61 +526,8 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                         );
                       },
                     ),
-                    FutureBuilder<List<Pengaduan>>(
-                      future: _riwayatFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(40),
-                              child: Text(
-                                'Gagal memuat riwayat: ${snapshot.error}',
-                                textAlign: TextAlign.center,
-                                style:
-                                    TextStyle(color: Colors.grey[600], fontSize: 13),
-                              ),
-                            ),
-                          );
-                        }
-
-                        final riwayat = snapshot.data ?? [];
-
-                        return RefreshIndicator(
-                          onRefresh: () async {
-                            setState(() {
-                              _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(
-                                  UserRole.direktur);
-                            });
-                            await _riwayatFuture;
-                          },
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                            children: riwayat.isEmpty
-                                ? [
-                                    Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(vertical: 40),
-                                      alignment: Alignment.center,
-                                      child: Text('Belum ada riwayat keputusan.',
-                                          style: TextStyle(
-                                              fontSize: 12.5,
-                                              color: Colors.grey[500])),
-                                    ),
-                                  ]
-                                : riwayat.map((p) => _buildRiwayatCard(p)).toList(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -638,6 +578,16 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   ),
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.history_rounded, color: Colors.white),
+                tooltip: 'Riwayat Pengaduan',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RiwayatPengaduanScreen(user: widget.user),
+                  ),
+                ),
+              ),
               const NotificationBell(role: UserRole.direktur),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
@@ -654,16 +604,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               fontSize: isSmallScreen ? 11.0 : 12.5,
             ),
           ),
-          SizedBox(height: isSmallScreen ? 8.0 : 10.0),
-          const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(text: 'Menunggu Persetujuan'),
-              Tab(text: 'Riwayat'),
-            ],
-          ),
+          SizedBox(height: isSmallScreen ? 14.0 : 18.0),
         ],
       ),
     );

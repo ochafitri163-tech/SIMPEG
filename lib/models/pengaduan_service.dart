@@ -156,7 +156,7 @@ class PengaduanService {
         : PengaduanStatus.investigasiBerjalan.name;
     await _ubahStatus(
       pengaduanId: pengaduanId,
-      statusLama: PengaduanStatus.reviewKspi.name,
+      statusLama: PengaduanStatus.menungguPilihEksekutor.name,
       statusBaru: statusBaru,
       oleh: oleh,
       role: UserRole.kspi,
@@ -547,10 +547,11 @@ class PengaduanService {
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguDirutTahap1.name,
-      statusBaru: PengaduanStatus.menungguInvestigasi.name,
+      statusBaru: PengaduanStatus.menungguPilihEksekutor.name,
       oleh: oleh,
       role: UserRole.direktur,
-      aksi: 'Menyetujui (layak diinvestigasi), diteruskan ke TPDPK',
+      aksi:
+          'Menyetujui (layak diinvestigasi), diteruskan ke KSPI untuk pilih eksekutor',
       catatan: catatan,
       kolomTambahan: {
         'keputusan_dirut_tahap1': keputusan.name,
@@ -559,9 +560,10 @@ class PengaduanService {
     );
 
     await NotificationService.kirimKeRole(
-      role: UserRole.tpdpk,
-      judul: 'Pengaduan untuk diinvestigasi',
-      pesan: 'Dirut menyetujui pengaduan, silakan lakukan investigasi.',
+      role: UserRole.kspi,
+      judul: 'Pilih eksekutor investigasi',
+      pesan:
+          'Dirut menyetujui pengaduan, silakan pilih eksekutor investigasi (TPDPK atau Kadiv).',
       pengaduanId: pengaduanId,
     );
   }
@@ -746,18 +748,101 @@ class PengaduanService {
 
   /// SDM — menandai tindak lanjut administratif selesai. Titik akhir alur,
   /// & memberi tahu pelapor asli bahwa pengaduannya selesai.
+  /// Format angka menjadi ribuan dengan pemisah titik, mis. 150000 -> 150.000
+  static String _formatRibuan(int n) {
+    final s = n.abs().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return (n < 0 ? '-' : '') + buf.toString();
+  }
+
+  /// SDM — menurunkan gaji pegawai (sanksi) dan LANGSUNG terintegrasi ke
+  /// payroll. Nominal ditambahkan ke kolom `potongan_sanksi_perusahaan` pada
+  /// slip gaji periode terbaru milik pegawai dengan [nik] terkait.
+  static Future<void> turunkanGajiPayroll({
+    required String nik,
+    required int nominal,
+    int? pengaduanId,
+  }) async {
+    // 1. Cari pegawai berdasarkan NIK.
+    final pegawaiRows = await _client
+        .from('pegawai')
+        .select('id, nama')
+        .eq('nik', nik)
+        .limit(1);
+    final pegawaiList = pegawaiRows as List;
+    if (pegawaiList.isEmpty) {
+      throw 'Pegawai dengan NIK $nik tidak ditemukan.';
+    }
+    final pegawaiId = pegawaiList.first['id'] as String;
+    final namaPegawai = (pegawaiList.first['nama'] ?? '-') as String;
+
+    // 2. Ambil slip gaji periode terbaru milik pegawai tersebut.
+    final payrollRows = await _client
+        .from('payroll')
+        .select('id, potongan_sanksi_perusahaan')
+        .eq('pegawai_id', pegawaiId)
+        .order('tahun', ascending: false)
+        .order('bulan', ascending: false)
+        .limit(1);
+    final payrollList = payrollRows as List;
+    if (payrollList.isEmpty) {
+      throw 'Data payroll untuk $namaPegawai (NIK $nik) belum tersedia.';
+    }
+    final payrollRow = payrollList.first;
+
+    // 3. Tambahkan nominal ke potongan sanksi perusahaan (turunkan gaji).
+    final potonganLama = (payrollRow['potongan_sanksi_perusahaan'] ?? 0) as int;
+    final potonganBaru = potonganLama + nominal;
+    await _client
+        .from('payroll')
+        .update({'potongan_sanksi_perusahaan': potonganBaru})
+        .eq('id', payrollRow['id']);
+
+    // 4. Beri tahu pegawai yang gajinya diturunkan.
+    await NotificationService.kirimKePegawai(
+      pegawaiId: pegawaiId,
+      judul: 'Penyesuaian gaji (sanksi)',
+      pesan: 'Gaji Anda dikenai potongan sanksi sebesar '
+          'Rp${_formatRibuan(nominal)} pada slip gaji periode terbaru.',
+      pengaduanId: pengaduanId,
+    );
+  }
+
   static Future<void> sdmSelesaikan({
     required int pengaduanId,
     required String oleh,
     String? catatan,
+    String? nikTerlapor,
+    int? nominalPenurunanGaji,
   }) async {
+    // Jika SDM memutuskan menurunkan gaji (sanksi), terapkan langsung ke
+    // payroll pegawai terkait sebelum pengaduan ditandai selesai.
+    final adaPenurunan = nikTerlapor != null &&
+        nikTerlapor.trim().isNotEmpty &&
+        nominalPenurunanGaji != null &&
+        nominalPenurunanGaji > 0;
+    if (adaPenurunan) {
+      await turunkanGajiPayroll(
+        nik: nikTerlapor!.trim(),
+        nominal: nominalPenurunanGaji!,
+        pengaduanId: pengaduanId,
+      );
+    }
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguSdm.name,
       statusBaru: PengaduanStatus.selesai.name,
       oleh: oleh,
       role: UserRole.sdm,
-      aksi: 'Menyelesaikan tindak lanjut administratif',
+      aksi: adaPenurunan
+          ? 'Menyelesaikan tindak lanjut administratif — penurunan gaji '
+              'Rp${_formatRibuan(nominalPenurunanGaji!)} (NIK ${nikTerlapor!.trim()})'
+          : 'Menyelesaikan tindak lanjut administratif',
       catatan: catatan,
       kolomTambahan: {'catatan_sdm': catatan},
     );
