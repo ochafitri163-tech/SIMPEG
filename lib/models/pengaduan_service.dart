@@ -53,6 +53,13 @@ Pengaduan pengaduanFromRow(
     status: parseStatus(row['status'] as String?),
     fotoBukti: List<String>.from(row['foto_bukti'] ?? const []),
     dokumenPendukung: List<String>.from(row['dokumen_pendukung'] ?? const []),
+    videoBukti: List<String>.from(row['video_bukti'] ?? const []),
+    voiceNote: List<String>.from(row['voice_note'] ?? const []),
+    investigasiFoto: List<String>.from(row['investigasi_foto'] ?? const []),
+    investigasiVideo: List<String>.from(row['investigasi_video'] ?? const []),
+    investigasiVoice: List<String>.from(row['investigasi_voice'] ?? const []),
+    investigasiDokumen:
+        List<String>.from(row['investigasi_dokumen'] ?? const []),
     riwayatStatus: riwayat,
     keputusanKadiv: parseKeputusan(row['keputusan_kadiv'] as String?),
     catatanKadiv: row['catatan_kadiv'] as String?,
@@ -266,6 +273,9 @@ class PengaduanService {
     required String judul,
     required String deskripsi,
     List<String> fotoBukti = const [],
+    List<String> videoBukti = const [],
+    List<String> voiceNote = const [],
+    List<String> dokumenPendukung = const [],
     bool anonim = false,
   }) async {
     final userId = _client.auth.currentUser?.id;
@@ -289,6 +299,9 @@ class PengaduanService {
           'golongan': user.golongan,
           'anonim': anonim,
           'foto_bukti': fotoBukti,
+          'video_bukti': videoBukti,
+          'voice_note': voiceNote,
+          'dokumen_pendukung': dokumenPendukung,
           'status': PengaduanStatus.menungguKadiv.name,
         })
         .select()
@@ -437,43 +450,63 @@ class PengaduanService {
 
   /// KADIV — terima/tolak. Tolak -> arsip. Terima -> otomatis diteruskan
   /// (lewat KSPI) ke Dirut tahap 1, & KSPI diberi notifikasi.
+  ///
+  /// Perubahan alur: baik keputusan Terima maupun Tolak SAMA-SAMA diteruskan
+  /// ke KSPI (keputusan tetap dicatat, tidak ada pengarsipan di tahap Kadiv).
+  /// Kadiv juga dapat mengoreksi kategori pelanggaran (administrasi/teknik)
+  /// bila pegawai salah menempatkan kategori.
   static Future<void> kadivAksi({
     required int pengaduanId,
     required String oleh,
     required Keputusan keputusan,
     String? catatan,
+    String? kategoriBaru,
   }) async {
-    if (keputusan == Keputusan.tolak) {
-      await _ubahStatus(
-        pengaduanId: pengaduanId,
-        statusLama: PengaduanStatus.menungguKadiv.name,
-        statusBaru: PengaduanStatus.arsip.name,
-        oleh: oleh,
-        role: UserRole.kadivKategori,
-        aksi: 'Menolak, pengaduan diarsipkan',
-        catatan: catatan,
-        kolomTambahan: {
-          'keputusan_kadiv': keputusan.name,
-          'catatan_kadiv': catatan,
-          'arsip_pada_tahap': 'kadiv',
-          'alasan_arsip': catatan,
-        },
-      );
-      return;
+    final kolom = <String, dynamic>{
+      'keputusan_kadiv': keputusan.name,
+      'catatan_kadiv': catatan,
+    };
+    if (kategoriBaru != null && kategoriBaru.isNotEmpty) {
+      kolom['kategori'] = kategoriBaru;
     }
 
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguKadiv.name,
-      statusBaru: PengaduanStatus.menungguDirutTahap1.name,
+      statusBaru: PengaduanStatus.reviewKspi.name,
       oleh: oleh,
       role: UserRole.kadivKategori,
-      aksi: 'Menerima pengaduan, diteruskan otomatis (via KSPI) ke Dirut',
+      aksi: keputusan == Keputusan.terima
+          ? 'Verifikasi (Terima), diteruskan ke KSPI'
+              '${kategoriBaru != null ? ' • kategori diubah ke $kategoriBaru' : ''}'
+          : 'Verifikasi (Tolak dicatat), tetap diteruskan ke KSPI'
+              '${kategoriBaru != null ? ' • kategori diubah ke $kategoriBaru' : ''}',
       catatan: catatan,
-      kolomTambahan: {
-        'keputusan_kadiv': keputusan.name,
-        'catatan_kadiv': catatan,
-      },
+      kolomTambahan: kolom,
+    );
+
+    await NotificationService.kirimKeRole(
+      role: UserRole.kspi,
+      judul: 'Pengaduan siap diteruskan ke Dirut',
+      pesan: 'Ada pengaduan terverifikasi Kadiv yang perlu diteruskan ke Dirut.',
+      pengaduanId: pengaduanId,
+    );
+  }
+
+  /// KSPI — meneruskan pengaduan ke Dirut (tombol "Teruskan ke Dirut").
+  static Future<void> kspiTeruskanKeDirut({
+    required int pengaduanId,
+    required String oleh,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.reviewKspi.name,
+      statusBaru: PengaduanStatus.menungguDirutTahap1.name,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: 'Meneruskan pengaduan ke Dirut',
+      catatan: catatan,
     );
 
     await NotificationService.kirimKeRole(
@@ -514,10 +547,10 @@ class PengaduanService {
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguDirutTahap1.name,
-      statusBaru: PengaduanStatus.menungguPilihEksekutor.name,
+      statusBaru: PengaduanStatus.menungguInvestigasi.name,
       oleh: oleh,
       role: UserRole.direktur,
-      aksi: 'Menyetujui (layak diinvestigasi), dikembalikan ke KSPI',
+      aksi: 'Menyetujui (layak diinvestigasi), diteruskan ke TPDPK',
       catatan: catatan,
       kolomTambahan: {
         'keputusan_dirut_tahap1': keputusan.name,
@@ -526,9 +559,9 @@ class PengaduanService {
     );
 
     await NotificationService.kirimKeRole(
-      role: UserRole.kspi,
-      judul: 'Pilih eksekutor investigasi',
-      pesan: 'Dirut menyetujui pengaduan, silakan pilih eksekutor investigasi.',
+      role: UserRole.tpdpk,
+      judul: 'Pengaduan untuk diinvestigasi',
+      pesan: 'Dirut menyetujui pengaduan, silakan lakukan investigasi.',
       pengaduanId: pengaduanId,
     );
   }
@@ -574,19 +607,27 @@ class PengaduanService {
     required UserRole role,
     required String hasil,
     required String rekomendasi,
+    List<String> foto = const [],
+    List<String> video = const [],
+    List<String> voice = const [],
+    List<String> dokumen = const [],
   }) async {
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.investigasiBerjalan.name,
-      statusBaru: PengaduanStatus.menungguReviewKspi.name,
+      statusBaru: PengaduanStatus.menungguDirutTahap2.name,
       oleh: oleh,
       role: role,
       aksi: 'Mengirim hasil investigasi & surat rekomendasi, '
-          'diteruskan otomatis ke Direksi',
+          'diteruskan langsung ke Dirut',
       kolomTambahan: {
         'hasil_investigasi': hasil,
         'surat_rekomendasi': rekomendasi,
         'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
+        'investigasi_foto': foto,
+        'investigasi_video': video,
+        'investigasi_voice': voice,
+        'investigasi_dokumen': dokumen,
       },
     );
 
@@ -629,15 +670,22 @@ class PengaduanService {
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguDirutTahap2.name,
-      statusBaru: PengaduanStatus.menungguPilihEksekutorTindakLanjut.name,
+      statusBaru: PengaduanStatus.menungguSdm.name,
       oleh: oleh,
       role: UserRole.direktur,
-      aksi: 'Menerima hasil investigasi (ditindaklanjuti)',
+      aksi: 'Menerima hasil investigasi, diteruskan langsung ke SDM',
       catatan: catatan,
       kolomTambahan: {
         'keputusan_dirut_tahap2': keputusan.name,
         'catatan_dirut_tahap2': catatan,
       },
+    );
+
+    await NotificationService.kirimKeRole(
+      role: UserRole.sdm,
+      judul: 'Menunggu tindak lanjut administratif',
+      pesan: 'Ada pengaduan yang perlu ditindaklanjuti (penurunan gaji).',
+      pengaduanId: pengaduanId,
     );
   }
 

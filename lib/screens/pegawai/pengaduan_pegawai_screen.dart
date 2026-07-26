@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
+import '../../widgets/media_lampiran_picker.dart';
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
 /// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
@@ -56,6 +57,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   String? _kategori;
   final List<_FotoLampiran> _fotoLampiran = [];
   final ImagePicker _picker = ImagePicker();
+  final MediaLampiranController _mediaController = MediaLampiranController();
   bool _isSubmitting = false;
 
   @override
@@ -283,7 +285,10 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
         kategori: _kategori!,
         judul: _judulController.text.trim(),
         deskripsi: _deskripsiController.text.trim(),
-        fotoBukti: fotoUrls,
+        fotoBukti: [...fotoUrls, ..._mediaController.foto],
+        videoBukti: _mediaController.video,
+        voiceNote: _mediaController.voice,
+        dokumenPendukung: _mediaController.dokumen,
         anonim: false,
       );
 
@@ -345,6 +350,14 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildLampirkanFotoButton(),
+                const SizedBox(height: 16),
+                _buildFieldLabel('Lampiran Lain (Video, Voice Note, Dokumen)'),
+                const SizedBox(height: 8),
+                MediaLampiranPicker(
+                  controller: _mediaController,
+                  prefix: widget.user.nik,
+                  includeFoto: false,
+                ),
                 const SizedBox(height: 22),
                 _buildKirimButton(),
               ],

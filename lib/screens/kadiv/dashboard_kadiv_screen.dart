@@ -7,6 +7,7 @@ import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
+import '../shared/riwayat_pengaduan_screen.dart';
 
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
 /// Data pengaduan diambil dari Supabase lewat [PengaduanService], semua
@@ -485,6 +486,16 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     color: Colors.white,
                     fontSize: isSmallScreen ? 18.0 : 21.0,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.history_rounded, color: Colors.white),
+                tooltip: 'Riwayat Pengaduan',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RiwayatPengaduanScreen(user: widget.user),
                   ),
                 ),
               ),

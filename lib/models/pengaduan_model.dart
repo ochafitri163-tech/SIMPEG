@@ -250,6 +250,13 @@ class Pengaduan {
   final bool anonim;
   final List<String> fotoBukti;
   final List<String> dokumenPendukung;
+  final List<String> videoBukti;
+  final List<String> voiceNote;
+  // --- Lampiran hasil investigasi (TPDPK) ---
+  final List<String> investigasiFoto;
+  final List<String> investigasiVideo;
+  final List<String> investigasiVoice;
+  final List<String> investigasiDokumen;
   final List<StatusHistoryEntry> riwayatStatus;
 
   PengaduanStatus status;
@@ -306,6 +313,12 @@ class Pengaduan {
     this.anonim = false,
     List<String>? fotoBukti,
     List<String>? dokumenPendukung,
+    List<String>? videoBukti,
+    List<String>? voiceNote,
+    List<String>? investigasiFoto,
+    List<String>? investigasiVideo,
+    List<String>? investigasiVoice,
+    List<String>? investigasiDokumen,
     List<StatusHistoryEntry>? riwayatStatus,
     this.keputusanKadiv,
     this.catatanKadiv,
@@ -330,6 +343,12 @@ class Pengaduan {
     this.kategoriDivisi,
   })  : fotoBukti = fotoBukti ?? [],
         dokumenPendukung = dokumenPendukung ?? [],
+        videoBukti = videoBukti ?? [],
+        voiceNote = voiceNote ?? [],
+        investigasiFoto = investigasiFoto ?? [],
+        investigasiVideo = investigasiVideo ?? [],
+        investigasiVoice = investigasiVoice ?? [],
+        investigasiDokumen = investigasiDokumen ?? [],
         riwayatStatus = riwayatStatus ?? [];
 
   /// Keterangan/catatan terakhir dari riwayat status.
