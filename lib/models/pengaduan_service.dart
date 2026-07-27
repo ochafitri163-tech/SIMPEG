@@ -151,9 +151,7 @@ class PengaduanService {
     String? petugas,
     String? catatan,
   }) async {
-    final statusBaru = eksekutor == 'tpdpk'
-        ? PengaduanStatus.menungguInvestigasi.name
-        : PengaduanStatus.investigasiBerjalan.name;
+    final statusBaru = PengaduanStatus.investigasiBerjalan.name;
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutor.name,

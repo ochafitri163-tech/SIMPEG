@@ -227,7 +227,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
-                label: const Text('Kirim ke KSPI'),
+                label: Text(revisi ? 'Kirim ke KSPI' : 'Kirim ke Dirut'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,

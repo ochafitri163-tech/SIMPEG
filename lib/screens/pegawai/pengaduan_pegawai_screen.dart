@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import 'status_pengaduan_screen.dart';
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
 /// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
@@ -405,12 +406,25 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
             ),
           ),
           const SizedBox(width: 14),
-          const Text(
-            'Pengaduan Pegawai',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+          const Expanded(
+            child: Text(
+              'Pengaduan Pegawai',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: Colors.white),
+            tooltip: 'Riwayat Pengaduan',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StatusPengaduanScreen(
+                    user: widget.user, showBackButton: true),
+              ),
             ),
           ),
         ],

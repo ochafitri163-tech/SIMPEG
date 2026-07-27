@@ -72,6 +72,85 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     await _refresh();
   }
 
+  // ---------- Jalankan & selesaikan tindak lanjut (status tindakLanjutBerjalan) ----------
+  Future<void> _bukaSelesaikanTindakLanjut(Pengaduan p) async {
+    final catatanController = TextEditingController();
+
+    final ok = await _openSheet<bool>((ctx, setSheetState) {
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _grip(),
+            _judulSheet('Jalankan & Selesaikan Tindak Lanjut', p),
+            _infoBlok('Instruksi Direktur', p.tindakLanjutDiminta ?? '-'),
+            const SizedBox(height: 14),
+            TextField(
+              controller: catatanController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Keterangan penyelesaian (opsional)',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.task_alt_rounded, size: 18),
+                label: const Text('Tandai Selesai & Teruskan ke SDM'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+
+    if (ok != true) return;
+    final id = p.supabaseId;
+    if (id == null) return;
+
+    try {
+      await PengaduanService.selesaikanTindakLanjut(
+        pengaduanId: id,
+        oleh: widget.user.name,
+        role: UserRole.kspi,
+        catatan: catatanController.text.trim().isEmpty
+            ? null
+            : catatanController.text.trim(),
+      );
+
+      final detail = await PengaduanService.detail(id);
+      final pelaporId = detail?['pelapor_id'] as String?;
+      if (pelaporId != null) {
+        await NotificationService.kirimKePegawai(
+          pegawaiId: pelaporId,
+          judul: 'Pengaduan selesai',
+          pesan:
+              '${p.nomorPengaduan} — tindak lanjut telah dijalankan & dinyatakan selesai.',
+          pengaduanId: id,
+        );
+      }
+
+      if (!mounted) return;
+      _showSnack('${p.nomorPengaduan} selesai & diteruskan ke SDM.',
+          const Color(0xFF27AE60));
+      await _refresh();
+    } catch (e) {
+      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
+    }
+  }
+
   // ---------- Teruskan ke Dirut (status reviewKspi) ----------
   Future<void> _bukaTeruskanKeDirut(Pengaduan p) async {
     final catatanController = TextEditingController();
@@ -186,7 +265,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- 1. Review awal & pilih eksekutor ----------
   Future<void> _bukaReviewEksekutor(Pengaduan p) async {
     Eksekutor eksekutorDipilih = Eksekutor.kadiv;
-    final petugasController = TextEditingController();
+    int jumlahPetugas = 1;
+    final List<TextEditingController> petugasControllers = [
+      TextEditingController()
+    ];
     final catatanController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
@@ -201,7 +283,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Row(
-              children: Eksekutor.values.map((e) {
+              children:
+                  Eksekutor.values.where((e) => e != Eksekutor.kspi).map((e) {
                 final selected = eksekutorDipilih == e;
                 return Expanded(
                   child: Padding(
@@ -221,16 +304,51 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 );
               }).toList(),
             ),
-            if (eksekutorDipilih == Eksekutor.kadiv) ...[
+            if (eksekutorDipilih != Eksekutor.kspi) ...[
               const SizedBox(height: 14),
-              TextField(
-                controller: petugasController,
-                decoration: InputDecoration(
-                  labelText: 'Nama petugas investigasi',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Jumlah petugas investigasi',
+                        style: TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  ),
+                  IconButton(
+                    onPressed: jumlahPetugas > 1
+                        ? () => setSheetState(() {
+                              jumlahPetugas--;
+                              petugasControllers.removeLast().dispose();
+                            })
+                        : null,
+                    icon: const Icon(Icons.remove_circle_outline_rounded),
+                    color: _accent,
+                  ),
+                  Text('$jumlahPetugas',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    onPressed: () => setSheetState(() {
+                      jumlahPetugas++;
+                      petugasControllers.add(TextEditingController());
+                    }),
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                    color: _accent,
+                  ),
+                ],
               ),
+              ...List.generate(jumlahPetugas, (i) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextField(
+                    controller: petugasControllers[i],
+                    decoration: InputDecoration(
+                      labelText: 'Nama petugas investigasi ${i + 1}',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                );
+              }),
             ],
             const SizedBox(height: 14),
             TextField(
@@ -247,18 +365,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (eksekutorDipilih == Eksekutor.kadiv &&
-                      petugasController.text.trim().isEmpty) {
-                    _showSnack('Nama petugas investigasi wajib diisi.',
+                  if (eksekutorDipilih != Eksekutor.kspi &&
+                      petugasControllers.any((c) => c.text.trim().isEmpty)) {
+                    _showSnack('Nama semua petugas investigasi wajib diisi.',
                         const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
-                label: Text(eksekutorDipilih == Eksekutor.kadiv
-                    ? 'Tetapkan Eksekutor & Petugas'
-                    : 'Kirim ke TPDPK'),
+                label: const Text('Tetapkan Eksekutor & Petugas'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
@@ -277,14 +393,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     final id = p.supabaseId;
     if (id == null) return;
 
+    final daftarPetugas = petugasControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .join(', ');
+
     try {
       await PengaduanService.reviewDanPilihEksekutor(
         pengaduanId: id,
         oleh: widget.user.name,
         eksekutor: eksekutorDipilih.name,
-        petugas: petugasController.text.trim().isEmpty
-            ? null
-            : petugasController.text.trim(),
+        petugas: daftarPetugas.isEmpty ? null : daftarPetugas,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
@@ -691,7 +810,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         _buildSection(
                             'TINDAK LANJUT DITUGASKAN',
                             ditolak,
-                            _bukaDetail,
+                            _bukaSelesaikanTindakLanjut,
                             'Tidak ada tindak lanjut yang ditugaskan.',
                             'Jalankan'),
                         _buildSection(
