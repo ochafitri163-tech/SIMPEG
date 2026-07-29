@@ -499,7 +499,15 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   ),
                 ),
               ),
-              const NotificationBell(role: UserRole.kadivKategori),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                tooltip: 'Muat ulang',
+                onPressed: _refresh,
+              ),
+              const IconTheme(
+                data: IconThemeData(color: Colors.white),
+                child: NotificationBell(role: UserRole.kadivKategori),
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
                 tooltip: 'Keluar',

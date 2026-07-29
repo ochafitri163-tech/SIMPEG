@@ -588,7 +588,15 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   ),
                 ),
               ),
-              const NotificationBell(role: UserRole.direktur),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                tooltip: 'Muat ulang',
+                onPressed: _refreshSemua,
+              ),
+              const IconTheme(
+                data: IconThemeData(color: Colors.white),
+                child: NotificationBell(role: UserRole.direktur),
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
                 tooltip: 'Keluar',

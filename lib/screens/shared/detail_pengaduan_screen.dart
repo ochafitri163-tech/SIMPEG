@@ -422,6 +422,57 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   style: const TextStyle(fontSize: 12, color: hintGrey)),
             ],
           ),
+          if (p.eksekutor != null) const SizedBox(height: 10),
+          if (p.eksekutor != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.assignment_ind_outlined, size: 15, color: hintGrey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('Eksekutor Investigasi: ${p.eksekutor!.label}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: hintGrey,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          if (p.petugasInvestigasi != null &&
+              p.petugasInvestigasi!.trim().isNotEmpty)
+            const SizedBox(height: 8),
+          if (p.petugasInvestigasi != null &&
+              p.petugasInvestigasi!.trim().isNotEmpty)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.groups_outlined, size: 15, color: hintGrey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('Petugas: ${p.petugasInvestigasi}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: hintGrey,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          if (p.eksekutorTindakLanjut != null) const SizedBox(height: 8),
+          if (p.eksekutorTindakLanjut != null)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.engineering_outlined, size: 15, color: hintGrey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('Eksekutor Tindak Lanjut: ${p.eksekutorTindakLanjut!.label}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: hintGrey,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -690,10 +741,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     if (role == UserRole.kadivKategori) {
       if (p.status == PengaduanStatus.menungguKadiv) {
         panel = _panelVerifikasiKadiv(p, oleh);
+      } else if (p.status == PengaduanStatus.investigasiBerjalan &&
+          p.eksekutor == Eksekutor.kadiv) {
+        panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.kadivKategori);
+      } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
+          p.eksekutorTindakLanjut == Eksekutor.kadiv) {
+        panel = _panelSelesaikanTindakLanjut(p, oleh, UserRole.kadivKategori);
       }
     } else if (role == UserRole.kspi) {
       if (p.status == PengaduanStatus.reviewKspi) {
         panel = _panelTeruskanKeDirut(p, oleh);
+      } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
+          p.eksekutorTindakLanjut == Eksekutor.kspi) {
+        panel = _panelSelesaikanTindakLanjut(p, oleh, UserRole.kspi);
       }
     } else if (role == UserRole.tpdpk) {
       if (p.status == PengaduanStatus.menungguInvestigasi ||

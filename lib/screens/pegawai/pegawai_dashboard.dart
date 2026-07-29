@@ -134,6 +134,13 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     setState(() => _bottomNavIndex = index);
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _attendanceFuture = _fetchAttendanceBulanIni();
+    });
+    await _attendanceFuture;
+  }
+
   void _openAbsensiDetail() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AbsensiDetailScreen()),
@@ -472,12 +479,14 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: IconTheme(
-                  data: IconThemeData(color: Colors.white),
-                  child: NotificationBell(role: UserRole.pegawai),
-                ),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                tooltip: 'Muat ulang',
+                onPressed: _refresh,
+              ),
+              const IconTheme(
+                data: IconThemeData(color: Colors.white),
+                child: NotificationBell(role: UserRole.pegawai),
               ),
             ],
           ),

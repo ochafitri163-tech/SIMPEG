@@ -462,6 +462,49 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                           fontWeight: FontWeight.w600)),
                 ],
               ),
+              if (p.eksekutor != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.assignment_ind_outlined,
+                      size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
+                  const SizedBox(width: 6),
+                  Text('Eksekutor Investigasi: ${p.eksekutor!.label}',
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.0,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+              if (p.petugasInvestigasi != null &&
+                  p.petugasInvestigasi!.trim().isNotEmpty)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.groups_outlined,
+                      size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
+                  const SizedBox(width: 6),
+                  Text('Petugas: ${p.petugasInvestigasi}',
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.0,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+              if (p.eksekutorTindakLanjut != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.engineering_outlined,
+                      size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
+                  const SizedBox(width: 6),
+                  Text('Eksekutor Tindak Lanjut: ${p.eksekutorTindakLanjut!.label}',
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 11.0 : 12.0,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
             ],
           ),
         ],

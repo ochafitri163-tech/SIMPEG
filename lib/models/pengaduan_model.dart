@@ -600,7 +600,8 @@ String formatTanggalIndonesia(DateTime date) {
     'November',
     'Desember',
   ];
-  return '${hari[date.weekday - 1]}, ${date.day} ${bulan[date.month - 1]} ${date.year}';
+  final d = date.toUtc().add(const Duration(hours: 7));
+  return '${hari[d.weekday - 1]}, ${d.day} ${bulan[d.month - 1]} ${d.year}';
 }
 
 String formatTanggalJam(DateTime date) {
@@ -618,7 +619,8 @@ String formatTanggalJam(DateTime date) {
     'Nov',
     'Des',
   ];
-  final jam = date.hour.toString().padLeft(2, '0');
-  final menit = date.minute.toString().padLeft(2, '0');
-  return '${date.day} ${bulanSingkat[date.month - 1]} ${date.year}, $jam:$menit';
+  final d = date.toUtc().add(const Duration(hours: 7));
+  final jam = d.hour.toString().padLeft(2, '0');
+  final menit = d.minute.toString().padLeft(2, '0');
+  return '${d.day} ${bulanSingkat[d.month - 1]} ${d.year}, $jam:$menit';
 }

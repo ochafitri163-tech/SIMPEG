@@ -612,6 +612,18 @@ class PengaduanService {
     List<String> voice = const [],
     List<String> dokumen = const [],
   }) async {
+    // Kolom media hanya ditulis bila ada isinya, agar update tidak gagal
+    // ketika kolom array media belum tersedia di skema tabel.
+    final kolom = <String, dynamic>{
+      'hasil_investigasi': hasil,
+      'surat_rekomendasi': rekomendasi,
+      'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
+    };
+    if (foto.isNotEmpty) kolom['investigasi_foto'] = foto;
+    if (video.isNotEmpty) kolom['investigasi_video'] = video;
+    if (voice.isNotEmpty) kolom['investigasi_voice'] = voice;
+    if (dokumen.isNotEmpty) kolom['investigasi_dokumen'] = dokumen;
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.investigasiBerjalan.name,
@@ -620,15 +632,7 @@ class PengaduanService {
       role: role,
       aksi: 'Mengirim hasil investigasi & surat rekomendasi, '
           'diteruskan langsung ke Dirut',
-      kolomTambahan: {
-        'hasil_investigasi': hasil,
-        'surat_rekomendasi': rekomendasi,
-        'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
-        'investigasi_foto': foto,
-        'investigasi_video': video,
-        'investigasi_voice': voice,
-        'investigasi_dokumen': dokumen,
-      },
+      kolomTambahan: kolom,
     );
 
     await NotificationService.kirimKeRole(

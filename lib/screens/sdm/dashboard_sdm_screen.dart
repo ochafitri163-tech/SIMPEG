@@ -355,7 +355,15 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   ),
                 ),
               ),
-              const NotificationBell(role: UserRole.sdm),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                tooltip: 'Muat ulang',
+                onPressed: _refresh,
+              ),
+              const IconTheme(
+                data: IconThemeData(color: Colors.white),
+                child: NotificationBell(role: UserRole.sdm),
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
                 tooltip: 'Keluar',
