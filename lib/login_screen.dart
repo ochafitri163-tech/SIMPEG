@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/user_role.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
+import 'screens/auth/lupa_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -251,7 +252,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 28),
                         _buildLoginButton(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 6),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const LupaPasswordScreen(),
+                              ),
+                            ),
+                            child: const Text('Lupa Password?'),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Center(
                           child: Text(
                             'Pendaftaran akun & lupa kata sandi dilakukan\nmelalui website resmi PERUMDAM Tirta Darma Ayu.',

@@ -5,6 +5,7 @@ import '../../services/theme_controller.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'kebijakan_privasi_screen.dart';
 import 'tentang_aplikasi_screen.dart';
+import 'ganti_password_screen.dart';
 
 class PengaturanScreen extends StatefulWidget {
   const PengaturanScreen({super.key});
@@ -169,6 +170,17 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
+                      _NavRow(
+                        icon: Icons.password_rounded,
+                        title: 'Ganti Password',
+                        subtitle: 'Perbarui kata sandi akun',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const GantiPasswordScreen(),
+                          ),
+                        ),
+                      ),
+                      _ThemedDivider(),
                       _NavRow(
                         icon: Icons.privacy_tip_outlined,
                         title: 'Kebijakan Privasi',

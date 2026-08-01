@@ -22,6 +22,9 @@ dependencies:
   # Image Picker
   image_picker: ^1.1.2
 
+  # Lokasi / GPS (untuk absensi check-in)
+  geolocator: ^13.0.1
+
   # Supabase & HTTP
   supabase_flutter: ^2.8.0
   http: ^1.6.0

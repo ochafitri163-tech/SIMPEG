@@ -1,29 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/pengaduan_model.dart' show formatTanggalJam;
 import '../models/pengumuman_model.dart';
+import '../models/user_role.dart';
 
 const Color _navy = Color(0xFF0D2C6E);
 const Color _accent = Color(0xFF2E86AB);
+const Color _danger = Color(0xFFD35400);
 
-/// Menampilkan modal/pop-up detail sebuah pengumuman: judul, isi lengkap,
-/// tanggal & waktu publikasi, nama pembuat (SDM), dan tombol Tutup.
-///
-/// Dipakai bersama oleh Card Pengumuman di dashboard maupun halaman
-/// riwayat "Berita Pengumuman" agar tampilannya konsisten.
-Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
+/// Modal/pop-up detail pengumuman: judul, isi lengkap, prioritas, tanggal &
+/// waktu publikasi, nama pembuat (SDM), lampiran (bila ada), tombol Tutup.
+/// Membuka detail sekaligus menandai pengumuman sebagai sudah dibaca.
+Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
+  // Tandai sudah dibaca (tidak blocking bila gagal).
+  PengumumanService.tandaiDibaca(p.id);
+
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final surface = isDark ? const Color(0xFF1B2230) : Colors.white;
   final textColor = isDark ? Colors.white : const Color(0xFF1B2733);
   final subColor = isDark ? const Color(0xFF9AA6B2) : const Color(0xFF7F8C8D);
 
-  return showDialog(
+  await showDialog(
     context: context,
     builder: (ctx) {
       return Dialog(
         backgroundColor: surface,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 460,
@@ -33,7 +36,6 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header gradasi + ikon megafon
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
@@ -43,8 +45,7 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,60 +65,59 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Pengumuman',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
+                          Row(
+                            children: [
+                              const Text('Pengumuman',
+                                  style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5)),
+                              if (p.isPenting) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE74C3C),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('PENTING',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w800)),
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            p.judul,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          Text(p.judul,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
-                    if (!p.aktif)
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Nonaktif',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700)),
-                      ),
                   ],
                 ),
               ),
-              // Isi lengkap
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        p.isi,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.55,
-                          color: textColor,
-                        ),
-                      ),
+                      Text(p.isi,
+                          style: TextStyle(
+                              fontSize: 14, height: 1.55, color: textColor)),
+                      if (p.adaLampiran) ...[
+                        const SizedBox(height: 16),
+                        _LampiranTile(
+                            nama: p.lampiranNama ?? 'Lampiran',
+                            url: p.lampiranUrl!),
+                      ],
                       const SizedBox(height: 18),
                       Divider(color: subColor.withValues(alpha: 0.25)),
                       const SizedBox(height: 8),
@@ -127,11 +127,16 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
                       const SizedBox(height: 8),
                       _metaRow(Icons.person_rounded, 'Pembuat',
                           '${p.pembuat} (SDM)', subColor, textColor),
+                      if (p.kedaluwarsaPada != null) ...[
+                        const SizedBox(height: 8),
+                        _metaRow(Icons.timer_off_rounded, 'Berlaku s/d',
+                            formatTanggalJam(p.kedaluwarsaPada!), subColor,
+                            textColor),
+                      ],
                     ],
                   ),
                 ),
               ),
-              // Tombol Tutup
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 18),
                 child: SizedBox(
@@ -159,6 +164,55 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) {
   );
 }
 
+class _LampiranTile extends StatelessWidget {
+  final String nama;
+  final String url;
+  const _LampiranTile({required this.nama, required this.url});
+
+  Future<void> _buka(BuildContext context) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => _buka(context),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: _accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _accent.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.attach_file_rounded, size: 18, color: _accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: _accent)),
+            ),
+            const Icon(Icons.open_in_new_rounded, size: 15, color: _accent),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 Widget _metaRow(IconData icon, String label, String value, Color subColor,
     Color textColor) {
   return Row(
@@ -166,8 +220,7 @@ Widget _metaRow(IconData icon, String label, String value, Color subColor,
     children: [
       Icon(icon, size: 16, color: _accent),
       const SizedBox(width: 8),
-      Text('$label: ',
-          style: TextStyle(fontSize: 12.5, color: subColor)),
+      Text('$label: ', style: TextStyle(fontSize: 12.5, color: subColor)),
       Expanded(
         child: Text(value,
             style: TextStyle(
@@ -179,35 +232,30 @@ Widget _metaRow(IconData icon, String label, String value, Color subColor,
   );
 }
 
-/// Card Pengumuman untuk dashboard kelima role (Pegawai, Kadiv, KSPI,
-/// TPDPK, Direktur).
+/// Card Pengumuman untuk dashboard kelima role (bukan SDM).
 ///
-/// Ketentuan:
-/// - Memakai stream realtime, jadi otomatis ter-update saat SDM
-///   menambah / mengubah / menghapus / (batal) publikasi pengumuman.
-/// - Card HANYA muncul bila ada minimal satu pengumuman aktif. Bila tidak
-///   ada, mengembalikan [SizedBox.shrink] sehingga card tidak tampil sama
-///   sekali (bukan sekadar kosong).
-/// - Menampilkan judul, ringkasan 2–3 baris, tanggal publikasi, dan tombol
-///   "Lihat Detail" yang membuka pop-up detail.
+/// - Memakai stream realtime -> otomatis ter-update saat SDM menambah/
+///   mengubah/menghapus/(batal) publikasi.
+/// - Hanya memfilter pengumuman yang SEDANG TAYANG untuk [role].
+/// - Bila tidak ada, mengembalikan [SizedBox.shrink] (card tidak muncul).
 class PengumumanCard extends StatelessWidget {
-  /// Dipanggil saat menekan "Lihat semua" untuk membuka halaman riwayat
-  /// Berita Pengumuman. Bila null, tautan "Lihat semua" disembunyikan.
+  final UserRole role;
   final VoidCallback? onLihatSemua;
 
-  const PengumumanCard({super.key, this.onLihatSemua});
+  const PengumumanCard({super.key, required this.role, this.onLihatSemua});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Pengumuman>>(
-      stream: PengumumanService.streamAktif(),
+      stream: PengumumanService.streamTayang(role),
       builder: (context, snapshot) {
         final list = snapshot.data ?? const <Pengumuman>[];
-        // Tidak ada pengumuman aktif -> card tidak ditampilkan sama sekali.
         if (list.isEmpty) return const SizedBox.shrink();
 
         final utama = list.first;
         final sisa = list.length - 1;
+        final penting = utama.isPenting;
+        final baseColor = penting ? const Color(0xFFE74C3C) : _danger;
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
@@ -215,15 +263,20 @@ class PengumumanCard extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFF6E9), Color(0xFFFDEFDA)],
+              gradient: LinearGradient(
+                colors: penting
+                    ? const [Color(0xFFFDECEA), Color(0xFFFAD7D2)]
+                    : const [Color(0xFFFFF6E9), Color(0xFFFDEFDA)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              border: Border.all(color: const Color(0xFFF3D9B0)),
+              border: Border.all(
+                  color: penting
+                      ? const Color(0xFFF1B0A8)
+                      : const Color(0xFFF3D9B0)),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFE67E22).withValues(alpha: 0.10),
+                  color: baseColor.withValues(alpha: 0.10),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
@@ -239,22 +292,27 @@ class PengumumanCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE67E22)
-                              .withValues(alpha: 0.15),
+                          color: baseColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.campaign_rounded,
-                            color: Color(0xFFD35400), size: 18),
+                        child: Icon(
+                            utama.disematkan
+                                ? Icons.push_pin_rounded
+                                : Icons.campaign_rounded,
+                            color: baseColor,
+                            size: 18),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'PENGUMUMAN',
+                          penting ? 'PENGUMUMAN PENTING' : 'PENGUMUMAN',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.6,
-                            color: Color(0xFFB9611A),
+                            color: penting
+                                ? const Color(0xFFC0392B)
+                                : const Color(0xFFB9611A),
                           ),
                         ),
                       ),
@@ -262,75 +320,74 @@ class PengumumanCard extends StatelessWidget {
                         InkWell(
                           onTap: onLihatSemua,
                           borderRadius: BorderRadius.circular(20),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             child: Text('Lihat semua',
                                 style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFFB9611A))),
+                                    color: penting
+                                        ? const Color(0xFFC0392B)
+                                        : const Color(0xFFB9611A))),
                           ),
                         ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    utama.judul,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF7A431A),
-                    ),
-                  ),
+                  Text(utama.judul,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF7A431A))),
                   const SizedBox(height: 4),
-                  Text(
-                    utama.ringkasan,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: Color(0xFF6B4B2A),
-                    ),
-                  ),
+                  Text(utama.ringkasan,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.4,
+                          color: Color(0xFF6B4B2A))),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.event_rounded,
-                          size: 13, color: Color(0xFFB9611A)),
+                      Icon(Icons.event_rounded,
+                          size: 13, color: baseColor),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          formatTanggalJam(utama.tanggalPublikasi),
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFB9611A)),
-                        ),
+                        child: Text(formatTanggalJam(utama.tanggalPublikasi),
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: baseColor)),
                       ),
+                      if (utama.adaLampiran)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Icon(Icons.attach_file_rounded,
+                              size: 14, color: baseColor),
+                        ),
                       if (sisa > 0)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: Text('+$sisa lainnya',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFFB9611A))),
+                                  color: baseColor)),
                         ),
                       SizedBox(
                         height: 32,
                         child: ElevatedButton.icon(
                           onPressed: () =>
                               showPengumumanDetail(context, utama),
-                          icon: const Icon(Icons.visibility_rounded,
-                              size: 15),
+                          icon: const Icon(Icons.visibility_rounded, size: 15),
                           label: const Text('Lihat Detail',
                               style: TextStyle(fontSize: 11.5)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD35400),
+                            backgroundColor: baseColor,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             padding:

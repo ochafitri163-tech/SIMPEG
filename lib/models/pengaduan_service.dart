@@ -772,7 +772,7 @@ class PengaduanService {
     // 1. Cari pegawai berdasarkan NIK.
     final pegawaiRows = await _client
         .from('pegawai')
-        .select('id, nama')
+        .select('id, name')
         .eq('nik', nik)
         .limit(1);
     final pegawaiList = pegawaiRows as List;
@@ -780,7 +780,7 @@ class PengaduanService {
       throw 'Pegawai dengan NIK $nik tidak ditemukan.';
     }
     final pegawaiId = pegawaiList.first['id'] as String;
-    final namaPegawai = (pegawaiList.first['nama'] ?? '-') as String;
+    final namaPegawai = (pegawaiList.first['name'] ?? '-') as String;
 
     // 2. Ambil slip gaji periode terbaru milik pegawai tersebut.
     final payrollRows = await _client
