@@ -8,6 +8,9 @@ import '../kadiv/dashboard_kadiv_screen.dart';
 import '../kspi/dashboard_kspi_screen.dart';
 import '../tpdpk/dashboard_tpdpk_screen.dart';
 import '../sdm/dashboard_sdm_screen.dart';
+import '../sdm/kelola_pengumuman_screen.dart';
+import '../shared/pengumuman_list_screen.dart';
+import '../../widgets/pengumuman_card.dart';
 import 'tunjangan_pendidikan_screen.dart';
 import 'insentif_screen.dart';
 import 'lembur_screen.dart';
@@ -207,6 +210,16 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           label: 'Insentif\nPendidikan',
           icon: Icons.star_rounded,
           builder: (_) => InsentifScreen(user: widget.user)),
+      if (widget.user.role != UserRole.sdm)
+        _QuickMenuItem(
+            label: 'Berita\nPengumuman',
+            icon: Icons.campaign_rounded,
+            builder: (_) => const PengumumanListScreen()),
+      if (widget.user.role == UserRole.sdm)
+        _QuickMenuItem(
+            label: 'Kelola\nPengumuman',
+            icon: Icons.edit_notifications_rounded,
+            builder: (_) => KelolaPengumumanScreen(user: widget.user)),
     ];
 
     return FutureBuilder<AttendanceSummary>(
@@ -230,6 +243,18 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   child: _buildScheduleCard(isSmallScreen),
                 ),
               ),
+              // Card Pengumuman: tampil untuk 5 role (Pegawai, Kadiv, KSPI,
+              // TPDPK, Dirut), TIDAK untuk SDM karena SDM adalah pengelola.
+              // Hanya muncul bila ada pengumuman aktif, otomatis ter-update
+              // via stream realtime Supabase.
+              if (widget.user.role != UserRole.sdm)
+                PengumumanCard(
+                  onLihatSemua: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PengumumanListScreen(),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                 child: Row(

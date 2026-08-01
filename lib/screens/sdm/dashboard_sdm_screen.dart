@@ -8,6 +8,7 @@ import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import 'kelola_pengumuman_screen.dart';
 
 /// Dashboard untuk role SDM — titik akhir alur Pengaduan (tindak lanjut
 /// administratif). Data & aksi terhubung ke Supabase lewat
@@ -342,6 +343,16 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                     color: Colors.white,
                     fontSize: isSmallScreen ? 18.0 : 21.0,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.campaign_rounded, color: Colors.white),
+                tooltip: 'Kelola Pengumuman',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => KelolaPengumumanScreen(user: widget.user),
                   ),
                 ),
               ),
