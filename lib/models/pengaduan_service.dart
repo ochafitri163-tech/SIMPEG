@@ -113,14 +113,31 @@ class PengaduanService {
 
   static final _client = Supabase.instance.client;
 
+  /// Membuat nomor pengaduan berformat PGD-YYYYMM-NNN.
+  ///
+  /// Nomor urut diambil dari NOMOR TERBESAR yang sudah ada pada bulan
+  /// berjalan lalu ditambah 1 — BUKAN dari jumlah baris. Ini penting agar
+  /// tidak menghasilkan nomor yang sudah dipakai ketika ada pengaduan lama
+  /// yang terhapus (dulu memakai jumlah baris sehingga bisa bentrok dan
+  /// memicu error "duplicate key ... nomor_pengaduan").
   static Future<String> generateNomorPengaduan() async {
     final now = DateTime.now();
     final prefix = 'PGD-${now.year}${now.month.toString().padLeft(2, '0')}';
     final rows = await _client
         .from('pengaduan_pegawai')
-        .select('id')
+        .select('nomor_pengaduan')
         .like('nomor_pengaduan', '$prefix%');
-    final urut = ((rows as List).length + 1).toString().padLeft(3, '0');
+    var maxUrut = 0;
+    for (final r in (rows as List)) {
+      final nomor = (r['nomor_pengaduan'] ?? '').toString();
+      // Ambil bagian angka urut (segmen ke-3, sebelum kemungkinan sufiks acak).
+      final bagian = nomor.split('-');
+      if (bagian.length >= 3) {
+        final n = int.tryParse(bagian[2]);
+        if (n != null && n > maxUrut) maxUrut = n;
+      }
+    }
+    final urut = (maxUrut + 1).toString().padLeft(3, '0');
     return '$prefix-$urut';
   }
 
@@ -281,29 +298,55 @@ class PengaduanService {
       throw Exception('User belum login');
     }
 
-    final nomor = await generateNomorPengaduan();
-
-    final inserted = await _client
-        .from('pengaduan_pegawai')
-        .insert({
-          'nomor_pengaduan': nomor,
-          'pelapor_id': userId,
-          'kategori': kategori,
-          'judul': judul,
-          'deskripsi': deskripsi,
-          'nama_pegawai': user.name,
-          'nik': user.nik,
-          'cabang': user.unitKerja,
-          'golongan': user.golongan,
-          'anonim': anonim,
-          'foto_bukti': fotoBukti,
-          'video_bukti': videoBukti,
-          'voice_note': voiceNote,
-          'dokumen_pendukung': dokumenPendukung,
-          'status': PengaduanStatus.menungguKadiv.name,
-        })
-        .select()
-        .single();
+    // Buat pengaduan dengan nomor unik. Bila terjadi bentrok nomor
+    // (unique constraint `nomor_pengaduan`) karena ada pengaduan lain yang
+    // dibuat bersamaan atau data lama, nomor otomatis dibuat ulang dan insert
+    // dicoba lagi. Dengan begitu pegawai selalu bisa mengirim pengaduan
+    // berkali-kali tanpa batas dan tanpa error "duplicate key".
+    Map<String, dynamic>? inserted;
+    var nomor = await generateNomorPengaduan();
+    for (var percobaan = 0; percobaan < 8; percobaan++) {
+      try {
+        inserted = await _client
+            .from('pengaduan_pegawai')
+            .insert({
+              'nomor_pengaduan': nomor,
+              'pelapor_id': userId,
+              'kategori': kategori,
+              'judul': judul,
+              'deskripsi': deskripsi,
+              'nama_pegawai': user.name,
+              'nik': user.nik,
+              'cabang': user.unitKerja,
+              'golongan': user.golongan,
+              'anonim': anonim,
+              'foto_bukti': fotoBukti,
+              'video_bukti': videoBukti,
+              'voice_note': voiceNote,
+              'dokumen_pendukung': dokumenPendukung,
+              'status': PengaduanStatus.menungguKadiv.name,
+            })
+            .select()
+            .single();
+        break;
+      } on PostgrestException catch (e) {
+        final pesan = '${e.code} ${e.message} ${e.details ?? ''}';
+        final bentrokNomor =
+            e.code == '23505' && pesan.contains('nomor_pengaduan');
+        if (!bentrokNomor || percobaan == 7) rethrow;
+        // Regenerasi nomor. Setelah percobaan pertama, tambahkan komponen
+        // acak agar dijamin unik walau ada insert paralel.
+        nomor = await generateNomorPengaduan();
+        if (percobaan >= 1) {
+          final acak =
+              (100 + (DateTime.now().microsecondsSinceEpoch % 900)).toString();
+          nomor = '$nomor-$acak';
+        }
+      }
+    }
+    if (inserted == null) {
+      throw Exception('Gagal membuat nomor pengaduan yang unik.');
+    }
 
     final pengaduanId = inserted['id'] as int;
 
@@ -330,7 +373,7 @@ class PengaduanService {
       await _client.from('notifikasi').insert({
         'untuk_pegawai_id': kadiv['id'],
         'judul': 'Pengaduan baru masuk',
-        'pesan': '${user.name} membuat pengaduan baru ($nomor).',
+        'pesan': '${user.name} membuat pengaduan baru ($nomor).', // ignore: unnecessary_brace_in_string_interps
         'pengaduan_id': pengaduanId,
       });
     }

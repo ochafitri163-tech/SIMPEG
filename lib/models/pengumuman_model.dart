@@ -156,6 +156,25 @@ class PengumumanService {
         .toList();
   }
 
+  /// Ambil (sekali/one-shot) daftar pengumuman yang SEDANG TAYANG untuk
+  /// [role]. Dipakai untuk pop-up otomatis saat aplikasi dibuka. Urutan
+  /// sama seperti [streamTayang]: yang disematkan dulu, lalu terbaru.
+  static Future<List<Pengumuman>> tayangSekali(UserRole role) async {
+    final rows = await _client
+        .from(_table)
+        .select()
+        .order('created_at', ascending: false);
+    final list = (rows as List)
+        .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
+        .where((p) => p.sedangTayang && p.untukRole(role))
+        .toList();
+    list.sort((a, b) {
+      if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
+      return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
+    });
+    return list;
+  }
+
   /// Set id pengumuman yang sudah dibaca oleh user yang sedang login.
   static Future<Set<int>> idSudahDibaca() async {
     final uid = _client.auth.currentUser?.id;

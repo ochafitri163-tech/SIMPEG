@@ -6,7 +6,6 @@ import '../models/user_role.dart';
 
 const Color _navy = Color(0xFF0D2C6E);
 const Color _accent = Color(0xFF2E86AB);
-const Color _danger = Color(0xFFD35400);
 
 /// Modal/pop-up detail pengumuman: judul, isi lengkap, prioritas, tanggal &
 /// waktu publikasi, nama pembuat (SDM), lampiran (bila ada), tombol Tutup.
@@ -164,6 +163,228 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
   );
 }
 
+/// Pop-up "Info Terbaru" bergaya bottom-sheet (meniru desain kartu info
+/// modern): banner gambar/gradien di atas + tombol tutup (X), badge
+/// "INFO TERBARU"/"PENTING", judul besar, ringkasan isi, lalu dua tombol
+/// aksi: "Nanti" (tutup) & "Baca Detail" (buka detail lengkap).
+/// Dipakai untuk pop-up otomatis saat dashboard dibuka.
+Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
+  // Tandai sudah dibaca (tidak blocking bila gagal).
+  PengumumanService.tandaiDibaca(p.id);
+
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final surface = isDark ? const Color(0xFF1B2230) : Colors.white;
+  final textColor = isDark ? Colors.white : const Color(0xFF15233A);
+  final subColor = isDark ? const Color(0xFF9AA6B2) : const Color(0xFF6B7A90);
+
+  final bool adaGambar = p.adaLampiran &&
+      RegExp(r'\.(png|jpe?g|webp|gif)(\?.*)?$', caseSensitive: false)
+          .hasMatch(p.lampiranNama ?? p.lampiranUrl ?? '');
+  final penting = p.isPenting;
+
+  await showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return Container(
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ---- Banner atas (gambar lampiran atau gradien dekoratif) ----
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28)),
+                  child: Container(
+                    height: 190,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [_navy, _accent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      image: adaGambar
+                          ? DecorationImage(
+                              image: NetworkImage(p.lampiranUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: adaGambar
+                        ? null
+                        : Stack(
+                            children: [
+                              Positioned(
+                                right: -20,
+                                top: -20,
+                                child: Icon(Icons.campaign_rounded,
+                                    size: 160,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.10)),
+                              ),
+                              Positioned(
+                                left: 24,
+                                bottom: 22,
+                                child: Icon(Icons.water_drop_rounded,
+                                    size: 46,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.9)),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                // Tombol tutup (X) di pojok kanan atas banner.
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: InkWell(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          color: Color(0xFF15233A), size: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // ---- Konten putih ----
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Badge INFO TERBARU / PENTING
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: penting
+                          ? const Color(0xFFFDECEA)
+                          : const Color(0xFFE7F2FB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          penting
+                              ? Icons.priority_high_rounded
+                              : Icons.auto_awesome_rounded,
+                          size: 15,
+                          color: penting
+                              ? const Color(0xFFE74C3C)
+                              : const Color(0xFF1E88C5),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          penting ? 'PENTING' : 'INFO TERBARU',
+                          style: TextStyle(
+                            color: penting
+                                ? const Color(0xFFE74C3C)
+                                : const Color(0xFF1E88C5),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Judul besar
+                  Text(
+                    p.judul,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Ringkasan isi
+                  Text(
+                    p.ringkasan,
+                    style: TextStyle(
+                      color: subColor,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  // Tombol aksi: Nanti (tutup) & Baca Detail (detail lengkap)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: subColor,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Nanti',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          showPengumumanDetail(context, p);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E88C5),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 30, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: const Text('Baca Detail',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                      height: MediaQuery.of(ctx).viewPadding.bottom + 6),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 class _LampiranTile extends StatelessWidget {
   final String nama;
   final String url;
@@ -232,179 +453,255 @@ Widget _metaRow(IconData icon, String label, String value, Color subColor,
   );
 }
 
-/// Card Pengumuman untuk dashboard kelima role (bukan SDM).
+/// Kartu "Berita & Pengumuman" gaya banner untuk dashboard kelima role
+/// (bukan SDM). Ditampilkan di bagian bawah Beranda.
 ///
 /// - Memakai stream realtime -> otomatis ter-update saat SDM menambah/
 ///   mengubah/menghapus/(batal) publikasi.
 /// - Hanya memfilter pengumuman yang SEDANG TAYANG untuk [role].
-/// - Bila tidak ada, mengembalikan [SizedBox.shrink] (card tidak muncul).
-class PengumumanCard extends StatelessWidget {
+/// - Bila tidak ada, mengembalikan [SizedBox.shrink] (kartu tidak muncul).
+/// - Menyentuh kartu membuka pop-up detail (showPengumumanDetail).
+class PengumumanCard extends StatefulWidget {
   final UserRole role;
   final VoidCallback? onLihatSemua;
 
   const PengumumanCard({super.key, required this.role, this.onLihatSemua});
 
   @override
+  State<PengumumanCard> createState() => _PengumumanCardState();
+}
+
+class _PengumumanCardState extends State<PengumumanCard> {
+  final PageController _pc = PageController();
+  int _current = 0;
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Pengumuman>>(
-      stream: PengumumanService.streamTayang(role),
+      stream: PengumumanService.streamTayang(widget.role),
       builder: (context, snapshot) {
         final list = snapshot.data ?? const <Pengumuman>[];
         if (list.isEmpty) return const SizedBox.shrink();
 
-        final utama = list.first;
-        final sisa = list.length - 1;
-        final penting = utama.isPenting;
-        final baseColor = penting ? const Color(0xFFE74C3C) : _danger;
+        // Index halaman aktif untuk indikator titik, dijaga tetap valid
+        // bila jumlah pengumuman berubah (mis. ada yang dihapus).
+        final aktif = _current.clamp(0, list.length - 1);
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                colors: penting
-                    ? const [Color(0xFFFDECEA), Color(0xFFFAD7D2)]
-                    : const [Color(0xFFFFF6E9), Color(0xFFFDEFDA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Berita & Pengumuman',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1B2733),
+                      ),
+                    ),
+                  ),
+                  if (widget.onLihatSemua != null)
+                    InkWell(
+                      onTap: widget.onLihatSemua,
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Text('Lihat semua',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _accent)),
+                      ),
+                    ),
+                ],
               ),
-              border: Border.all(
-                  color: penting
-                      ? const Color(0xFFF1B0A8)
-                      : const Color(0xFFF3D9B0)),
-              boxShadow: [
-                BoxShadow(
-                  color: baseColor.withValues(alpha: 0.10),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
+              const SizedBox(height: 12),
+              // Satu pengumuman: kartu tunggal. Lebih dari satu: carousel
+              // yang bisa DIGESER KE SAMPING, dengan indikator titik di bawah.
+              if (list.length == 1)
+                _banner(context, list.first)
+              else ...[
+                SizedBox(
+                  height: 168,
+                  child: PageView.builder(
+                    controller: _pc,
+                    itemCount: list.length,
+                    onPageChanged: (i) => setState(() => _current = i),
+                    itemBuilder: (context, i) => _banner(context, list[i]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(list.length, (i) {
+                    final isAktif = i == aktif;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: isAktif ? 20 : 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: isAktif
+                            ? _accent
+                            : _accent.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
                 ),
               ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Satu kartu banner pengumuman. Dipakai untuk kartu tunggal maupun tiap
+  /// halaman carousel ketika pengumuman lebih dari satu (geser ke samping).
+  Widget _banner(BuildContext context, Pengumuman p) {
+    final penting = p.isPenting;
+    final bool adaGambar = p.adaLampiran &&
+        RegExp(r'\.(png|jpe?g|webp|gif)(\?.*)?$', caseSensitive: false)
+            .hasMatch(p.lampiranNama ?? p.lampiranUrl ?? '');
+
+    return InkWell(
+      onTap: () => showPengumumanDetail(context, p),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 168,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0D2C6E), Color(0xFF123A85)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          image: adaGambar
+              ? DecorationImage(
+                  image: NetworkImage(p.lampiranUrl!),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.35),
+                    BlendMode.darken,
+                  ),
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: _navy.withValues(alpha: 0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: baseColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                            utama.disematkan
-                                ? Icons.push_pin_rounded
-                                : Icons.campaign_rounded,
-                            color: baseColor,
-                            size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          penting ? 'PENGUMUMAN PENTING' : 'PENGUMUMAN',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                            color: penting
-                                ? const Color(0xFFC0392B)
-                                : const Color(0xFFB9611A),
-                          ),
-                        ),
-                      ),
-                      if (onLihatSemua != null)
-                        InkWell(
-                          onTap: onLihatSemua,
-                          borderRadius: BorderRadius.circular(20),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            child: Text('Lihat semua',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: penting
-                                        ? const Color(0xFFC0392B)
-                                        : const Color(0xFFB9611A))),
-                          ),
-                        ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.black.withValues(alpha: 0.55),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Text(utama.judul,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 14.5,
+                ),
+              ),
+            ),
+            if (!adaGambar)
+              Positioned(
+                right: -12,
+                top: -12,
+                child: Icon(
+                  Icons.campaign_rounded,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            if (penting)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE74C3C),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('PENTING',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF7A431A))),
-                  const SizedBox(height: 4),
-                  Text(utama.ringkasan,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.4,
-                          color: Color(0xFF6B4B2A))),
+                          letterSpacing: 0.5)),
+                ),
+              ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 14,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.38),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_rounded,
+                            size: 13, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text(
+                          formatTanggalJam(p.tanggalPublikasi),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(Icons.event_rounded,
-                          size: 13, color: baseColor),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(formatTanggalJam(utama.tanggalPublikasi),
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: baseColor)),
-                      ),
-                      if (utama.adaLampiran)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Icon(Icons.attach_file_rounded,
-                              size: 14, color: baseColor),
-                        ),
-                      if (sisa > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text('+$sisa lainnya',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: baseColor)),
-                        ),
-                      SizedBox(
-                        height: 32,
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              showPengumumanDetail(context, utama),
-                          icon: const Icon(Icons.visibility_rounded, size: 15),
-                          label: const Text('Lihat Detail',
-                              style: TextStyle(fontSize: 11.5)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: baseColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9)),
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    p.judul,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

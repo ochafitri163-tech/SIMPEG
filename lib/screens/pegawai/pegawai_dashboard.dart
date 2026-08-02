@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
+import '../../models/pengumuman_model.dart';
 import '../../models/absensi_service.dart';
-import '../../models/cuti_service.dart';
-import '../../models/agenda_service.dart';
 import '../../widgets/notification_bell.dart';
 import '../dirut/dashboard_dirut_screen.dart';
 import '../kadiv/dashboard_kadiv_screen.dart';
@@ -24,12 +23,6 @@ import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
-import 'absensi_check_screen.dart';
-import 'pengajuan_cuti_screen.dart';
-import 'ganti_password_screen.dart';
-import '../shared/persetujuan_cuti_screen.dart';
-import '../shared/dokumen_kepegawaian_screen.dart';
-import '../shared/agenda_screen.dart';
 
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
@@ -139,6 +132,26 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   void initState() {
     super.initState();
     _attendanceFuture = _fetchAttendanceBulanIni();
+    // Pop-up pengumuman otomatis SETIAP KALI aplikasi/dashboard dibuka
+    // (hanya untuk 5 role penerima, bukan SDM). Tidak memakai penanda
+    // "sudah dibaca" agar pop-up selalu muncul tiap buka aplikasi.
+    if (widget.user.role != UserRole.sdm) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tampilkanPopupPengumuman();
+      });
+    }
+  }
+
+  /// Menampilkan pop-up detail pengumuman teratas yang sedang tayang.
+  /// Dipanggil sekali setiap dashboard dibuka.
+  Future<void> _tampilkanPopupPengumuman() async {
+    try {
+      final list = await PengumumanService.tayangSekali(widget.user.role);
+      if (!mounted || list.isEmpty) return;
+      await showPengumumanPopup(context, list.first);
+    } catch (_) {
+      // Diamkan error jaringan; kartu tetap tampil di Beranda.
+    }
   }
 
   void _onBottomNavTap(int index) {
@@ -218,44 +231,11 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           label: 'Insentif\nPendidikan',
           icon: Icons.star_rounded,
           builder: (_) => InsentifScreen(user: widget.user)),
-      if (widget.user.role != UserRole.sdm)
-        _QuickMenuItem(
-            label: 'Berita\nPengumuman',
-            icon: Icons.campaign_rounded,
-            builder: (_) => PengumumanListScreen(role: widget.user.role)),
       if (widget.user.role == UserRole.sdm)
         _QuickMenuItem(
             label: 'Kelola\nPengumuman',
             icon: Icons.edit_notifications_rounded,
             builder: (_) => KelolaPengumumanScreen(user: widget.user)),
-      // Absensi harian nyata (check-in/out + selfie + GPS) untuk Pegawai
-      // biasa. Role approval memakai dashboard masing-masing.
-      if (widget.user.role == UserRole.pegawai)
-        _QuickMenuItem(
-            label: 'Absensi',
-            icon: Icons.fingerprint_rounded,
-            builder: (_) => AbsensiCheckScreen(user: widget.user)),
-      _QuickMenuItem(
-          label: 'Pengajuan\nCuti',
-          icon: Icons.beach_access_rounded,
-          builder: (_) => PengajuanCutiScreen(user: widget.user)),
-      if (CutiService.roleApprover.contains(widget.user.role))
-        _QuickMenuItem(
-            label: 'Persetujuan\nCuti',
-            icon: Icons.fact_check_rounded,
-            builder: (_) => PersetujuanCutiScreen(user: widget.user)),
-      _QuickMenuItem(
-          label: 'Dokumen',
-          icon: Icons.folder_shared_rounded,
-          builder: (_) => DokumenKepegawaianScreen(user: widget.user)),
-      _QuickMenuItem(
-          label: 'Agenda',
-          icon: Icons.calendar_month_rounded,
-          builder: (_) => AgendaScreen(user: widget.user)),
-      _QuickMenuItem(
-          label: 'Ganti\nPassword',
-          icon: Icons.password_rounded,
-          builder: (_) => const GantiPasswordScreen()),
     ];
 
     return FutureBuilder<AttendanceSummary>(
@@ -279,20 +259,6 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   child: _buildScheduleCard(isSmallScreen),
                 ),
               ),
-              // Card Pengumuman: tampil untuk 5 role (Pegawai, Kadiv, KSPI,
-              // TPDPK, Dirut), TIDAK untuk SDM karena SDM adalah pengelola.
-              // Hanya muncul bila ada pengumuman aktif, otomatis ter-update
-              // via stream realtime Supabase.
-              if (widget.user.role != UserRole.sdm)
-                PengumumanCard(
-                  role: widget.user.role,
-                  onLihatSemua: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          PengumumanListScreen(role: widget.user.role),
-                    ),
-                  ),
-                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                 child: Row(
@@ -392,6 +358,21 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   },
                 ),
               ),
+              // ============== BERITA & PENGUMUMAN (paling bawah) ==============
+              // Tampil untuk 5 role (bukan SDM). Kartu banner + tap = pop-up
+              // detail. Hanya muncul bila ada pengumuman aktif; otomatis
+              // ter-update via stream realtime Supabase.
+              if (widget.user.role != UserRole.sdm)
+                PengumumanCard(
+                  role: widget.user.role,
+                  onLihatSemua: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PengumumanListScreen(role: widget.user.role),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
             ],
           ),
         );

@@ -32,7 +32,13 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
   }
 
   void _refresh() {
-    setState(() => _future = PengumumanService.semua());
+    // Gunakan body blok (bukan arrow) agar closure setState mengembalikan
+    // void, bukan Future. Arrow `=> _future = ...` membuat closure
+    // mengembalikan Future sehingga memicu error "setState() callback
+    // argument returned a Future" saat hapus / nonaktifkan.
+    setState(() {
+      _future = PengumumanService.semua();
+    });
   }
 
   Future<void> _bukaForm({Pengumuman? existing}) async {
