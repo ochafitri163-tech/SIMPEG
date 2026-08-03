@@ -15,6 +15,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   static const Color _accent = Color(0xFF2E86AB);
   static const Color _navy = Color(0xFF1B2733);
+  static const Color _lightBg = Color(0xFFF8FAFC);
+  static const Color _borderColor = Color(0xFFE2E8F0);
 
   final TextEditingController _nikController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -126,157 +128,232 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    // Semua role (Pegawai, Kadiv, KSPI, TPDPK, Direktur, SDM) kini masuk ke
-    // satu tampilan dashboard yang sama (PegawaiDashboard), karena setiap
-    // pemegang role approval tetap seorang pegawai juga. Fitur dashboard
-    // khusus per-role (verifikasi/approval pengaduan) ditampilkan sebagai
-    // tab tambahan di footer, hanya untuk role selain Pegawai biasa — lihat
-    // PegawaiDashboard._buildBottomNav().
     return PegawaiDashboard(user: user);
   }
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
+        elevation: 6,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
-
-  // ================== REDESIGNED UI (dengan background air) ==================
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 400;
+    final isVerySmallScreen = size.height < 600;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Background air tetap dipertahankan
+          // Background with gradient overlay for better readability
           Positioned.fill(
             child: Image.asset(
               'assets/images/bg_air.jpg',
               fit: BoxFit.cover,
             ),
           ),
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 20 : 40,
-                vertical: 24,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildHeader(isSmallScreen),
-                  const SizedBox(height: 30),
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    width: double.infinity,
-                    padding: EdgeInsets.all(isSmallScreen ? 24 : 32),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.93),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.10),
-                          blurRadius: 32,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Selamat Datang',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: _navy,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Masuk dengan NIK dan Kata Sandi Anda',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 26),
-                        _buildLabeledField(
-                          label: 'NIK',
-                          controller: _nikController,
-                          icon: Icons.badge_outlined,
-                          inputType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        _buildLabeledField(
-                          label: 'Kata Sandi',
-                          controller: _passwordController,
-                          icon: Icons.lock_outline_rounded,
-                          obscure: _obscurePassword,
-                          suffix: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_rounded
-                                  : Icons.visibility_rounded,
-                              color: Colors.grey.shade500,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              setState(
-                                  () => _obscurePassword = !_obscurePassword);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        _buildCaptchaRow(),
-                        const SizedBox(height: 12),
-                        _buildLabeledField(
-                          label: 'Kode Keamanan',
-                          controller: _captchaController,
-                          icon: Icons.shield_outlined,
-                          hint: 'Masukkan 6 angka di atas',
-                          inputType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 28),
-                        _buildLoginButton(),
-                        const SizedBox(height: 20),
-                        Center(
-                          child: Text(
-                            'Pendaftaran akun & lupa kata sandi dilakukan\nmelalui website resmi PERUMDAM Tirta Darma Ayu.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 11.5,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    '@copyright IT PERUMDAM Tirta Darma Ayu 2026',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.15),
+                  Colors.black.withOpacity(0.05),
+                  Colors.black.withOpacity(0.10),
                 ],
               ),
+            ),
+          ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 16 : 32,
+                    vertical: isVerySmallScreen ? 12 : 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildHeader(
+                          isSmallScreen: isSmallScreen,
+                          isVerySmallScreen: isVerySmallScreen,
+                        ),
+                        SizedBox(height: isVerySmallScreen ? 16 : 28),
+                        Container(
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          width: double.infinity,
+                          padding: EdgeInsets.all(
+                            isSmallScreen ? 20 : 28,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 40,
+                                offset: const Offset(0, 12),
+                                spreadRadius: 2,
+                              ),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Selamat Datang',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: _navy,
+                                            letterSpacing: -0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Masuk dengan NIK dan Kata Sandi',
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            color: Colors.grey.shade600,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _accent.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.security_rounded,
+                                      color: _accent,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              _buildLabeledField(
+                                label: 'NIK',
+                                controller: _nikController,
+                                icon: Icons.badge_outlined,
+                                inputType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(20),
+                                ],
+                                isSmall: isSmallScreen,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildLabeledField(
+                                label: 'Kata Sandi',
+                                controller: _passwordController,
+                                icon: Icons.lock_outline_rounded,
+                                obscure: _obscurePassword,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_rounded
+                                        : Icons.visibility_rounded,
+                                    color: Colors.grey.shade500,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    setState(() =>
+                                        _obscurePassword = !_obscurePassword);
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                isSmall: isSmallScreen,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildCaptchaRow(isSmallScreen),
+                              const SizedBox(height: 12),
+                              _buildLabeledField(
+                                label: 'Kode Keamanan',
+                                controller: _captchaController,
+                                icon: Icons.shield_outlined,
+                                hint: 'Masukkan 6 angka di atas',
+                                inputType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                ],
+                                isSmall: isSmallScreen,
+                              ),
+                              const SizedBox(height: 24),
+                              _buildLoginButton(isSmallScreen),
+                              const SizedBox(height: 16),
+                              Center(
+                                child: Text(
+                                  'Pendaftaran & lupa kata sandi melalui website resmi',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 11,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          '© IT PERUMDAM Tirta Darma Ayu 2026',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -284,21 +361,32 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildHeader(bool isSmallScreen) {
+  Widget _buildHeader({
+    required bool isSmallScreen,
+    required bool isVerySmallScreen,
+  }) {
+    final double logoSize = isSmallScreen ? 80 : 100;
+    final double titleSize = isSmallScreen ? 18 : 22;
+
     return Column(
       children: [
         Container(
-          width: isSmallScreen ? 100 : 120,
-          height: isSmallScreen ? 100 : 120,
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
+          width: logoSize,
+          height: logoSize,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Color(0x1A2E86AB),
-                blurRadius: 20,
-                offset: Offset(0, 8),
+                color: const Color(0xFF2E86AB).withOpacity(0.15),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 8,
+                spreadRadius: 1,
               ),
             ],
           ),
@@ -308,75 +396,99 @@ class _LoginScreenState extends State<LoginScreen> {
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  color: _accent,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_accent, _accent.withOpacity(0.7)],
+                    ),
+                  ),
                   child: const Icon(
                     Icons.water_drop_rounded,
                     color: Colors.white,
-                    size: 50,
+                    size: 40,
                   ),
                 );
               },
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
+        SizedBox(height: isVerySmallScreen ? 8 : 14),
+        Text(
           'Simpeg Mobile Ver.3',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: titleSize,
             fontWeight: FontWeight.bold,
-            color: _navy,
+            color: Colors.white,
             letterSpacing: 0.5,
+            shadows: [
+              Shadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           'PERUMDAM Tirta Darma Ayu',
           style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade700,
+            fontSize: isSmallScreen ? 12 : 14,
+            color: Colors.white.withOpacity(0.9),
             fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+            shadows: [
+              Shadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCaptchaRow() {
+  Widget _buildCaptchaRow(bool isSmallScreen) {
     return Row(
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F8FA),
+              color: _lightBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0E7EE)),
+              border: Border.all(color: _borderColor, width: 1.5),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   _captchaCode,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _navy,
-                    fontSize: 18,
+                    fontSize: isSmallScreen ? 16 : 18,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 6,
+                    letterSpacing: 8,
+                    fontFamily: 'monospace',
                   ),
                 ),
                 GestureDetector(
                   onTap: _refreshCaptcha,
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _accent.withOpacity(0.1),
+                      color: _accent.withOpacity(0.08),
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _accent.withOpacity(0.15),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.refresh_rounded,
                       color: _accent,
-                      size: 22,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -388,10 +500,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(bool isSmallScreen) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: isSmallScreen ? 48 : 52,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _login,
         style: ElevatedButton.styleFrom(
@@ -399,23 +511,27 @@ class _LoginScreenState extends State<LoginScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
-          disabledBackgroundColor: _accent.withOpacity(0.5),
+          disabledBackgroundColor: _accent.withOpacity(0.4),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+          ),
         ),
         child: _isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
+            ? SizedBox(
+                height: 22,
+                width: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : const Text(
                 'MASUK',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.8,
                 ),
@@ -433,39 +549,46 @@ class _LoginScreenState extends State<LoginScreen> {
     Widget? suffix,
     TextInputType? inputType,
     List<TextInputFormatter>? inputFormatters,
+    required bool isSmall,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: _navy,
+            letterSpacing: 0.3,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F8FA),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE0E7EE)),
+            color: _lightBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _borderColor, width: 1.5),
           ),
           child: Row(
             children: [
               if (icon != null) ...[
-                const SizedBox(width: 14),
-                Icon(icon, color: _accent.withOpacity(0.7), size: 20),
+                const SizedBox(width: 12),
+                Icon(
+                  icon,
+                  color: _accent.withOpacity(0.6),
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
               ],
               Expanded(
                 child: TextField(
                   controller: controller,
                   obscureText: obscure,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _navy,
-                    fontSize: 15,
+                    fontSize: isSmall ? 14 : 15,
+                    fontWeight: FontWeight.w400,
                   ),
                   keyboardType: inputType,
                   inputFormatters: inputFormatters,
@@ -474,12 +597,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: hint,
                     hintStyle: TextStyle(
                       color: Colors.grey.shade400,
-                      fontSize: 14,
+                      fontSize: isSmall ? 13 : 14,
+                      fontWeight: FontWeight.w300,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: icon != null ? 10 : 16,
+                      vertical: isSmall ? 12 : 14,
+                      horizontal: icon != null ? 8 : 14,
                     ),
                   ),
                 ),
