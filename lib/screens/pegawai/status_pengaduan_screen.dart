@@ -4,6 +4,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
+import '../../theme/app_colors.dart';
 
 
 class StatusPengaduanScreen extends StatefulWidget {
@@ -23,8 +24,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   static const Color navy = Color(0xFF0D2C6E);
   static const Color navyDark = Color(0xFF0A2257);
   static const Color accent = Color(0xFF2E86AB);
-  static const Color labelDark = Color(0xFF1B2733);
-  static const Color hintGrey = Color(0xFF9AA5B1);
+  Color get labelDark => AppColors.textPrimary(context);
+  Color get hintGrey => AppColors.textSecondary(context);
 
   final _searchController = TextEditingController();
   String _query = '';
@@ -95,7 +96,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -149,7 +150,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                               tempTanggal = null;
                             });
                           },
-                          child: const Text('Reset',
+                          child: Text('Reset',
                               style: TextStyle(
                                   fontSize: 12.5,
                                   color: hintGrey,
@@ -158,7 +159,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const Text('Status',
+                    Text('Status',
                         style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,
@@ -197,7 +198,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 18),
-                    const Text('Cabang',
+                    Text('Cabang',
                         style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,
@@ -222,7 +223,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             });
                           },
                           selectedColor: accent,
-                          backgroundColor: const Color(0xFFF3F6F9),
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -230,7 +231,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 18),
-                    const Text('Rentang Tanggal',
+                    Text('Rentang Tanggal',
                         style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,
@@ -248,7 +249,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
-                                colorScheme: const ColorScheme.light(
+                                colorScheme: ColorScheme.light(
                                   primary: accent,
                                   onPrimary: Colors.white,
                                   onSurface: labelDark,
@@ -267,7 +268,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF3F6F9),
+                          color: AppColors.pageBackground(context),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -335,7 +336,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: FutureBuilder<List<Pengaduan>>(
         future: _pengaduanFuture,
@@ -370,7 +371,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       child: Text(
                         'Gagal memuat pengaduan: ${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: hintGrey, fontSize: 13),
+                        style: TextStyle(color: hintGrey, fontSize: 13),
                       ),
                     ),
                   ),
@@ -440,7 +441,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   Widget _buildRingkasanBar(int jumlah, List<Pengaduan> semua, bool isSmallScreen) {
     return Container(
       width: double.infinity,
-      color: const Color(0xFFF3F6F9),
+      color: AppColors.pageBackground(context),
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16.0 : 20.0,
         isSmallScreen ? 14.0 : 18.0,
@@ -454,7 +455,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           vertical: isSmallScreen ? 10.0 : 12.0,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -713,7 +714,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   height: isSmallScreen ? 38.0 : 44.0,
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -725,7 +726,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search_rounded,
+                      Icon(Icons.search_rounded,
                           color: hintGrey, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
@@ -735,7 +736,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                           style: TextStyle(
                               fontSize: isSmallScreen ? 12.0 : 13.0,
                               color: labelDark),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Cari nomor / judul pengaduan',
                             hintStyle:
                                 TextStyle(fontSize: 12.5, color: hintGrey),
@@ -760,7 +761,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       width: isSmallScreen ? 38.0 : 44.0,
                       height: isSmallScreen ? 38.0 : 44.0,
                       decoration: BoxDecoration(
-                        color: _adaFilterAktif ? accent : Colors.white,
+                        color: _adaFilterAktif ? accent : AppColors.card(context),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
@@ -772,7 +773,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       ),
                       child: Icon(
                         Icons.tune_rounded,
-                        color: _adaFilterAktif ? Colors.white : navy,
+                        color: _adaFilterAktif ? Colors.white : AppColors.textPrimary(context),
                         size: isSmallScreen ? 18.0 : 20.0,
                       ),
                     ),
@@ -806,7 +807,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
 
   Widget _buildPengaduanCard(Pengaduan p, bool isSmallScreen) {
     return Material(
-      color: Colors.white,
+      color: AppColors.card(context),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -822,9 +823,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFEEF1F5)),
+            border: Border.all(color: AppColors.divider(context)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),

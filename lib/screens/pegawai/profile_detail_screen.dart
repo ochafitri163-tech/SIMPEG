@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
+import '../../theme/app_colors.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
@@ -31,7 +32,7 @@ class ProfileDetailScreen extends StatelessWidget {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: ListView(
         padding: EdgeInsets.zero,
@@ -133,7 +134,7 @@ class ProfileDetailScreen extends StatelessWidget {
         20,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 12.0),
         20,
-        isSmallScreen ? 56.0 : 64.0,
+        isSmallScreen ? 44.0 : 50.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -222,15 +223,9 @@ class ProfileDetailScreen extends StatelessWidget {
             isSmallScreen ? 14.0 : 18.0,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             children: [
@@ -242,7 +237,7 @@ class ProfileDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: isSmallScreen ? 14.5 : 16.0,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B2733),
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               const SizedBox(height: 3),
@@ -253,7 +248,7 @@ class ProfileDetailScreen extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: isSmallScreen ? 11.0 : 12.0,
-                  color: labelGrey,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
               const SizedBox(height: 8),
@@ -274,69 +269,89 @@ class ProfileDetailScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: isSmallScreen ? 14.0 : 18.0),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryColumn(
-                      label: 'GOLONGAN',
-                      isSmallScreen: isSmallScreen,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          user.golongan,
-                          style: TextStyle(
-                            color: accent,
-                            fontSize: isSmallScreen ? 10.0 : 11.5,
-                            fontWeight: FontWeight.bold,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _SummaryColumn(
+                        label: 'GOLONGAN',
+                        isSmallScreen: isSmallScreen,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isSmallScreen ? 6.0 : 8.0,
+                              vertical: 3),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            user.golongan,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: isSmallScreen ? 9.5 : 11.0,
+                              fontWeight: FontWeight.bold,
+                              height: 1.15,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Container(
-                      width: 1, height: 34, color: const Color(0xFFEDF1F5)),
-                  Expanded(
-                    child: _SummaryColumn(
-                      label: 'UNIT KERJA',
-                      isSmallScreen: isSmallScreen,
-                      child: Text(
-                        user.unitKerjaSingkat,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 11.0 : 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1B2733),
+                    Container(
+                        width: 1,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        color: AppColors.divider(context)),
+                    Expanded(
+                      child: _SummaryColumn(
+                        label: 'UNIT KERJA',
+                        isSmallScreen: isSmallScreen,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(
+                            user.unitKerjaSingkat,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 10.0 : 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary(context),
+                              height: 1.15,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Container(
-                      width: 1, height: 34, color: const Color(0xFFEDF1F5)),
-                  Expanded(
-                    child: _SummaryColumn(
-                      label: 'STATUS',
-                      isSmallScreen: isSmallScreen,
-                      child: Text(
-                        user.status,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 11.0 : 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: green,
+                    Container(
+                        width: 1,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        color: AppColors.divider(context)),
+                    Expanded(
+                      child: _SummaryColumn(
+                        label: 'STATUS',
+                        isSmallScreen: isSmallScreen,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(
+                            user.status,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 10.0 : 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: green,
+                              height: 1.15,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               SizedBox(height: isSmallScreen ? 16.0 : 20.0),
               Row(
@@ -508,7 +523,7 @@ class ProfileDetailScreen extends StatelessWidget {
           ),
           elevation: 24,
           shadowColor: Colors.black.withValues(alpha: 0.15),
-          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          backgroundColor: AppColors.card(context).withValues(alpha: 0.97),
           titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
           contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
           actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -527,22 +542,22 @@ class ProfileDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const Text(
+              Text(
                 'Keluar Akun?',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: labelDark,
+                  color: AppColors.textPrimary(context),
                   letterSpacing: -0.3,
                 ),
               ),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
             style: TextStyle(
               fontSize: 14,
-              color: labelGrey,
+              color: AppColors.textSecondary(context),
               height: 1.5,
               letterSpacing: 0.1,
             ),
@@ -557,10 +572,10 @@ class ProfileDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Batal',
                 style: TextStyle(
-                  color: labelGrey,
+                  color: AppColors.textSecondary(context),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -656,7 +671,7 @@ class _SummaryColumn extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: isSmallScreen ? 8.5 : 9.5,
-            color: ProfileDetailScreen.labelGrey,
+            color: AppColors.textSecondary(context),
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
           ),
@@ -694,7 +709,7 @@ class _QuickAction extends StatelessWidget {
             height: isSmallScreen ? 42.0 : 46.0,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F6F9),
+              color: AppColors.surfaceMuted(context),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon,
@@ -707,7 +722,7 @@ class _QuickAction extends StatelessWidget {
             style: TextStyle(
               fontSize: isSmallScreen ? 9.5 : 10.5,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF1B2733),
+              color: AppColors.textPrimary(context),
             ),
           ),
         ],
@@ -732,7 +747,7 @@ class _TabChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? ProfileDetailScreen.navy : Colors.white,
+      color: selected ? ProfileDetailScreen.navy : AppColors.card(context),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -745,14 +760,8 @@ class _TabChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border:
-                selected ? null : Border.all(color: const Color(0xFFEDF1F5)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+                selected ? null : Border.all(color: AppColors.divider(context)),
+            boxShadow: selected ? null : AppColors.cardShadow(context),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -762,7 +771,7 @@ class _TabChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: isSmallScreen ? 11.0 : 12.5,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : const Color(0xFF7F8C8D),
+                  color: selected ? Colors.white : AppColors.textSecondary(context),
                 ),
               ),
               if (!selected) ...[
@@ -787,10 +796,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11.5,
         fontWeight: FontWeight.bold,
-        color: ProfileDetailScreen.labelGrey,
+        color: AppColors.textSecondary(context),
         letterSpacing: 0.6,
       ),
     );
@@ -808,15 +817,9 @@ class _CardContainer extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: child,
     );
@@ -828,7 +831,7 @@ class _RowDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(height: 1, thickness: 1, color: Color(0xFFF0F2F5));
+    return Divider(height: 1, thickness: 1, color: AppColors.divider(context));
   }
 }
 
@@ -858,7 +861,7 @@ class _DataRow extends StatelessWidget {
             width: isSmallScreen ? 32.0 : 38.0,
             height: isSmallScreen ? 32.0 : 38.0,
             decoration: BoxDecoration(
-              color: ProfileDetailScreen.iconBg,
+              color: AppColors.surfaceMuted(context),
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
@@ -875,7 +878,7 @@ class _DataRow extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: isSmallScreen ? 10.5 : 11.5,
-                    color: ProfileDetailScreen.labelGrey,
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -884,7 +887,7 @@ class _DataRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: isSmallScreen ? 12.0 : 13.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1B2733),
+                    color: AppColors.textPrimary(context),
                     height: 1.3,
                   ),
                   overflow: TextOverflow.ellipsis,

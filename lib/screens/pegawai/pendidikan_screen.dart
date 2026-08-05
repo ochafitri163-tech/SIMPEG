@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import 'payroll_screen.dart' show formatRupiah;
+import '../../theme/app_colors.dart';
 
 /// Ambil riwayat pendidikan pegawai yang sedang login, urut sesuai kolom
 /// `urutan` (0 = jenjang terakhir/tertinggi).
@@ -85,7 +86,6 @@ class PendidikanScreen extends StatefulWidget {
 class _PendidikanScreenState extends State<PendidikanScreen> {
   static const Color navy = Color(0xFF0D2C6E);
   static const Color badgeBg = Color(0xFFE3F1F8);
-  static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
   late Future<List<PendidikanItem>> _pendidikanFuture;
@@ -104,7 +104,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -122,7 +122,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
                       child: Text(
                         'Gagal memuat data pendidikan: ${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: labelGrey, fontSize: 13),
+                        style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                       ),
                     ),
                   );
@@ -134,13 +134,13 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                      children: const [
+                      children: [
                         Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
+                            padding: const EdgeInsets.all(40),
                             child: Text(
                               'Belum ada data pendidikan',
-                              style: TextStyle(color: labelGrey, fontSize: 13),
+                              style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                             ),
                           ),
                         ),
@@ -244,10 +244,10 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: labelGrey,
+          color: AppColors.textSecondary(context),
           letterSpacing: 0.6,
         ),
       ),
@@ -259,7 +259,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -292,9 +292,9 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
                 ),
               ),
               if (isTerakhir)
-                const Text(
+                Text(
                   'Terakhir',
-                  style: TextStyle(fontSize: 12, color: labelGrey),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
                 ),
             ],
           ),
@@ -329,20 +329,20 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10.5,
             fontWeight: FontWeight.w600,
-            color: labelGrey,
+            color: AppColors.textSecondary(context),
             letterSpacing: 0.4,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1B2733),
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],

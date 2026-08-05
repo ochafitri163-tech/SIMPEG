@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
+import '../../theme/app_colors.dart';
 
 /// Ambil semua data THR milik pegawai yang sedang login dari Supabase,
 /// diurutkan dari tahun terbaru ke terlama, lalu dipetakan ke model
@@ -98,7 +99,6 @@ class _ThrScreenState extends State<ThrScreen> {
   static const Color orangeStart = Color(0xFFF5A623);
   static const Color orangeEnd = Color(0xFFE8890B);
   static const Color totalBg = Color(0xFFDCEBFB);
-  static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
   late Future<List<ThrItem>> _thrFuture;
@@ -117,7 +117,7 @@ class _ThrScreenState extends State<ThrScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -135,7 +135,7 @@ class _ThrScreenState extends State<ThrScreen> {
                       child: Text(
                         'Gagal memuat data THR: ${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: labelGrey, fontSize: 13),
+                        style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                       ),
                     ),
                   );
@@ -151,13 +151,13 @@ class _ThrScreenState extends State<ThrScreen> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                      children: const [
+                      children: [
                         Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
+                            padding: const EdgeInsets.all(40),
                             child: Text(
                               'Belum ada data THR',
-                              style: TextStyle(color: labelGrey, fontSize: 13),
+                              style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                             ),
                           ),
                         ),
@@ -314,10 +314,10 @@ class _ThrScreenState extends State<ThrScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: labelGrey,
+          color: AppColors.textSecondary(context),
           letterSpacing: 0.6,
         ),
       ),
@@ -332,7 +332,7 @@ class _ThrScreenState extends State<ThrScreen> {
         child: Column(
           children: [
             _plainRow('Gaji pokok', formatRupiah(item.gajiPokok)),
-            const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            Divider(height: 1, color: AppColors.divider(context)),
             _plainRow('Tunjangan tetap', formatRupiah(item.tunjanganTetap)),
             const SizedBox(height: 12),
             _highlightRow('Total THR', formatRupiah(item.jumlah)),
@@ -348,7 +348,7 @@ class _ThrScreenState extends State<ThrScreen> {
       child: Column(
         children: [
           for (int i = 0; i < pendapatanLines.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             _plainRow(
               pendapatanLines[i].key,
               formatRupiah(pendapatanLines[i].value),
@@ -356,9 +356,9 @@ class _ThrScreenState extends State<ThrScreen> {
           ],
           if (potonganLines.isNotEmpty) ...[
             if (pendapatanLines.isNotEmpty)
-              const Divider(height: 1, color: Color(0xFFEDF0F3)),
+              Divider(height: 1, color: AppColors.divider(context)),
             for (int i = 0; i < potonganLines.length; i++) ...[
-              if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+              if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
               _plainRow(
                 potonganLines[i].key,
                 formatRupiah(potonganLines[i].value),
@@ -408,7 +408,7 @@ class _ThrScreenState extends State<ThrScreen> {
               label,
               style: TextStyle(
                 fontSize: 13.5,
-                color: const Color(0xFF3B3F45),
+                color: AppColors.textPrimary(context),
                 fontWeight: bold ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -418,7 +418,7 @@ class _ThrScreenState extends State<ThrScreen> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
-              color: bold ? navy : const Color(0xFF1B2733),
+              color: bold ? navy : AppColors.textPrimary(context),
             ),
           ),
         ],
@@ -431,7 +431,7 @@ class _ThrScreenState extends State<ThrScreen> {
       return _WhiteCard(
         child: Text(
           'Belum ada riwayat THR tahun sebelumnya',
-          style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context)),
         ),
       );
     }
@@ -439,21 +439,21 @@ class _ThrScreenState extends State<ThrScreen> {
       child: Column(
         children: [
           for (int i = 0; i < riwayat.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 13),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('THR ${riwayat[i].tahun}',
-                      style: const TextStyle(
-                          fontSize: 13.5, color: Color(0xFF3B3F45))),
+                      style: TextStyle(
+                          fontSize: 13.5, color: AppColors.textPrimary(context))),
                   Text(
                     formatRupiah(riwayat[i].jumlah),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: labelGrey,
+                      color: AppColors.textSecondary(context),
                     ),
                   ),
                 ],
@@ -840,7 +840,7 @@ class _WhiteCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

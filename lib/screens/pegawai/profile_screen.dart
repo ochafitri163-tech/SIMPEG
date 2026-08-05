@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
+import '../../theme/app_colors.dart';
 import 'absensi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -33,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: ListView(
         padding: EdgeInsets.zero,
@@ -141,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
                       'PERUMDAM Tirta Darma Ayu • v1.0.0',
                       style: TextStyle(
                         fontSize: isSmallScreen ? 10.0 : 11.0,
-                        color: hintGrey,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                   ),
@@ -256,15 +257,9 @@ class ProfileScreen extends StatelessWidget {
             isSmallScreen ? 14.0 : 18.0,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: AppColors.cardShadow(context),
           ),
           child: Column(
             children: [
@@ -276,7 +271,7 @@ class ProfileScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: isSmallScreen ? 14.5 : 16.0,
                   fontWeight: FontWeight.bold,
-                  color: labelDark,
+                  color: AppColors.textPrimary(context),
                 ),
               ),
               const SizedBox(height: 3),
@@ -287,7 +282,7 @@ class ProfileScreen extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: isSmallScreen ? 11.0 : 12.0,
-                  color: hintGrey,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
               SizedBox(height: isSmallScreen ? 14.0 : 18.0),
@@ -305,7 +300,7 @@ class ProfileScreen extends StatelessWidget {
                   Container(
                       width: 1,
                       height: isSmallScreen ? 30.0 : 34.0,
-                      color: const Color(0xFFEDF1F5)),
+                      color: AppColors.divider(context)),
                   Expanded(
                     child: _StatColumn(
                       icon: Icons.arrow_downward_rounded,
@@ -456,7 +451,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           elevation: 24,
           shadowColor: Colors.black.withValues(alpha: 0.15),
-          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          backgroundColor: AppColors.card(context).withValues(alpha: 0.97),
           titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
           contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
           actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -475,22 +470,22 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const Text(
+              Text(
                 'Keluar Akun?',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: labelDark,
+                  color: AppColors.textPrimary(context),
                   letterSpacing: -0.3,
                 ),
               ),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
             style: TextStyle(
               fontSize: 14,
-              color: hintGrey,
+              color: AppColors.textSecondary(context),
               height: 1.5,
               letterSpacing: 0.1,
             ),
@@ -505,10 +500,10 @@ class ProfileScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Batal',
                 style: TextStyle(
-                  color: hintGrey,
+                  color: AppColors.textSecondary(context),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -583,7 +578,7 @@ class _StatColumn extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: isSmallScreen ? 9.5 : 10.5,
-                color: ProfileScreen.hintGrey,
+                color: AppColors.textSecondary(context),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -598,7 +593,7 @@ class _StatColumn extends StatelessWidget {
           style: TextStyle(
             fontSize: isSmallScreen ? 12.0 : 13.5,
             fontWeight: FontWeight.bold,
-            color: ProfileScreen.labelDark,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],
@@ -632,7 +627,7 @@ class _QuickAction extends StatelessWidget {
             height: isSmallScreen ? 42.0 : 46.0,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F6F9),
+              color: AppColors.surfaceMuted(context),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon,
@@ -645,7 +640,7 @@ class _QuickAction extends StatelessWidget {
             style: TextStyle(
               fontSize: isSmallScreen ? 9.5 : 10.5,
               fontWeight: FontWeight.w600,
-              color: ProfileScreen.labelDark,
+              color: AppColors.textPrimary(context),
             ),
           ),
         ],
@@ -662,10 +657,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11.5,
         fontWeight: FontWeight.bold,
-        color: ProfileScreen.hintGrey,
+        color: AppColors.textSecondary(context),
         letterSpacing: 0.6,
       ),
     );
@@ -681,15 +676,9 @@ class _MenuCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow(context),
       ),
       child: Column(children: children),
     );
@@ -701,9 +690,9 @@ class _TileDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Divider(height: 1, thickness: 1, color: Color(0xFFF0F2F5)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Divider(height: 1, thickness: 1, color: AppColors.divider(context)),
     );
   }
 }
@@ -765,7 +754,7 @@ class _MenuTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: isSmallScreen ? 12.5 : 13.5,
                         fontWeight: FontWeight.w700,
-                        color: ProfileScreen.labelDark,
+                        color: AppColors.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -775,14 +764,17 @@ class _MenuTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: isSmallScreen ? 10.5 : 11.5,
-                        color: ProfileScreen.hintGrey,
+                        color: AppColors.textSecondary(context),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 20, color: Color(0xFFC5CCD3)),
+              Icon(Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.isDark(context)
+                      ? const Color(0xFF5A6577)
+                      : const Color(0xFFC5CCD3)),
             ],
           ),
         ),

@@ -244,58 +244,82 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       allowedRoles: const [UserRole.sdm],
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F6F9),
-        body: Column(
-          children: [
-            _buildTopHeader(context),
-            Expanded(
-              child: FutureBuilder<List<Pengaduan>>(
-                future: _future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          'Gagal memuat data: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ),
-                    );
-                  }
+        // Header & kartu profil sekarang ikut discroll dalam satu ListView
+        // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
+        // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
+        body: FutureBuilder<List<Pengaduan>>(
+          future: _future,
+          builder: (context, snapshot) {
+            Widget content;
 
-                  final semua = snapshot.data ?? [];
-                  final menungguSdm = semua
-                      .where((p) => p.status == PengaduanStatus.menungguSdm)
-                      .toList();
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              content = const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            } else if (snapshot.hasError) {
+              content = Padding(
+                padding: const EdgeInsets.all(40),
+                child: Text(
+                  'Gagal memuat data: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              );
+            } else {
+              final semua = snapshot.data ?? [];
+              final menungguSdm = semua
+                  .where((p) => p.status == PengaduanStatus.menungguSdm)
+                  .toList();
 
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView(
+              content = _buildSection(
+                'MENUNGGU TINDAK LANJUT SDM',
+                menungguSdm,
+                (p) => _bukaSelesaikan(p),
+                'Tidak ada pengaduan yang perlu ditindaklanjuti.',
+                'Selesaikan',
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              // Struktur disamakan dengan dashboard pegawai: header & kartu
+              // ada dalam satu Column yang discroll bersama (topbar ikut
+              // ikut ke atas saat discroll, tidak lagi sticky), dan kartu
+              // profil "mengambang" lewat Transform.translate — Column
+              // tidak meng-clip contentnya seperti ListView, jadi kartu
+              // selalu tampil di depan header, jarak/spacing pun sama
+              // persis seperti kartu jadwal di dashboard pegawai.
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopHeader(context),
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      children: [
-                        Transform.translate(
-                          offset: const Offset(0, -22),
-                          child: _buildHeaderCard(menungguSdm.length),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildSection(
-                          'MENUNGGU TINDAK LANJUT SDM',
-                          menungguSdm,
-                          (p) => _bukaSelesaikan(p),
-                          'Tidak ada pengaduan yang perlu ditindaklanjuti.',
-                          'Selesaikan',
-                        ),
-                      ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, -22),
+                            child: _buildHeaderCard(
+                                snapshot.data
+                                        ?.where((p) =>
+                                            p.status ==
+                                            PengaduanStatus.menungguSdm)
+                                        .length ??
+                                    0),
+                          ),
+                          const SizedBox(height: 6),
+                          content,
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

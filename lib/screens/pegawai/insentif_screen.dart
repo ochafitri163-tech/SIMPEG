@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
+import '../../theme/app_colors.dart';
 
 /// Ambil semua data insentif milik pegawai yang sedang login dari
 /// Supabase, diurutkan dari yang terbaru (created_at desc), lalu dipetakan
@@ -92,7 +93,6 @@ class _InsentifScreenState extends State<InsentifScreen> {
   static const Color navy = Color(0xFF0D2C6E);
   static const Color purpleStart = Color(0xFF9B59D9);
   static const Color purpleEnd = Color(0xFF6C3FB5);
-  static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
   late Future<List<InsentifItem>> _insentifFuture;
@@ -111,7 +111,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -129,7 +129,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
                       child: Text(
                         'Gagal memuat data insentif: ${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: labelGrey, fontSize: 13),
+                        style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                       ),
                     ),
                   );
@@ -143,13 +143,13 @@ class _InsentifScreenState extends State<InsentifScreen> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                      children: const [
+                      children: [
                         Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
+                            padding: const EdgeInsets.all(40),
                             child: Text(
                               'Belum ada data insentif',
-                              style: TextStyle(color: labelGrey, fontSize: 13),
+                              style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                             ),
                           ),
                         ),
@@ -305,10 +305,10 @@ class _InsentifScreenState extends State<InsentifScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: labelGrey,
+          color: AppColors.textSecondary(context),
           letterSpacing: 0.6,
         ),
       ),
@@ -320,7 +320,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
       return _WhiteCard(
         child: Text(
           'Belum ada riwayat insentif',
-          style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context)),
         ),
       );
     }
@@ -333,7 +333,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
       child: Column(
         children: [
           for (int i = 0; i < riwayat.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             InkWell(
               onTap: riwayat[i].slip == null
                   ? null
@@ -367,9 +367,9 @@ class _InsentifScreenState extends State<InsentifScreen> {
                           ),
                           Text(
                             riwayat[i].periode,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: labelGrey,
+                              color: AppColors.textSecondary(context),
                             ),
                           ),
                         ],
@@ -771,7 +771,7 @@ class _WhiteCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
+import '../../theme/app_colors.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -25,8 +26,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   static const Color accent = Color(0xFF2E86AB);
   static const Color red = Color(0xFFE74C3C);
   static const Color green = Color(0xFF27AE60);
-  static const Color labelDark = Color(0xFF1B2733);
-  static const Color hintGrey = Color(0xFF9AA5B1);
+  Color get labelDark => AppColors.textPrimary(context);
+  Color get hintGrey => AppColors.textSecondary(context);
 
   late Future<Pengaduan?> _future;
   bool _isProcessing = false;
@@ -196,7 +197,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       List<Eksekutor> opsi = const [Eksekutor.kadiv, Eksekutor.tpdpk]}) async {
     return showModalBottomSheet<Eksekutor>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -227,7 +228,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   leading: const Icon(Icons.person_pin_circle_outlined,
                       color: accent),
                   title: Text(e.label,
-                      style: const TextStyle(fontSize: 13.5, color: labelDark)),
+                      style: TextStyle(fontSize: 13.5, color: labelDark)),
                   onTap: () => Navigator.pop(context, e),
                 ),
               const SizedBox(height: 8),
@@ -244,7 +245,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context, isSmallScreen),
@@ -355,7 +356,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       width: double.infinity,
       padding: EdgeInsets.all(isSmallScreen ? 14.0 : 18.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -531,8 +532,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               errorBuilder: (context, error, stackTrace) => Container(
                 width: size,
                 height: size,
-                color: Colors.white,
-                child: const Icon(Icons.broken_image_outlined, color: hintGrey),
+                color: AppColors.card(context),
+                child: Icon(Icons.broken_image_outlined, color: hintGrey),
               ),
             ),
           );
@@ -551,13 +552,13 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
 
   Widget _buildTimeline(Pengaduan p, bool isSmallScreen) {
     if (p.riwayatStatus.isEmpty) {
-      return const Text('Belum ada riwayat.',
+      return Text('Belum ada riwayat.',
           style: TextStyle(fontSize: 12.5, color: hintGrey));
     }
     return Container(
       padding: EdgeInsets.all(isSmallScreen ? 14.0 : 16.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -617,7 +618,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(h.keterangan!,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, color: labelDark, height: 1.4)),
                   ],
                 ],
@@ -832,7 +833,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.2)),
       ),

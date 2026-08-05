@@ -465,69 +465,87 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       allowedRoles: const [UserRole.direktur],
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F6F9),
-        body: Column(
-          children: [
-            _buildTopHeader(context),
-            Expanded(
-              child: FutureBuilder<List<Pengaduan>>(
-                future: _menungguFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(40),
-                              child: Text(
-                                'Gagal memuat data: ${snapshot.error}',
-                                textAlign: TextAlign.center,
-                                style:
-                                    TextStyle(color: Colors.grey[600], fontSize: 13),
-                              ),
-                            ),
-                          );
-                        }
+        // Header & kartu profil sekarang ikut discroll dalam satu ListView
+        // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
+        // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
+        body: FutureBuilder<List<Pengaduan>>(
+          future: _menungguFuture,
+          builder: (context, snapshot) {
+            Widget content;
 
-                        final menunggu = snapshot.data ?? [];
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              content = const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            } else if (snapshot.hasError) {
+              content = Padding(
+                padding: const EdgeInsets.all(40),
+                child: Text(
+                  'Gagal memuat data: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              );
+            } else {
+              final menunggu = snapshot.data ?? [];
 
-                        return RefreshIndicator(
-                          onRefresh: _refreshMenunggu,
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            children: [
-                              Transform.translate(
-                                offset: const Offset(0, -22),
-                                child: _buildHeaderCard(menunggu.length),
-                              ),
-                              const SizedBox(height: 8),
-                              if (menunggu.isEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 40),
-                                  alignment: Alignment.center,
-                                  child: Column(
-                                    children: [
-                                      Icon(Icons.inbox_rounded,
-                                          size: 48, color: Colors.grey[300]),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                          'Tidak ada pengaduan yang menunggu persetujuan.',
-                                          style: TextStyle(
-                                              fontSize: 12.5,
-                                              color: Colors.grey[500])),
-                                    ],
-                                  ),
-                                )
-                              else
-                                ...menunggu.map((p) => _buildPengaduanCard(p)),
-                            ],
+              content = menunggu.isEmpty
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(Icons.inbox_rounded,
+                              size: 48, color: Colors.grey[300]),
+                          const SizedBox(height: 10),
+                          Text(
+                              'Tidak ada pengaduan yang menunggu persetujuan.',
+                              style: TextStyle(
+                                  fontSize: 12.5, color: Colors.grey[500])),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children:
+                          menunggu.map((p) => _buildPengaduanCard(p)).toList(),
+                    );
+            }
+
+            return RefreshIndicator(
+              onRefresh: _refreshMenunggu,
+              // Struktur disamakan dengan dashboard pegawai: header & kartu
+              // ada dalam satu Column yang discroll bersama (topbar ikut
+              // ikut ke atas saat discroll, tidak lagi sticky), dan kartu
+              // profil "mengambang" lewat Transform.translate — Column
+              // tidak meng-clip contentnya seperti ListView, jadi kartu
+              // selalu tampil di depan header, jarak/spacing pun sama
+              // persis seperti kartu jadwal di dashboard pegawai.
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, -28),
+                            child: _buildProfileCard(
+                                snapshot.data?.length ?? 0),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 18),
+                          content,
+                        ],
+                      ),
                     ),
-            ),
-          ],
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -541,24 +559,28 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16.0 : 20.0,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
-        isSmallScreen ? 12.0 : 14.0,
-        0,
+        isSmallScreen ? 12.0 : 16.0,
+        isSmallScreen ? 40.0 : 56.0,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_navy, _accent],
+        gradient: LinearGradient(
+          colors: [
+            _navy,
+            _navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.25),
+            color: _navy.withValues(alpha: 0.2),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -569,7 +591,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Tugas Persetujuan Direktur',
+                  'Persetujuan Direktur',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -612,77 +634,115 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               fontSize: isSmallScreen ? 11.0 : 12.5,
             ),
           ),
-          SizedBox(height: isSmallScreen ? 14.0 : 18.0),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderCard(int jumlah) {
+  /// Kartu putih profil yang mengambang di atas header, meniru persis
+  /// kartu jadwal pada dashboard pegawai (ukuran, radius, bayangan).
+  Widget _buildProfileCard(int jumlah) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 14.0 : 18.0,
+        vertical: isSmallScreen ? 12.0 : 16.0,
+      ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [_navy, _accent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.18),
-            blurRadius: 16,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
             offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.04),
+            blurRadius: 30,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            backgroundImage: widget.user.fotoUrl != null
-                ? NetworkImage(widget.user.fotoUrl!)
-                : null,
+          Container(
+            width: isSmallScreen ? 42.0 : 46.0,
+            height: isSmallScreen ? 42.0 : 46.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [_navy, _accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              image: widget.user.fotoUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(widget.user.fotoUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
             child: widget.user.fotoUrl != null
                 ? null
-                : Text(widget.user.initials,
-                    style: const TextStyle(
-                        color: _navy,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
+                : Text(
+                    widget.user.initials,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallScreen ? 14.0 : 16.0,
+                    ),
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.user.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
+                Text(
+                  widget.user.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 12.5 : 14.0,
+                    fontWeight: FontWeight.w700,
+                    color: _navy,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('${widget.user.role.label} · ${widget.user.jabatan}',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.85), fontSize: 12)),
+                Text(
+                  '${widget.user.role.label} · ${widget.user.jabatan}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF95A5A6),
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(10)),
+              color: _accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text('$jumlah',
                     style: const TextStyle(
-                        color: Colors.white,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16)),
+                        color: _navy)),
                 const Text('Menunggu',
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _accent)),
               ],
             ),
           ),

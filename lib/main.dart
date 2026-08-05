@@ -38,7 +38,7 @@ class SimpegApp extends StatelessWidget {
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
         return MaterialApp(
-          title: 'SIMPEG Mobile Ver.3',
+          title: 'SIMPEG Mobile',
           debugShowCheckedModeBanner: false,
           themeMode: mode,
           theme: ThemeData(

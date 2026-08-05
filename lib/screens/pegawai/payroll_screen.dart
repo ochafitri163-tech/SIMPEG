@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
+import '../../theme/app_colors.dart';
 
 String formatRupiah(int value) {
   final str = value.toString();
@@ -114,7 +115,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
   static const Color greenStart = Color(0xFF35A76B);
   static const Color greenEnd = Color(0xFF1F7A4A);
   static const Color totalBg = Color(0xFFDCEBFB);
-  static const Color labelGrey = Color(0xFF8C97A6);
 
   bool _isGenerating = false;
   late Future<List<PayrollItem>> _payrollFuture;
@@ -133,7 +133,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -151,7 +151,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       child: Text(
                         'Gagal memuat data gaji: ${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: labelGrey, fontSize: 13),
+                        style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                       ),
                     ),
                   );
@@ -168,13 +168,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                      children: const [
+                      children: [
                         Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
+                            padding: const EdgeInsets.all(40),
                             child: Text(
                               'Belum ada data gaji',
-                              style: TextStyle(color: labelGrey, fontSize: 13),
+                              style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                             ),
                           ),
                         ),
@@ -328,10 +328,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: labelGrey,
+          color: AppColors.textSecondary(context),
           letterSpacing: 0.6,
         ),
       ),
@@ -346,10 +346,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
         child: Column(
           children: [
             _plainRow('Gaji pokok', formatRupiah(item.gajiPokok)),
-            const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            Divider(height: 1, color: AppColors.divider(context)),
             _plainRow(
                 'Tunjangan keluarga', formatRupiah(item.tunjanganKeluarga)),
-            const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            Divider(height: 1, color: AppColors.divider(context)),
             _plainRow('Tunjangan jabatan', formatRupiah(item.tunjanganJabatan)),
             const SizedBox(height: 4),
             _plainRow('Jumlah Potongan', '- ${formatRupiah(item.potongan)}',
@@ -368,16 +368,16 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: Column(
         children: [
           for (int i = 0; i < pendapatanLines.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             _plainRow(
               pendapatanLines[i].key,
               formatRupiah(pendapatanLines[i].value),
             ),
           ],
           if (pendapatanLines.isNotEmpty && potonganLines.isNotEmpty)
-            const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            Divider(height: 1, color: AppColors.divider(context)),
           for (int i = 0; i < potonganLines.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             _plainRow(
               potonganLines[i].key,
               formatRupiah(potonganLines[i].value),
@@ -407,7 +407,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
               label,
               style: TextStyle(
                 fontSize: 13.5,
-                color: const Color(0xFF3B3F45),
+                color: AppColors.textPrimary(context),
                 fontWeight: bold ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -417,7 +417,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
-              color: bold ? navy : const Color(0xFF1B2733),
+              color: bold ? navy : AppColors.textPrimary(context),
             ),
           ),
         ],
@@ -462,7 +462,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
       return _WhiteCard(
         child: Text(
           'Belum ada riwayat gaji bulan sebelumnya',
-          style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context)),
         ),
       );
     }
@@ -470,7 +470,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: Column(
         children: [
           for (int i = 0; i < riwayat.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFEDF0F3)),
+            if (i > 0) Divider(height: 1, color: AppColors.divider(context)),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 13),
               child: Row(
@@ -478,15 +478,15 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 children: [
                   Text(
                     riwayat[i].periode,
-                    style: const TextStyle(
-                        fontSize: 13.5, color: Color(0xFF3B3F45)),
+                    style: TextStyle(
+                        fontSize: 13.5, color: AppColors.textPrimary(context)),
                   ),
                   Text(
                     formatRupiah(riwayat[i].gajiBersih),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: labelGrey,
+                      color: AppColors.textSecondary(context),
                     ),
                   ),
                 ],
@@ -896,7 +896,7 @@ class _WhiteCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

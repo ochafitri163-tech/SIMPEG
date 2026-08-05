@@ -23,6 +23,7 @@ import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
+import '../../theme/app_colors.dart';
 
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
@@ -174,7 +175,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         bottom: false,
@@ -193,7 +194,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
@@ -202,7 +203,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     final firstName = widget.user.name.split(' ').first;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
-    final crossAxisCount = isSmallScreen ? 2 : 3;
+    const crossAxisCount = 3;
 
     final menuItems = <_QuickMenuItem>[
       _QuickMenuItem(
@@ -271,7 +272,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                           fontSize: isSmallScreen ? 9 : 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
-                          color: const Color(0xFF7F8C8D),
+                          color: AppColors.textSecondary(context),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -328,7 +329,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                     fontSize: isSmallScreen ? 10 : 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
-                    color: const Color(0xFF7F8C8D),
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ),
@@ -340,14 +341,15 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   itemCount: menuItems.length,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: crossAxisCount,
-                    mainAxisSpacing: isSmallScreen ? 12 : 16,
-                    crossAxisSpacing: isSmallScreen ? 12 : 16,
-                    childAspectRatio: isSmallScreen ? 0.9 : 0.8,
+                    mainAxisSpacing: isSmallScreen ? 10 : 16,
+                    crossAxisSpacing: isSmallScreen ? 10 : 16,
+                    childAspectRatio: isSmallScreen ? 0.78 : 0.85,
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
                     return _QuickMenuCircle(
                       item: item,
+                      index: index,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: item.builder),
@@ -576,7 +578,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         vertical: isSmallScreen ? 12.0 : 16.0,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -619,16 +621,16 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   style: TextStyle(
                     fontSize: isSmallScreen ? 12.0 : 14.0,
                     fontWeight: FontWeight.w700,
-                    color: _navy,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Tidak ada jadwal hari ini',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF95A5A6),
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ],
@@ -691,7 +693,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -748,18 +750,18 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF7F8C8D),
+            color: AppColors.textSecondary(context),
           ),
         ),
         Text(
           '$value',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: _navy,
+            color: AppColors.textPrimary(context),
           ),
         ),
       ],
@@ -787,7 +789,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -807,18 +809,18 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF95A5A6),
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: _navy,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
               ],
@@ -842,8 +844,10 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             vertical: isSmallScreen ? 12.0 : 14.0,
           ),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE4F1FB), Color(0xFFEAF5FB)],
+            gradient: LinearGradient(
+              colors: AppColors.isDark(context)
+                  ? [const Color(0xFF16283A), const Color(0xFF15303C)]
+                  : [const Color(0xFFE4F1FB), const Color(0xFFEAF5FB)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -885,7 +889,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                       style: TextStyle(
                         fontSize: isSmallScreen ? 11.0 : 12.5,
                         fontWeight: FontWeight.w700,
-                        color: _navy,
+                        color: AppColors.textPrimary(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -913,7 +917,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   }
 
   // ==================== BOTTOM NAVIGATION BAR ====================
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(BuildContext context) {
     final items = [
       (icon: Icons.home_rounded, index: 0),
       (
@@ -935,7 +939,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           Container(
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card(context),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
@@ -1026,87 +1030,153 @@ class _QuickMenuItem {
   });
 }
 
-class _QuickMenuCircle extends StatelessWidget {
+class _QuickMenuCircle extends StatefulWidget {
   final _QuickMenuItem item;
   final VoidCallback onTap;
   final bool isSmallScreen;
+  final int index;
   const _QuickMenuCircle({
     required this.item,
     required this.onTap,
     this.isSmallScreen = false,
+    this.index = 0,
   });
 
+  @override
+  State<_QuickMenuCircle> createState() => _QuickMenuCircleState();
+}
+
+class _QuickMenuCircleState extends State<_QuickMenuCircle>
+    with SingleTickerProviderStateMixin {
   static const Color _accent = Color(0xFF2E86AB);
   static const Color _navy = Color(0xFF0D2C6E);
 
+  late final AnimationController _entranceCtrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _fade = CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(
+        CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic));
+
+    // Animasi masuk bertahap (staggered) berdasarkan posisi ikon di grid,
+    // sehingga menu muncul satu-persatu alih-alih sekaligus.
+    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+      if (mounted) _entranceCtrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final iconSize = isSmallScreen ? 24.0 : 28.0;
-    final fontSize = isSmallScreen ? 10.0 : 11.5;
-    final containerSize = isSmallScreen ? 56.0 : 64.0;
+    final iconSize = widget.isSmallScreen ? 18.0 : 26.0;
+    final fontSize = widget.isSmallScreen ? 9.0 : 11.0;
+    final containerSize = widget.isSmallScreen ? 42.0 : 60.0;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: _accent.withValues(alpha: 0.04),
-              blurRadius: 20,
-              offset: const Offset(0, 2),
-            ),
-          ],
-          border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: containerSize,
-              height: containerSize,
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTapCancel: () => setState(() => _pressed = false),
+          child: AnimatedScale(
+            scale: _pressed ? 0.93 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.all(widget.isSmallScreen ? 8 : 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_accent, _navy],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: _accent.withValues(alpha: 0.3),
-                    blurRadius: 16,
+                    color: Colors.black
+                        .withValues(alpha: _pressed ? 0.03 : 0.06),
+                    blurRadius: _pressed ? 8 : 16,
                     offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: _accent.withValues(alpha: 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: AppColors.divider(context),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.elasticOut,
+                    builder: (context, value, child) => Transform.scale(
+                      scale: value,
+                      child: child,
+                    ),
+                    child: Container(
+                      width: containerSize,
+                      height: containerSize,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_accent, _navy],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _accent.withValues(alpha: 0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Icon(widget.item.icon,
+                          color: Colors.white, size: iconSize),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.item.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                      color: AppColors.textPrimary(context),
+                    ),
                   ),
                 ],
               ),
-              child: Icon(item.icon, color: Colors.white, size: iconSize),
             ),
-            const SizedBox(height: 10),
-            Text(
-              item.label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                color: const Color(0xFF2C3E50),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -6,6 +6,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import 'status_pengaduan_screen.dart';
+import '../../theme/app_colors.dart';
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
 /// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
@@ -24,8 +25,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   static const Color navyDark = Color(0xFF0A2257);
   static const Color accent = Color(0xFF2E86AB);
   static const Color red = Color(0xFFE74C3C);
-  static const Color labelDark = Color(0xFF1B2733);
-  static const Color hintGrey = Color(0xFF9AA5B1);
+  Color get labelDark => AppColors.textPrimary(context);
+  Color get hintGrey => AppColors.textSecondary(context);
 
   static const List<String> _kategoriOptions = [
     'Pelanggaran Administrasi',
@@ -71,7 +72,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   Future<void> _pilihKategori() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card(context),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -131,7 +132,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                                       children: [
                                         Text(
                                           k,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13.5,
                                             fontWeight: FontWeight.bold,
                                             color: labelDark,
@@ -140,7 +141,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                                         const SizedBox(height: 4),
                                         Text(
                                           _kategoriNotes[k] ?? '',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 12,
                                             height: 1.4,
                                             color: hintGrey,
@@ -177,7 +178,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   Future<void> _pilihSumberFoto() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -197,14 +198,14 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_camera_outlined, color: accent),
-                title: const Text('Ambil foto dengan kamera',
+                title: Text('Ambil foto dengan kamera',
                     style: TextStyle(fontSize: 13.5, color: labelDark)),
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
                 leading:
                     const Icon(Icons.photo_library_outlined, color: accent),
-                title: const Text('Pilih dari galeri',
+                title: Text('Pilih dari galeri',
                     style: TextStyle(fontSize: 13.5, color: labelDark)),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
@@ -319,7 +320,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -435,7 +436,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   Widget _buildFieldLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13.5,
         fontWeight: FontWeight.bold,
         color: labelDark,
@@ -445,7 +446,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
 
   BoxDecoration _fieldDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: AppColors.card(context),
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
@@ -478,7 +479,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 ),
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded,
+            Icon(Icons.keyboard_arrow_down_rounded,
                 color: hintGrey, size: 20),
           ],
         ),
@@ -505,7 +506,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
           Expanded(
             child: Text(
               note,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11.5,
                 height: 1.4,
                 color: labelDark,
@@ -528,10 +529,10 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(fontSize: 13.5, color: labelDark),
+        style: TextStyle(fontSize: 13.5, color: labelDark),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(fontSize: 13, color: hintGrey),
+          hintStyle: TextStyle(fontSize: 13, color: hintGrey),
           filled: true,
           fillColor: Colors.transparent,
           contentPadding:
@@ -577,9 +578,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                           return Container(
                             width: 84,
                             height: 84,
-                            color: const Color(0xFFF3F6F9),
+                            color: AppColors.card(context),
                             alignment: Alignment.center,
-                            child: const Icon(Icons.broken_image_outlined,
+                            child: Icon(Icons.broken_image_outlined,
                                 color: hintGrey, size: 22),
                           );
                         },

@@ -4,6 +4,7 @@ import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../theme/app_colors.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -27,8 +28,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   static const Color accent = Color(0xFF2E86AB);
   static const Color red = Color(0xFFE74C3C);
   static const Color green = Color(0xFF27AE60);
-  static const Color labelDark = Color(0xFF1B2733);
-  static const Color hintGrey = Color(0xFF9AA5B1);
+  Color get labelDark => AppColors.textPrimary(context);
+  Color get hintGrey => AppColors.textSecondary(context);
 
   late Future<Pengaduan?> _future;
   bool _isProcessing = false;
@@ -210,7 +211,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       List<Eksekutor> opsi = const [Eksekutor.kadiv, Eksekutor.tpdpk]}) async {
     return showModalBottomSheet<Eksekutor>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -241,7 +242,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   leading: const Icon(Icons.person_pin_circle_outlined,
                       color: accent),
                   title: Text(e.label,
-                      style: const TextStyle(fontSize: 13.5, color: labelDark)),
+                      style: TextStyle(fontSize: 13.5, color: labelDark)),
                   onTap: () => Navigator.pop(context, e),
                 ),
               const SizedBox(height: 8),
@@ -255,7 +256,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -351,7 +352,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -367,7 +368,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             children: [
               Expanded(
                 child: Text(p.nomorPengaduan,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: hintGrey)),
@@ -396,7 +397,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ),
           const SizedBox(height: 10),
           Text(p.judul,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 16, fontWeight: FontWeight.bold, color: labelDark)),
           const SizedBox(height: 6),
           Text(p.kategori,
@@ -405,21 +406,21 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           const SizedBox(height: 12),
           Text(p.deskripsi,
               style:
-                  const TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
+                  TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.person_outline_rounded,
+              Icon(Icons.person_outline_rounded,
                   size: 15, color: hintGrey),
               const SizedBox(width: 6),
               Text(p.anonim ? 'Anonim' : p.namaPegawai,
-                  style: const TextStyle(fontSize: 12, color: hintGrey)),
+                  style: TextStyle(fontSize: 12, color: hintGrey)),
               const SizedBox(width: 14),
-              const Icon(Icons.calendar_today_outlined,
+              Icon(Icons.calendar_today_outlined,
                   size: 13, color: hintGrey),
               const SizedBox(width: 6),
               Text(formatTanggalIndonesia(p.tanggalPengaduan),
-                  style: const TextStyle(fontSize: 12, color: hintGrey)),
+                  style: TextStyle(fontSize: 12, color: hintGrey)),
             ],
           ),
           if (p.eksekutor != null) const SizedBox(height: 10),
@@ -431,7 +432,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text('Eksekutor Investigasi: ${p.eksekutor!.label}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         color: hintGrey,
                         fontWeight: FontWeight.w600)),
@@ -450,7 +451,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text('Petugas: ${p.petugasInvestigasi}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         color: hintGrey,
                         fontWeight: FontWeight.w600)),
@@ -466,7 +467,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text('Eksekutor Tindak Lanjut: ${p.eksekutorTindakLanjut!.label}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         color: hintGrey,
                         fontWeight: FontWeight.w600)),
@@ -496,8 +497,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               errorBuilder: (context, error, stackTrace) => Container(
                 width: 90,
                 height: 90,
-                color: Colors.white,
-                child: const Icon(Icons.broken_image_outlined, color: hintGrey),
+                color: AppColors.card(context),
+                child: Icon(Icons.broken_image_outlined, color: hintGrey),
               ),
             ),
           );
@@ -546,33 +547,33 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(14)),
+              color: AppColors.card(context), borderRadius: BorderRadius.circular(14)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (p.hasilInvestigasi != null &&
                   p.hasilInvestigasi!.isNotEmpty) ...[
-                const Text('Temuan',
+                Text('Temuan',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: labelDark)),
                 const SizedBox(height: 4),
                 Text(p.hasilInvestigasi!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12.5, color: labelDark, height: 1.4)),
                 const SizedBox(height: 10),
               ],
               if (p.suratRekomendasi != null &&
                   p.suratRekomendasi!.isNotEmpty) ...[
-                const Text('Surat Rekomendasi',
+                Text('Surat Rekomendasi',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: labelDark)),
                 const SizedBox(height: 4),
                 Text(p.suratRekomendasi!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12.5, color: labelDark, height: 1.4)),
                 const SizedBox(height: 10),
               ],
@@ -603,7 +604,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: labelDark)),
@@ -657,19 +658,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
 
   Widget _buildSectionTitle(String text) {
     return Text(text,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13.5, fontWeight: FontWeight.bold, color: labelDark));
   }
 
   Widget _buildTimeline(Pengaduan p) {
     if (p.riwayatStatus.isEmpty) {
-      return const Text('Belum ada riwayat.',
+      return Text('Belum ada riwayat.',
           style: TextStyle(fontSize: 12.5, color: hintGrey));
     }
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14)),
+          color: AppColors.card(context), borderRadius: BorderRadius.circular(14)),
       child: Column(
         children: [
           for (int i = 0; i < p.riwayatStatus.length; i++)
@@ -706,18 +707,18 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(h.aksi,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                           color: labelDark)),
                   const SizedBox(height: 2),
                   Text(
                       '${h.oleh}${h.role != null ? ' (${h.role!.label})' : ''} · ${formatTanggalJam(h.tanggal)}',
-                      style: const TextStyle(fontSize: 11, color: hintGrey)),
+                      style: TextStyle(fontSize: 11, color: hintGrey)),
                   if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(h.keterangan!,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, color: labelDark, height: 1.4)),
                   ],
                 ],
@@ -871,7 +872,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.2)),
       ),
@@ -970,14 +971,14 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       children: [
         _buildSectionTitle('Kirim Hasil Investigasi'),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Isi temuan investigasi & surat rekomendasi (mis. usulan sanksi: '
           'gaji dipotong), lampirkan bukti bila ada, lalu kirim langsung ke '
           'Dirut.',
           style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
         ),
         const SizedBox(height: 12),
-        const Text('Temuan / Hasil Investigasi',
+        Text('Temuan / Hasil Investigasi',
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
         const SizedBox(height: 6),
@@ -991,7 +992,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        const Text('Surat Rekomendasi',
+        Text('Surat Rekomendasi',
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
         const SizedBox(height: 6),
@@ -1005,7 +1006,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        const Text('Lampiran (Foto, Video, Voice Note, Dokumen)',
+        Text('Lampiran (Foto, Video, Voice Note, Dokumen)',
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
         const SizedBox(height: 6),
@@ -1089,7 +1090,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           children: [
             _buildSectionTitle('Verifikasi Pengaduan'),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Perbaiki kategori bila pegawai salah menempatkannya. Baik '
               'Terima maupun Tolak sama-sama diteruskan ke KSPI (keputusan '
               'tetap dicatat).',
@@ -1097,7 +1098,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
             ),
             const SizedBox(height: 12),
-            const Text('Kategori Pelanggaran',
+            Text('Kategori Pelanggaran',
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1173,7 +1174,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       children: [
         _buildSectionTitle('Teruskan ke Dirut'),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Pengaduan sudah diverifikasi Kadiv. Teruskan ke Dirut untuk '
           'persetujuan investigasi.',
           style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),

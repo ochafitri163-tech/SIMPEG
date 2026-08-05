@@ -436,94 +436,118 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       allowedRoles: const [UserRole.tpdpk],
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F6F9),
-        body: Column(
-          children: [
-            _buildTopHeader(context),
-            Expanded(
-              child: FutureBuilder<List<Pengaduan>>(
-                future: _future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          'Gagal memuat data: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ),
-                    );
-                  }
+        // Header & kartu profil sekarang ikut discroll dalam satu ListView
+        // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
+        // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
+        body: FutureBuilder<List<Pengaduan>>(
+          future: _future,
+          builder: (context, snapshot) {
+            Widget content;
 
-                  final semua = snapshot.data ?? [];
-                  final menungguPetugas = semua
-                      .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
-                      .toList();
-                  final berjalan = semua
-                      .where((p) =>
-                          p.status == PengaduanStatus.investigasiBerjalan &&
-                          p.eksekutor == Eksekutor.tpdpk)
-                      .toList();
-                  final revisi = semua
-                      .where((p) =>
-                          p.status == PengaduanStatus.revisiInvestigasi &&
-                          p.eksekutor == Eksekutor.tpdpk)
-                      .toList();
-                  final tindakLanjut = semua
-                      .where((p) =>
-                          p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                          p.eksekutorTindakLanjut == Eksekutor.tpdpk)
-                      .toList();
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              content = const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            } else if (snapshot.hasError) {
+              content = Padding(
+                padding: const EdgeInsets.all(40),
+                child: Text(
+                  'Gagal memuat data: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              );
+            } else {
+              final semua = snapshot.data ?? [];
+              final menungguPetugas = semua
+                  .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
+                  .toList();
+              final berjalan = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.investigasiBerjalan &&
+                      p.eksekutor == Eksekutor.tpdpk)
+                  .toList();
+              final revisi = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.revisiInvestigasi &&
+                      p.eksekutor == Eksekutor.tpdpk)
+                  .toList();
+              final tindakLanjut = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.tindakLanjutBerjalan &&
+                      p.eksekutorTindakLanjut == Eksekutor.tpdpk)
+                  .toList();
 
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView(
+              content = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSection(
+                    'MENUNGGU PENUGASAN PETUGAS',
+                    menungguPetugas,
+                    (p) => _bukaPilihPetugas(p),
+                    'Tidak ada tugas baru.',
+                    'Tetapkan Petugas',
+                  ),
+                  _buildSection(
+                    'INVESTIGASI BERJALAN',
+                    berjalan,
+                    (p) => _bukaKirimHasil(p, revisi: false),
+                    'Tidak ada investigasi berjalan.',
+                    'Kirim Hasil',
+                  ),
+                  _buildSection(
+                    'PERLU REVISI (DIKEMBALIKAN KSPI)',
+                    revisi,
+                    (p) => _bukaKirimHasil(p, revisi: true),
+                    'Tidak ada revisi yang diminta.',
+                    'Kirim Ulang',
+                  ),
+                  _buildSection(
+                    'TINDAK LANJUT DARI DIREKTUR',
+                    tindakLanjut,
+                    (p) => _bukaSelesaikanTindakLanjut(p),
+                    'Tidak ada tindak lanjut yang ditugaskan.',
+                    'Selesaikan',
+                  ),
+                ],
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              // Struktur disamakan dengan dashboard pegawai: header & kartu
+              // ada dalam satu Column yang discroll bersama (topbar ikut
+              // ikut ke atas saat discroll, tidak lagi sticky), dan kartu
+              // profil "mengambang" lewat Transform.translate — Column
+              // tidak meng-clip contentnya seperti ListView, jadi kartu
+              // selalu tampil di depan header, jarak/spacing pun sama
+              // persis seperti kartu jadwal di dashboard pegawai.
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopHeader(context),
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      children: [
-                        Transform.translate(
-                          offset: const Offset(0, -22),
-                          child: _buildHeaderCard(semua.length),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildSection(
-                          'MENUNGGU PENUGASAN PETUGAS',
-                          menungguPetugas,
-                          (p) => _bukaPilihPetugas(p),
-                          'Tidak ada tugas baru.',
-                          'Tetapkan Petugas',
-                        ),
-                        _buildSection(
-                          'INVESTIGASI BERJALAN',
-                          berjalan,
-                          (p) => _bukaKirimHasil(p, revisi: false),
-                          'Tidak ada investigasi berjalan.',
-                          'Kirim Hasil',
-                        ),
-                        _buildSection(
-                          'PERLU REVISI (DIKEMBALIKAN KSPI)',
-                          revisi,
-                          (p) => _bukaKirimHasil(p, revisi: true),
-                          'Tidak ada revisi yang diminta.',
-                          'Kirim Ulang',
-                        ),
-                        _buildSection(
-                          'TINDAK LANJUT DARI DIREKTUR',
-                          tindakLanjut,
-                          (p) => _bukaSelesaikanTindakLanjut(p),
-                          'Tidak ada tindak lanjut yang ditugaskan.',
-                          'Selesaikan',
-                        ),
-                      ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, -28),
+                            child: _buildProfileCard(
+                                snapshot.data?.length ?? 0),
+                          ),
+                          const SizedBox(height: 18),
+                          content,
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -537,24 +561,28 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16.0 : 20.0,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
-        isSmallScreen ? 12.0 : 14.0,
-        isSmallScreen ? 20.0 : 24.0,
+        isSmallScreen ? 12.0 : 16.0,
+        isSmallScreen ? 40.0 : 56.0,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_navy, _accent],
+        gradient: LinearGradient(
+          colors: [
+            _navy,
+            _navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.25),
+            color: _navy.withValues(alpha: 0.2),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -565,7 +593,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Tugas Investigasi TPDPK',
+                  'Investigasi TPDPK',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -613,6 +641,118 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     );
   }
 
+  /// Kartu putih profil yang mengambang di atas header, meniru persis
+  /// kartu jadwal pada dashboard pegawai (ukuran, radius, bayangan).
+  Widget _buildProfileCard(int jumlah) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 14.0 : 18.0,
+        vertical: isSmallScreen ? 12.0 : 16.0,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.04),
+            blurRadius: 30,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: isSmallScreen ? 42.0 : 46.0,
+            height: isSmallScreen ? 42.0 : 46.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [_navy, _accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              image: widget.user.fotoUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(widget.user.fotoUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: widget.user.fotoUrl != null
+                ? null
+                : Text(
+                    widget.user.initials,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallScreen ? 14.0 : 16.0,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.user.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 12.5 : 14.0,
+                    fontWeight: FontWeight.w700,
+                    color: _navy,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${widget.user.role.label} · ${widget.user.jabatan}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF95A5A6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('$jumlah',
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: _navy)),
+                const Text('Perlu Aksi',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _accent)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSection(
     String title,
     List<Pengaduan> items,
@@ -641,79 +781,6 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           ...items.map((p) => _buildPengaduanCard(p, onAksi, tombolLabel)),
         const SizedBox(height: 14),
       ],
-    );
-  }
-
-  Widget _buildHeaderCard(int jumlah) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [_navy, _accent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            backgroundImage: widget.user.fotoUrl != null
-                ? NetworkImage(widget.user.fotoUrl!)
-                : null,
-            child: widget.user.fotoUrl != null
-                ? null
-                : Text(widget.user.initials,
-                    style: const TextStyle(
-                        color: _navy,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.user.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
-                const SizedBox(height: 2),
-                Text('${widget.user.role.label} · ${widget.user.jabatan}',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.85), fontSize: 12)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(10)),
-            child: Column(
-              children: [
-                Text('$jumlah',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-                const Text('Perlu Aksi',
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

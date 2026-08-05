@@ -3,6 +3,7 @@ import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import 'pengaduan_detail_screen.dart';
+import '../../theme/app_colors.dart';
 
 /// Dashboard "kotak masuk" pengaduan, dipakai oleh SEMUA role.
 /// - Pegawai: melihat seluruh pengaduan yang pernah dia buat sendiri.
@@ -19,8 +20,8 @@ class PengaduanListScreen extends StatefulWidget {
 class _PengaduanListScreenState extends State<PengaduanListScreen> {
   static const Color navy = Color(0xFF0D2C6E);
   static const Color navyDark = Color(0xFF0A2257);
-  static const Color labelDark = Color(0xFF1B2733);
-  static const Color hintGrey = Color(0xFF9AA5B1);
+  Color get labelDark => AppColors.textPrimary(context);
+  Color get hintGrey => AppColors.textSecondary(context);
 
   late Future<List<Pengaduan>> _future;
 
@@ -91,7 +92,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -111,7 +112,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
                         Center(
                           child: Text(
                             'Gagal memuat data: ${snapshot.error}',
-                            style: const TextStyle(color: hintGrey),
+                            style: TextStyle(color: hintGrey),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -121,7 +122,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
                   final data = snapshot.data ?? [];
                   if (data.isEmpty) {
                     return ListView(
-                      children: const [
+                      children: [
                         SizedBox(height: 100),
                         Center(
                           child: Text(
@@ -231,7 +232,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -249,7 +250,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
                 Expanded(
                   child: Text(
                     p.nomorPengaduan,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: hintGrey,
@@ -262,7 +263,7 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
             const SizedBox(height: 8),
             Text(
               p.judul,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: labelDark,
@@ -273,12 +274,12 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
             const SizedBox(height: 4),
             Text(
               p.kategori,
-              style: const TextStyle(fontSize: 12, color: hintGrey),
+              style: TextStyle(fontSize: 12, color: hintGrey),
             ),
             const SizedBox(height: 8),
             Text(
               formatTanggalJam(p.tanggalPengaduan),
-              style: const TextStyle(fontSize: 11, color: hintGrey),
+              style: TextStyle(fontSize: 11, color: hintGrey),
             ),
           ],
         ),

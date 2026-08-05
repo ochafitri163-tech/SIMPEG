@@ -413,7 +413,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         SizedBox(height: isVerySmallScreen ? 8 : 14),
         Text(
-          'Simpeg Mobile Ver.3',
+          'Simpeg Mobile',
           style: TextStyle(
             fontSize: titleSize,
             fontWeight: FontWeight.bold,
