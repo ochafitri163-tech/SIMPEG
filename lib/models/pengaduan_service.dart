@@ -390,6 +390,14 @@ class PengaduanService {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
+  /// Mengambil daftar pengaduan untuk sebuah role.
+  ///
+  /// Khusus role Kadiv: bila [divisiKadiv] diisi, pengaduan yang masih
+  /// berstatus `menungguKadiv` HANYA dikembalikan bila kategorinya cocok
+  /// dengan divisi Kadiv tersebut. Jadi pengaduan "Pelanggaran
+  /// Administrasi" tidak akan pernah muncul di kotak masuk Kadiv Teknik,
+  /// dan sebaliknya. Pengaduan pada tahap lanjut (mis. investigasi yang
+  /// ditugaskan ke Kadiv) tetap ikut agar tidak hilang dari dashboard.
   static Future<List<Map<String, dynamic>>> untukRole(
     UserRole role, {
     String? divisiKadiv,
@@ -398,7 +406,71 @@ class PengaduanService {
         .from('pengaduan_pegawai')
         .select()
         .order('tanggal_pengaduan', ascending: false);
-    return List<Map<String, dynamic>>.from(rows as List);
+    final semua = List<Map<String, dynamic>>.from(rows as List);
+
+    if (role != UserRole.kadivKategori || divisiKadiv == null) {
+      return semua;
+    }
+
+    return semua.where((row) {
+      final status = row['status'] as String?;
+      final belumDiverifikasi =
+          status == PengaduanStatus.menungguKadiv.name ||
+              status == PengaduanStatus.menungguVerifikasiKadiv.name;
+      if (!belumDiverifikasi) return true;
+      final divisi = divisiKadivDariKategori((row['kategori'] ?? '') as String);
+      // Kategori tak dikenal -> tampilkan ke semua Kadiv supaya tidak
+      // ada pengaduan yang "nyangkut" tanpa penanggung jawab.
+      if (divisi == null) return true;
+      return divisi.name == divisiKadiv;
+    }).toList();
+  }
+
+  /// KADIV — mengoreksi jenis/kategori pelanggaran dan MELEMPAR pengaduan
+  /// ke Kadiv divisi lain.
+  ///
+  /// Dipakai ketika pengaduan masuk ke Kadiv Administrasi padahal isinya
+  /// pelanggaran teknik (atau sebaliknya). Status tetap
+  /// [PengaduanStatus.menungguKadiv] — pengaduan TIDAK diteruskan ke KSPI,
+  /// melainkan pindah kotak masuk ke Kadiv divisi baru. Karena filter
+  /// kotak masuk Kadiv memakai kategori, pengaduan otomatis hilang dari
+  /// daftar Kadiv lama dan muncul di daftar Kadiv baru.
+  static Future<void> alihkanKategoriKadiv({
+    required int pengaduanId,
+    required String oleh,
+    required String kategoriBaru,
+    String? nomorPengaduan,
+    String? catatan,
+  }) async {
+    final divisiBaru = divisiKadivDariKategori(kategoriBaru);
+    if (divisiBaru == null) {
+      throw Exception('Kategori "$kategoriBaru" tidak dikenal.');
+    }
+
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguKadiv.name,
+      statusBaru: PengaduanStatus.menungguKadiv.name,
+      oleh: oleh,
+      role: UserRole.kadivKategori,
+      aksi: 'Jenis pelanggaran diubah ke "$kategoriBaru" '
+          '• dialihkan ke ${divisiBaru.label}',
+      catatan: catatan,
+      kolomTambahan: {
+        'kategori': kategoriBaru,
+        'kategori_divisi': divisiBaru == DivisiKadiv.administrasi
+            ? KategoriDivisi.devAdmin.name
+            : KategoriDivisi.devTeknik.name,
+      },
+    );
+
+    await NotificationService.kirimKeKadivDivisi(
+      divisi: divisiBaru,
+      judul: 'Pengaduan dialihkan ke divisi Anda',
+      pesan: '${nomorPengaduan ?? 'Sebuah pengaduan'} dialihkan oleh $oleh '
+          'karena termasuk $kategoriBaru.',
+      pengaduanId: pengaduanId,
+    );
   }
 
   static Future<Map<String, dynamic>?> detail(int pengaduanId) async {
@@ -457,8 +529,13 @@ class PengaduanService {
     return pengaduanFromRow(row, riwayat: _parseRiwayat(riwayatRows));
   }
 
-  static Future<List<Pengaduan>> untukRoleSebagaiObjek(UserRole role) async {
-    final rows = await untukRole(role);
+  /// [divisiKadiv] diisi nama enum [DivisiKadiv] ('administrasi'/'teknik')
+  /// untuk membatasi kotak masuk Kadiv sesuai divisinya.
+  static Future<List<Pengaduan>> untukRoleSebagaiObjek(
+    UserRole role, {
+    String? divisiKadiv,
+  }) async {
+    final rows = await untukRole(role, divisiKadiv: divisiKadiv);
     return rows.map((row) => pengaduanFromRow(row)).toList();
   }
 
@@ -958,6 +1035,30 @@ class NotificationService {
     for (final pegawai in (daftarPegawai as List)) {
       await _client.from('notifikasi').insert({
         'untuk_pegawai_id': pegawai['id'],
+        'judul': judul,
+        'pesan': pesan,
+        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      });
+    }
+  }
+
+  /// Mengirim notifikasi HANYA ke Kadiv pada divisi tertentu
+  /// (administrasi / teknik), bukan ke semua Kadiv.
+  static Future<void> kirimKeKadivDivisi({
+    required DivisiKadiv divisi,
+    required String judul,
+    required String pesan,
+    int? pengaduanId,
+  }) async {
+    final daftarKadiv = await _client
+        .from('pegawai')
+        .select('id')
+        .eq('role', UserRole.kadivKategori.name)
+        .eq('divisi_kadiv', divisi.name);
+
+    for (final kadiv in (daftarKadiv as List)) {
+      await _client.from('notifikasi').insert({
+        'untuk_pegawai_id': kadiv['id'],
         'judul': judul,
         'pesan': pesan,
         if (pengaduanId != null) 'pengaduan_id': pengaduanId,

@@ -1062,8 +1062,18 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   Widget _panelVerifikasiKadiv(Pengaduan p, String oleh) {
     String kategoriPilihan = p.kategori;
     const opsiKategori = ['Pelanggaran Administrasi', 'Pelanggaran Teknik'];
+    final divisiSaya = widget.user.divisiKadiv;
     return StatefulBuilder(
       builder: (context, setLocal) {
+        // Divisi Kadiv yang berwenang atas kategori yang sedang dipilih.
+        final divisiKategori = divisiKadivDariKategori(kategoriPilihan);
+        // True bila Kadiv mengubah jenis pelanggaran menjadi milik divisi
+        // lain -> pengaduan harus DILEMPAR ke Kadiv divisi tsb, bukan
+        // diteruskan ke KSPI oleh Kadiv yang sekarang.
+        final pindahDivisi = divisiSaya != null &&
+            divisiKategori != null &&
+            divisiKategori != divisiSaya;
+
         Future<void> proses(Keputusan keputusan) async {
           String? catatan;
           if (keputusan == Keputusan.tolak) {
@@ -1085,15 +1095,36 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           );
         }
 
+        Future<void> alihkan() async {
+          final catatan = await _dialogCatatan(
+            judul: 'Alasan Pengalihan (opsional)',
+            hint: 'Mis. isi laporan menyangkut pekerjaan teknis di lapangan...',
+            labelTombol: 'Alihkan',
+          );
+          await _jalankan(
+            () => PengaduanService.alihkanKategoriKadiv(
+              pengaduanId: p.supabaseId!,
+              oleh: oleh,
+              kategoriBaru: kategoriPilihan,
+              nomorPengaduan: p.nomorPengaduan,
+              catatan: catatan,
+            ),
+            sukses: 'Pengaduan dialihkan ke ${divisiKategori!.label}.',
+          );
+          if (mounted) Navigator.of(context).maybePop();
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle('Verifikasi Pengaduan'),
             const SizedBox(height: 6),
             Text(
-              'Perbaiki kategori bila pegawai salah menempatkannya. Baik '
-              'Terima maupun Tolak sama-sama diteruskan ke KSPI (keputusan '
-              'tetap dicatat).',
+              'Perbaiki jenis pelanggaran bila pegawai salah menempatkannya. '
+              'Bila jenisnya menjadi kewenangan divisi lain, pengaduan '
+              'otomatis dialihkan ke Kadiv divisi tersebut. Selama jenisnya '
+              'tetap di divisi Anda, Terima maupun Tolak sama-sama '
+              'diteruskan ke KSPI (keputusan tetap dicatat).',
               style:
                   TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
             ),
@@ -1120,6 +1151,52 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   ),
               ],
             ),
+            if (pindahDivisi) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE67E22).withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFFE67E22).withOpacity(0.35)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.swap_horiz_rounded,
+                        size: 18, color: Color(0xFFE67E22)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Jenis pelanggaran ini bukan kewenangan '
+                        '${divisiSaya.label}. Pengaduan akan dialihkan ke '
+                        '${divisiKategori.label} dan hilang dari kotak masuk '
+                        'Anda.',
+                        style: TextStyle(
+                            fontSize: 11.5, color: labelDark, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isProcessing ? null : alihkan,
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                  label: Text('Alihkan ke ${divisiKategori.label}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE67E22),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ] else ...[
             const SizedBox(height: 14),
             Row(
               children: [
@@ -1162,6 +1239,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 ),
               ],
             ),
+            ],
           ],
         );
       },
