@@ -107,8 +107,12 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _bukaForm(),
           backgroundColor: _navy,
+          elevation: 3,
+          highlightElevation: 6,
+          shape: const StadiumBorder(),
           icon: const Icon(Icons.add_rounded, color: Colors.white),
-          label: const Text('Buat', style: TextStyle(color: Colors.white)),
+          label: const Text('Buat',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         ),
         body: FeatureScaffold(
           title: 'Kelola Pengumuman',
@@ -150,128 +154,216 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
   }
 
   Widget _buildItem(Pengumuman p, bool isDark) {
+    final cardColor = isDark ? const Color(0xFF1B2230) : Colors.white;
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFEDF0F4);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B2230) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (p.disematkan)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 6),
-                    child: Icon(Icons.push_pin_rounded,
-                        size: 15, color: Color(0xFFD35400)),
-                  ),
-                if (p.isPenting)
-                  Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE74C3C),
-                      borderRadius: BorderRadius.circular(6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (p.disematkan)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6, top: 1),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD35400).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: const Icon(Icons.push_pin_rounded,
+                            size: 13, color: Color(0xFFD35400)),
+                      ),
+                    if (p.isPenting)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6, top: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE74C3C),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('PENTING',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.5,
+                                letterSpacing: 0.3,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(p.judul,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1B2733))),
+                      ),
                     ),
-                    child: const Text('PENTING',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w800)),
-                  ),
-                Expanded(
-                  child: Text(p.judul,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF1B2733))),
+                    const SizedBox(width: 8),
+                    _statusBadge(p),
+                  ],
                 ),
-                _statusBadge(p),
+                const SizedBox(height: 8),
+                Text(p.ringkasan,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: isDark
+                            ? const Color(0xFF9AA6B2)
+                            : Colors.grey[700])),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _metaChip(
+                      icon: Icons.event_rounded,
+                      label: formatTanggalJam(p.tanggalPublikasi),
+                      isDark: isDark,
+                    ),
+                    if (p.adaLampiran)
+                      _metaChip(
+                        icon: Icons.attach_file_rounded,
+                        label: 'Lampiran',
+                        isDark: isDark,
+                        color: _accent,
+                      ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(p.ringkasan,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.4,
-                    color: isDark
-                        ? const Color(0xFF9AA6B2)
-                        : Colors.grey[700])),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.event_rounded, size: 12, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(formatTanggalJam(p.tanggalPublikasi),
-                    style:
-                        TextStyle(fontSize: 10.5, color: Colors.grey[600])),
-                if (p.adaLampiran) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.attach_file_rounded,
-                      size: 13, color: _accent),
-                ],
-              ],
+          ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: borderColor, width: 1)),
             ),
-            const Divider(height: 20),
-            Row(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton.icon(
                   onPressed: () => showPengumumanDetail(context, p),
                   icon: const Icon(Icons.visibility_outlined, size: 16),
-                  label: const Text('Lihat', style: TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: _accent),
+                  label: const Text('Lihat',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _accent,
+                    backgroundColor: _accent.withValues(alpha: 0.1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
                 Row(
                   children: [
-                    IconButton(
+                    _actionButton(
                       tooltip: p.aktif ? 'Batalkan publikasi' : 'Publikasikan',
+                      icon: p.aktif
+                          ? Icons.toggle_on_rounded
+                          : Icons.toggle_off_rounded,
+                      color: p.aktif ? const Color(0xFF27AE60) : Colors.grey,
                       onPressed: () => _togglePublikasi(p),
-                      icon: Icon(
-                        p.aktif
-                            ? Icons.toggle_on_rounded
-                            : Icons.toggle_off_rounded,
-                        color: p.aktif
-                            ? const Color(0xFF27AE60)
-                            : Colors.grey,
-                        size: 26,
-                      ),
+                      iconSize: 24,
                     ),
-                    IconButton(
+                    const SizedBox(width: 6),
+                    _actionButton(
                       tooltip: 'Ubah',
+                      icon: Icons.edit_rounded,
+                      color: _navy,
                       onPressed: () => _bukaForm(existing: p),
-                      icon: const Icon(Icons.edit_rounded,
-                          color: _navy, size: 20),
                     ),
-                    IconButton(
+                    const SizedBox(width: 6),
+                    _actionButton(
                       tooltip: 'Hapus',
+                      icon: Icons.delete_outline_rounded,
+                      color: const Color(0xFFE74C3C),
                       onPressed: () => _hapus(p),
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          color: Color(0xFFE74C3C), size: 20),
                     ),
                   ],
                 ),
               ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metaChip({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+    Color? color,
+  }) {
+    final fg = color ?? (isDark ? Colors.grey[400] : Colors.grey[600]);
+    final bg = color != null
+        ? color.withValues(alpha: 0.1)
+        : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF3F6F9));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 10.5, color: fg, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String tooltip,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    double iconSize = 20,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Icon(icon, color: color, size: iconSize),
+          ),
         ),
       ),
     );
@@ -295,14 +387,25 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
       color = const Color(0xFF95A5A6);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
     );
   }
 }

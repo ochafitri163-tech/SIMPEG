@@ -3,6 +3,7 @@ import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import 'detail_pengaduan_screen.dart';
+import '../../theme/app_colors.dart';
 
 /// Layar Riwayat Pengaduan yang dipakai bersama oleh SEMUA role
 /// (Kadiv, KSPI, TPDPK, SDM, dan bisa juga Direktur). Menampilkan seluruh
@@ -77,7 +78,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F9),
+      backgroundColor: AppColors.pageBackground(context),
       appBar: AppBar(
         backgroundColor: _navy,
         foregroundColor: Colors.white,
@@ -97,7 +98,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                 child: Text(
                   'Gagal memuat riwayat: ${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                 ),
               ),
             );
@@ -138,7 +139,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      color: Colors.white,
+      color: AppColors.card(context),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -152,16 +153,16 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _navy,
+                    color: selected ? Colors.white : AppColors.textPrimary(context),
                   ),
                 ),
                 selected: selected,
                 selectedColor: _accent,
-                backgroundColor: const Color(0xFFF3F6F9),
+                backgroundColor: AppColors.surfaceMuted(context),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: BorderSide(
-                    color: selected ? _accent : const Color(0xFFE0E7EE),
+                    color: selected ? _accent : AppColors.divider(context),
                   ),
                 ),
                 onSelected: (_) => setState(() => _filter = f),
@@ -176,11 +177,11 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
   Widget _buildEmptyState() {
     return Column(
       children: [
-        Icon(Icons.inbox_rounded, size: 48, color: Colors.grey[300]),
+        Icon(Icons.inbox_rounded, size: 48, color: AppColors.divider(context)),
         const SizedBox(height: 10),
         Text(
           'Belum ada riwayat pengaduan.',
-          style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context)),
         ),
       ],
     );
@@ -204,7 +205,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -252,28 +253,30 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
               const SizedBox(height: 6),
               Text(
                 p.judul,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context)),
               ),
               const SizedBox(height: 4),
               Text(
                 'Pelapor: $pelapor',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
               ),
               const SizedBox(height: 2),
               Text(
                 'Kategori: ${p.kategori} \u00b7 ${formatTanggalJam(p.tanggalPengaduan)}',
-                style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context)),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(Icons.visibility_outlined,
-                      size: 15, color: Colors.grey[500]),
+                      size: 15, color: AppColors.textSecondary(context)),
                   const SizedBox(width: 4),
                   Text(
                     'Ketuk untuk lihat detail & alur status',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary(context)),
                   ),
                 ],
               ),

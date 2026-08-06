@@ -9,6 +9,8 @@ import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 
+import '../../theme/app_colors.dart';
+import '../../services/theme_controller.dart';
 /// Dashboard untuk role KSPI — Tahap 3 & Tahap 4 (fungsional).
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardKspiScreen extends StatefulWidget {
@@ -230,8 +232,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: builder(ctx, setSheetState),
@@ -246,7 +248,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-            color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+            color: AppColors.divider(context), borderRadius: BorderRadius.circular(10)),
       );
 
   Widget _judulSheet(String title, Pengaduan p) => Column(
@@ -257,7 +259,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(p.nomorPengaduan,
-              style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
           const SizedBox(height: 16),
         ],
       );
@@ -293,7 +295,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       label: Text(e.label,
                           style: TextStyle(
                               fontSize: 12,
-                              color: selected ? Colors.white : _navy,
+                              color: selected ? Colors.white : AppColors.textPrimary(context),
                               fontWeight: FontWeight.w600)),
                       selected: selected,
                       selectedColor: _accent,
@@ -456,7 +458,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     selected: sesuai,
                     selectedColor: const Color(0xFF27AE60),
                     labelStyle: TextStyle(
-                        color: sesuai ? Colors.white : _navy,
+                        color: sesuai ? Colors.white : AppColors.textPrimary(context),
                         fontWeight: FontWeight.w600),
                     onSelected: (_) => setSheetState(() => sesuai = true),
                   ),
@@ -469,7 +471,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     selected: !sesuai,
                     selectedColor: const Color(0xFFE74C3C),
                     labelStyle: TextStyle(
-                        color: !sesuai ? Colors.white : _navy,
+                        color: !sesuai ? Colors.white : AppColors.textPrimary(context),
                         fontWeight: FontWeight.w600),
                     onSelected: (_) => setSheetState(() => sesuai = false),
                   ),
@@ -711,17 +713,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F6F9),
+        color: AppColors.surfaceMuted(context),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF7F8C8D))),
+                  color: AppColors.textSecondary(context))),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 12.5)),
         ],
@@ -735,7 +737,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       user: widget.user,
       allowedRoles: const [UserRole.kspi],
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F6F9),
+        backgroundColor: AppColors.pageBackground(context),
         // Header & kartu profil sekarang ikut discroll dalam satu ListView
         // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
         // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
@@ -755,7 +757,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 child: Text(
                   'Gagal memuat data: ${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                 ),
               );
             } else {
@@ -914,6 +916,20 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   ),
                 ),
               ),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: ThemeController.instance.themeMode,
+                builder: (context, mode, _) {
+                  final isDark = mode == ThemeMode.dark;
+                  return IconButton(
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: Colors.white,
+                    ),
+                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    onPressed: () => ThemeController.instance.setDark(!isDark),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 tooltip: 'Muat ulang',
@@ -955,7 +971,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         vertical: isSmallScreen ? 12.0 : 16.0,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1012,17 +1028,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   style: TextStyle(
                     fontSize: isSmallScreen ? 12.5 : 14.0,
                     fontWeight: FontWeight.w700,
-                    color: _navy,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${widget.user.role.label} · ${widget.user.jabatan}',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF95A5A6),
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ],
@@ -1038,10 +1054,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('$jumlah',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _navy)),
+                        color: AppColors.textPrimary(context))),
                 const Text('Perlu Aksi',
                     style: TextStyle(
                         fontSize: 10,
@@ -1066,18 +1082,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: Color(0xFF7F8C8D))),
+                color: AppColors.textSecondary(context))),
         const SizedBox(height: 10),
         if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             alignment: Alignment.centerLeft,
             child: Text(emptyText,
-                style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
           )
         else
           ...items.map((p) => _buildPengaduanCard(p, onAksi, tombolLabel)),
@@ -1091,7 +1107,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -1135,7 +1151,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             const SizedBox(height: 4),
             Text(
                 'Kategori: ${p.kategori}${p.kategoriDivisi != null ? ' · ${p.kategoriDivisi!.label}' : ''}',
-                style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context))),
             const SizedBox(height: 12),
             Row(
               children: [

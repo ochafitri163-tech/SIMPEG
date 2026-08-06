@@ -26,6 +26,7 @@ import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
 
 
+import '../../services/theme_controller.dart';
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
 /// login. Sumber utama adalah presensi harian nyata (tabel
 /// `absensi_harian`); bila belum ada, jatuh ke agregat bulanan lama
@@ -525,6 +526,20 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 ),
               ),
               const SizedBox(width: 10),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: ThemeController.instance.themeMode,
+                builder: (context, mode, _) {
+                  final isDark = mode == ThemeMode.dark;
+                  return IconButton(
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: Colors.white,
+                    ),
+                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    onPressed: () => ThemeController.instance.setDark(!isDark),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 tooltip: 'Muat ulang',

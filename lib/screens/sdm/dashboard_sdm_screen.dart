@@ -10,6 +10,8 @@ import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 import 'kelola_pengumuman_screen.dart';
 
+import '../../theme/app_colors.dart';
+import '../../services/theme_controller.dart';
 /// Dashboard untuk role SDM — titik akhir alur Pengaduan (tindak lanjut
 /// administratif). Data & aksi terhubung ke Supabase lewat
 /// [PengaduanService.untukRoleSebagaiObjek] & [PengaduanService.sdmSelesaikan].
@@ -73,8 +75,8 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: builder(ctx, setSheetState),
@@ -89,7 +91,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
         height: 4,
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-            color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+            color: AppColors.divider(context), borderRadius: BorderRadius.circular(10)),
       );
 
   // ---------- Selesaikan tindak lanjut administratif ----------
@@ -109,7 +111,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
-                style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -134,10 +136,10 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Opsional. Nominal akan langsung dipotong dari slip gaji '
                     'periode terbaru pegawai (terintegrasi payroll).',
-                    style: TextStyle(fontSize: 11.5, color: Colors.black54),
+                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context)),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -243,7 +245,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       user: widget.user,
       allowedRoles: const [UserRole.sdm],
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F6F9),
+        backgroundColor: AppColors.pageBackground(context),
         // Header & kartu profil sekarang ikut discroll dalam satu ListView
         // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
         // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
@@ -263,7 +265,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                 child: Text(
                   'Gagal memuat data: ${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                 ),
               );
             } else {
@@ -296,21 +298,22 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   children: [
                     _buildTopHeader(context),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Transform.translate(
-                            offset: const Offset(0, -22),
-                            child: _buildHeaderCard(
-                                snapshot.data
-                                        ?.where((p) =>
-                                            p.status ==
-                                            PengaduanStatus.menungguSdm)
-                                        .length ??
-                                    0),
+                            offset: const Offset(0, -28),
+                            child: _buildProfileCard(
+                              snapshot.data
+                                      ?.where((p) =>
+                                          p.status ==
+                                          PengaduanStatus.menungguSdm)
+                                      .length ??
+                                  0,
+                            ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 18),
                           content,
                         ],
                       ),
@@ -333,24 +336,30 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16.0 : 20.0,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 10.0 : 14.0),
-        isSmallScreen ? 12.0 : 14.0,
-        isSmallScreen ? 20.0 : 24.0,
+        isSmallScreen ? 12.0 : 16.0,
+        isSmallScreen ? 40.0 : 56.0,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_navy, _accent],
+        // Gradien 3-titik yang sama persis dengan header dashboard pegawai
+        // & role lain (Kadiv/KSPI/TPDPK/Dirut) agar temanya senada.
+        gradient: LinearGradient(
+          colors: [
+            _navy,
+            _navy.withValues(alpha: 0.85),
+            const Color(0xFF123A85),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.25),
+            color: _navy.withValues(alpha: 0.2),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -361,7 +370,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Tugas Tindak Lanjut SDM',
+                  'Tindak Lanjut SDM',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -389,6 +398,20 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                     builder: (_) => RiwayatPengaduanScreen(user: widget.user),
                   ),
                 ),
+              ),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: ThemeController.instance.themeMode,
+                builder: (context, mode, _) {
+                  final isDark = mode == ThemeMode.dark;
+                  return IconButton(
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: Colors.white,
+                    ),
+                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    onPressed: () => ThemeController.instance.setDark(!isDark),
+                  );
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -430,18 +453,18 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: Color(0xFF7F8C8D))),
+                color: AppColors.textSecondary(context))),
         const SizedBox(height: 10),
         if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             alignment: Alignment.centerLeft,
             child: Text(emptyText,
-                style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
           )
         else
           ...items.map((p) => _buildPengaduanCard(p, onAksi, tombolLabel)),
@@ -450,71 +473,112 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     );
   }
 
-  Widget _buildHeaderCard(int jumlah) {
+  /// Kartu putih profil pengguna yang "mengambang" di atas header navy —
+  /// ukuran, radius, dan bayangannya meniru persis kartu jadwal pada
+  /// dashboard pegawai (dan halaman Kadiv/KSPI/TPDPK/Dirut), agar
+  /// temanya konsisten di seluruh aplikasi.
+  Widget _buildProfileCard(int jumlah) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 14.0 : 18.0,
+        vertical: isSmallScreen ? 12.0 : 16.0,
+      ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [_navy, _accent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.18),
-            blurRadius: 16,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
             offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.04),
+            blurRadius: 30,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            backgroundImage: widget.user.fotoUrl != null
-                ? NetworkImage(widget.user.fotoUrl!)
-                : null,
+          Container(
+            width: isSmallScreen ? 42.0 : 46.0,
+            height: isSmallScreen ? 42.0 : 46.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [_navy, _accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              image: widget.user.fotoUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(widget.user.fotoUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
             child: widget.user.fotoUrl != null
                 ? null
-                : Text(widget.user.initials,
-                    style: const TextStyle(
-                        color: _navy,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
+                : Text(
+                    widget.user.initials,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallScreen ? 14.0 : 16.0,
+                    ),
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.user.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
+                Text(
+                  widget.user.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 12.5 : 14.0,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('${widget.user.role.label} · ${widget.user.jabatan}',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.85), fontSize: 12)),
+                Text(
+                  '${widget.user.role.label} · ${widget.user.jabatan}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(10)),
+              color: _accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text('$jumlah',
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16)),
+                        color: AppColors.textPrimary(context))),
                 const Text('Perlu Aksi',
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _accent)),
               ],
             ),
           ),
@@ -528,7 +592,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(

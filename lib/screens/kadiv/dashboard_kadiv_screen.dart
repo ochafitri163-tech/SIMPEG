@@ -9,6 +9,8 @@ import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 
+import '../../theme/app_colors.dart';
+import '../../services/theme_controller.dart';
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
 /// Data pengaduan diambil dari Supabase lewat [PengaduanService], semua
 /// aksi (verifikasi, selesaikan tindak lanjut) langsung menulis ke
@@ -93,8 +95,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               ),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: Column(
@@ -107,7 +109,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: AppColors.divider(context),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -116,8 +118,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                             fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(p.nomorPengaduan,
-                        style: const TextStyle(
-                            fontSize: 12.5, color: Colors.grey)),
+                        style: TextStyle(
+                            fontSize: 12.5, color: AppColors.textSecondary(context))),
                     const SizedBox(height: 16),
                     const Text('Kategori Divisi',
                         style: TextStyle(
@@ -133,7 +135,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                               label: Text(k.label,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: selected ? Colors.white : _navy,
+                                    color: selected ? Colors.white : AppColors.textPrimary(context),
                                     fontWeight: FontWeight.w600,
                                   )),
                               selected: selected,
@@ -227,8 +229,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
@@ -240,7 +242,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: AppColors.divider(context),
                       borderRadius: BorderRadius.circular(10)),
                 ),
                 const Text('Selesaikan Tindak Lanjut',
@@ -248,22 +250,22 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                         TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(p.nomorPengaduan,
-                    style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
                 const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFF3F6F9),
+                      color: AppColors.surfaceMuted(context),
                       borderRadius: BorderRadius.circular(10)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Instruksi Direktur',
+                      Text('Instruksi Direktur',
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF7F8C8D))),
+                              color: AppColors.textSecondary(context))),
                       const SizedBox(height: 4),
                       Text(p.tindakLanjutDiminta ?? '-',
                           style: const TextStyle(fontSize: 12.5)),
@@ -346,7 +348,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
       user: widget.user,
       allowedRoles: const [UserRole.kadivKategori],
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F6F9),
+        backgroundColor: AppColors.pageBackground(context),
         // Header & kartu profil sekarang ikut discroll dalam satu ListView
         // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
         // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
@@ -366,7 +368,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 child: Text(
                   'Gagal memuat data: ${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
                 ),
               );
             } else {
@@ -387,13 +389,13 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'PENGADUAN MASUK — MENUNGGU VERIFIKASI',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
-                      color: Color(0xFF7F8C8D),
+                      color: AppColors.textSecondary(context),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -407,13 +409,13 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                           onAksi: () => _bukaDetail(p),
                         )),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'INVESTIGASI DITUGASKAN',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
-                      color: Color(0xFF7F8C8D),
+                      color: AppColors.textSecondary(context),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -529,6 +531,20 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   ),
                 ),
               ),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: ThemeController.instance.themeMode,
+                builder: (context, mode, _) {
+                  final isDark = mode == ThemeMode.dark;
+                  return IconButton(
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: Colors.white,
+                    ),
+                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    onPressed: () => ThemeController.instance.setDark(!isDark),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 tooltip: 'Muat ulang',
@@ -571,7 +587,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
         vertical: isSmallScreen ? 12.0 : 16.0,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -628,17 +644,17 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   style: TextStyle(
                     fontSize: isSmallScreen ? 12.5 : 14.0,
                     fontWeight: FontWeight.w700,
-                    color: _navy,
+                    color: AppColors.textPrimary(context),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${widget.user.role.label} · ${widget.user.jabatan}',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF95A5A6),
+                    color: AppColors.textSecondary(context),
                   ),
                 ),
               ],
@@ -654,10 +670,10 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('$jumlahMasuk',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _navy)),
+                        color: AppColors.textPrimary(context))),
                 const Text('Masuk',
                     style: TextStyle(
                         fontSize: 10,
@@ -677,9 +693,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
       alignment: Alignment.center,
       child: Column(
         children: [
-          Icon(Icons.inbox_rounded, size: 48, color: Colors.grey[300]),
+          Icon(Icons.inbox_rounded, size: 48, color: AppColors.divider(context)),
           const SizedBox(height: 10),
-          Text(text, style: TextStyle(fontSize: 12.5, color: Colors.grey[500])),
+          Text(text, style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
         ],
       ),
     );
@@ -693,7 +709,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -738,12 +754,12 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
             const SizedBox(height: 4),
             Text(
               'Pelapor: ${p.namaPegawai}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
             ),
             const SizedBox(height: 2),
             Text(
                 'Kategori: ${p.kategori} · ${formatTanggalJam(p.tanggalPengaduan)}',
-                style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context))),
             const SizedBox(height: 12),
             Row(
               children: [
