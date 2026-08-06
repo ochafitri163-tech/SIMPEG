@@ -262,7 +262,11 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
 
   // ---------- Approval Tahap 2: hasil investigasi diterima? ----------
   Future<void> _bukaKeputusanTahap2(Pengaduan p) async {
-    Keputusan keputusan = Keputusan.terima;
+    // Tiga pilihan keputusan khusus tahap 2: Terima (lanjut SDM), Tolak
+    // (arsip, pelapor diberi notifikasi otomatis), atau Peninjauan
+    // Kembali (dikembalikan ke KSPI, alurnya sama seperti siklus
+    // investigasi pertama: KSPI pilih eksekutor lagi).
+    String pilihan = 'terima';
     final catatanController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
@@ -283,15 +287,82 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             _infoBlok('Hasil Investigasi', p.hasilInvestigasi ?? '-'),
             _infoBlok('Surat Rekomendasi', p.suratRekomendasi ?? '-'),
             const SizedBox(height: 6),
-            _pilihanTerimaTolak(keputusan, setSheetState, (v) => keputusan = v),
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: Text('Terima',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: pilihan == 'terima'
+                                ? Colors.white
+                                : AppColors.textPrimary(context))),
+                    selected: pilihan == 'terima',
+                    selectedColor: _green,
+                    onSelected: (_) => setSheetState(() => pilihan = 'terima'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ChoiceChip(
+                    label: Text('Tolak',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: pilihan == 'tolak'
+                                ? Colors.white
+                                : AppColors.textPrimary(context))),
+                    selected: pilihan == 'tolak',
+                    selectedColor: _red,
+                    onSelected: (_) => setSheetState(() => pilihan = 'tolak'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ChoiceChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.replay_rounded,
+                      size: 15,
+                      color: pilihan == 'peninjauan'
+                          ? Colors.white
+                          : const Color(0xFF8E44AD)),
+                  const SizedBox(width: 6),
+                  Text('Peninjauan Kembali',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: pilihan == 'peninjauan'
+                              ? Colors.white
+                              : AppColors.textPrimary(context))),
+                ],
+              ),
+              selected: pilihan == 'peninjauan',
+              selectedColor: const Color(0xFF8E44AD),
+              onSelected: (_) => setSheetState(() => pilihan = 'peninjauan'),
+            ),
+            if (pilihan == 'peninjauan') ...[
+              const SizedBox(height: 8),
+              Text(
+                'Pengaduan akan dikembalikan ke KSPI untuk memilih '
+                'eksekutor investigasi ulang.',
+                style: TextStyle(
+                    fontSize: 11.5, color: AppColors.textSecondary(context)),
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: keputusan == Keputusan.tolak
+                labelText: pilihan == 'tolak'
                     ? 'Alasan penolakan (wajib)'
-                    : 'Catatan (opsional)',
+                    : pilihan == 'peninjauan'
+                        ? 'Catatan peninjauan kembali (opsional)'
+                        : 'Catatan (opsional)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -301,7 +372,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (keputusan == Keputusan.tolak &&
+                  if (pilihan == 'tolak' &&
                       catatanController.text.trim().isEmpty) {
                     _showSnack('Alasan penolakan wajib diisi.', _red);
                     return;
@@ -329,22 +400,39 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (id == null) return;
 
     try {
-      await PengaduanService.direksiTahap2Aksi(
-        pengaduanId: id,
-        oleh: widget.user.name,
-        keputusan: keputusan,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
-      );
+      final catatan = catatanController.text.trim().isEmpty
+          ? null
+          : catatanController.text.trim();
 
-      if (!mounted) return;
-      _showSnack(
-        keputusan == Keputusan.terima
-            ? '${p.nomorPengaduan} diterima & diteruskan ke SDM.'
-            : '${p.nomorPengaduan} ditolak & diarsipkan.',
-        keputusan == Keputusan.terima ? _green : _red,
-      );
+      if (pilihan == 'peninjauan') {
+        await PengaduanService.direksiTahap2PeninjauanKembali(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          catatan: catatan,
+        );
+        if (!mounted) return;
+        _showSnack(
+          '${p.nomorPengaduan} dikembalikan ke KSPI untuk peninjauan kembali.',
+          const Color(0xFF8E44AD),
+        );
+      } else {
+        final keputusan =
+            pilihan == 'terima' ? Keputusan.terima : Keputusan.tolak;
+        await PengaduanService.direksiTahap2Aksi(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          keputusan: keputusan,
+          catatan: catatan,
+        );
+
+        if (!mounted) return;
+        _showSnack(
+          keputusan == Keputusan.terima
+              ? '${p.nomorPengaduan} diterima & diteruskan ke SDM.'
+              : '${p.nomorPengaduan} ditolak & diarsipkan.',
+          keputusan == Keputusan.terima ? _green : _red,
+        );
+      }
 
       await _refreshSemua();
     } catch (e) {

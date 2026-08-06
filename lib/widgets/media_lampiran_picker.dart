@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Menampung URL hasil upload lampiran multi-media (foto, video, voice note,
 /// dokumen). Dipakai bersama oleh form pengaduan pegawai & form hasil
@@ -200,37 +201,281 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
             ],
           ),
         ],
-        const SizedBox(height: 10),
-        _ringkasan(),
+        const SizedBox(height: 12),
+        _lampiranPreview(),
       ],
     );
   }
 
   Widget _tombol(IconData icon, String label, VoidCallback? onTap,
       {Color warna = accent}) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18, color: warna),
-      label: Text(label, style: TextStyle(color: warna, fontSize: 12.5)),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: warna.withValues(alpha: 0.5)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Material(
+      color: warna.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: warna.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: onTap == null ? hintGrey : warna),
+              const SizedBox(width: 7),
+              Text(label,
+                  style: TextStyle(
+                      color: onTap == null ? hintGrey : warna,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _ringkasan() {
-    final items = <String>[];
-    if (c.foto.isNotEmpty) items.add('${c.foto.length} foto');
-    if (c.video.isNotEmpty) items.add('${c.video.length} video');
-    if (c.voice.isNotEmpty) items.add('${c.voice.length} voice note');
-    if (c.dokumen.isNotEmpty) items.add('${c.dokumen.length} dokumen');
-    if (items.isEmpty) {
-      return const Text('Belum ada lampiran.',
-          style: TextStyle(fontSize: 11.5, color: hintGrey));
+  /// Filename ringkas dari URL Supabase Storage (buang query string & path).
+  String _namaFile(String url) {
+    final withoutQuery = url.split('?').first;
+    final segments = withoutQuery.split('/');
+    return segments.isNotEmpty ? segments.last : url;
+  }
+
+  Future<void> _bukaUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
+      );
     }
-    return Text('Terlampir: ${items.join(', ')}',
-        style: const TextStyle(
-            fontSize: 12, color: navy, fontWeight: FontWeight.w600));
+  }
+
+  void _lihatFotoPenuh(String url) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.pop(ctx),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  child: Image.network(url, fit: BoxFit.contain),
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Kombinasi semua lampiran yang sudah terunggah, ditampilkan visual:
+  /// foto sebagai thumbnail nyata (bukan sekadar label teks), sementara
+  /// video/voice note/dokumen sebagai baris dengan ikon, nama file, tombol
+  /// buka, dan tombol hapus — sehingga hasil upload benar-benar terlihat
+  /// dan bisa dicek langsung, bukan cuma ringkasan angka.
+  Widget _lampiranPreview() {
+    if (c.isEmpty) {
+      return Row(
+        children: const [
+          Icon(Icons.attachment_rounded, size: 15, color: hintGrey),
+          SizedBox(width: 6),
+          Text('Belum ada lampiran.',
+              style: TextStyle(fontSize: 11.5, color: hintGrey)),
+        ],
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (c.foto.isNotEmpty) ...[
+            _labelKecil('Foto (${c.foto.length})'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (int i = 0; i < c.foto.length; i++)
+                  _thumbnailFoto(c.foto[i], i),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (c.video.isNotEmpty) ...[
+            _labelKecil('Video (${c.video.length})'),
+            const SizedBox(height: 6),
+            for (int i = 0; i < c.video.length; i++)
+              _barisLampiran(
+                icon: Icons.videocam_rounded,
+                label: 'Video ${i + 1} · ${_namaFile(c.video[i])}',
+                onTap: () => _bukaUrl(c.video[i]),
+                onHapus: () => setState(() => c.video.removeAt(i)),
+              ),
+            const SizedBox(height: 6),
+          ],
+          if (c.voice.isNotEmpty) ...[
+            _labelKecil('Voice Note (${c.voice.length})'),
+            const SizedBox(height: 6),
+            for (int i = 0; i < c.voice.length; i++)
+              _barisLampiran(
+                icon: Icons.graphic_eq_rounded,
+                label: 'Voice Note ${i + 1}',
+                onTap: () => _bukaUrl(c.voice[i]),
+                onHapus: () => setState(() => c.voice.removeAt(i)),
+              ),
+            const SizedBox(height: 6),
+          ],
+          if (c.dokumen.isNotEmpty) ...[
+            _labelKecil('Dokumen (${c.dokumen.length})'),
+            const SizedBox(height: 6),
+            for (int i = 0; i < c.dokumen.length; i++)
+              _barisLampiran(
+                icon: Icons.description_rounded,
+                label: _namaFile(c.dokumen[i]),
+                onTap: () => _bukaUrl(c.dokumen[i]),
+                onHapus: () => setState(() => c.dokumen.removeAt(i)),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _labelKecil(String text) => Text(text,
+      style: const TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w700, color: navy));
+
+  Widget _thumbnailFoto(String url, int index) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: () => _lihatFotoPenuh(url),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              url,
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  width: 64,
+                  height: 64,
+                  color: accent.withValues(alpha: 0.08),
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stack) => Container(
+                width: 64,
+                height: 64,
+                color: accent.withValues(alpha: 0.08),
+                alignment: Alignment.center,
+                child: const Icon(Icons.broken_image_rounded,
+                    size: 20, color: hintGrey),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: () => setState(() => c.foto.removeAt(index)),
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: red,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.close_rounded,
+                  size: 13, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _barisLampiran({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required VoidCallback onHapus,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accent.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 17, color: accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600, color: navy),
+                  ),
+                ),
+                Icon(Icons.open_in_new_rounded, size: 15, color: hintGrey),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: onHapus,
+                  child: const Icon(Icons.delete_outline_rounded,
+                      size: 18, color: red),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

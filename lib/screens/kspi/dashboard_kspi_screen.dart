@@ -281,6 +281,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           children: [
             _grip(),
             _judulSheet('Review & Pilih Eksekutor', p),
+            if ((p.catatanPeninjauanKembali ?? '').isNotEmpty) ...[
+              _infoBlok(
+                  'Peninjauan Kembali dari Direktur', p.catatanPeninjauanKembali!),
+              const SizedBox(height: 14),
+            ],
             const Text('Eksekutor',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),

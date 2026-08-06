@@ -11,6 +11,7 @@ import '../shared/riwayat_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../widgets/media_lampiran_picker.dart';
 /// Dashboard untuk role TPDPK — Tahap 3 & Tahap 4 (fungsional).
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardTpdpkScreen extends StatefulWidget {
@@ -178,6 +179,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
     final rekomendasiController =
         TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
+    // Lampiran hasil investigasi berupa media (foto/video/voice/dokumen),
+    // bukan lagi teks bebas. Saat revisi, lampiran sebelumnya (jika ada)
+    // dimuat ulang agar eksekutor bisa melengkapi, bukan mulai dari nol.
+    final mediaController = MediaLampiranController();
+    if (revisi) {
+      mediaController.foto.addAll(p.investigasiFoto);
+      mediaController.video.addAll(p.investigasiVideo);
+      mediaController.voice.addAll(p.investigasiVoice);
+      mediaController.dokumen.addAll(p.investigasiDokumen);
+    }
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -195,11 +206,26 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               _infoBlok('Catatan Revisi dari KSPI', p.catatanReviewHasilKspi!),
               const SizedBox(height: 14),
             ],
+            Text(
+              'Hasil Investigasi (Foto / Video / Voice Note / Dokumen)',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            MediaLampiranPicker(
+              controller: mediaController,
+              prefix: p.nomorPengaduan,
+              bucket: 'pengaduan-bukti',
+            ),
+            const SizedBox(height: 10),
             TextField(
               controller: hasilController,
-              maxLines: 4,
+              maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Hasil investigasi',
+                labelText: 'Catatan hasil investigasi (opsional)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -219,10 +245,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (hasilController.text.trim().isEmpty ||
+                  if (mediaController.isEmpty ||
                       rekomendasiController.text.trim().isEmpty) {
                     _showSnack(
-                        'Hasil investigasi & surat rekomendasi wajib diisi.',
+                        'Lampiran hasil investigasi & surat rekomendasi wajib diisi.',
                         const Color(0xFFE74C3C));
                     return;
                   }
@@ -255,6 +281,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           oleh: widget.user.name,
           hasil: hasilController.text.trim(),
           rekomendasi: rekomendasiController.text.trim(),
+          foto: mediaController.foto,
+          video: mediaController.video,
+          voice: mediaController.voice,
+          dokumen: mediaController.dokumen,
         );
         await NotificationService.kirimKeRole(
           role: UserRole.kspi,
@@ -270,6 +300,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           role: UserRole.tpdpk,
           hasil: hasilController.text.trim(),
           rekomendasi: rekomendasiController.text.trim(),
+          foto: mediaController.foto,
+          video: mediaController.video,
+          voice: mediaController.voice,
+          dokumen: mediaController.dokumen,
         );
       }
 

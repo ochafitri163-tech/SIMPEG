@@ -264,7 +264,23 @@ class PengaduanService {
     required String oleh,
     required String hasil,
     required String rekomendasi,
+    List<String> foto = const [],
+    List<String> video = const [],
+    List<String> voice = const [],
+    List<String> dokumen = const [],
   }) async {
+    // Kolom media hanya ditulis bila ada isinya, agar update tidak gagal
+    // ketika kolom array media belum tersedia di skema tabel.
+    final kolom = <String, dynamic>{
+      'hasil_investigasi': hasil,
+      'surat_rekomendasi': rekomendasi,
+      'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
+    };
+    if (foto.isNotEmpty) kolom['investigasi_foto'] = foto;
+    if (video.isNotEmpty) kolom['investigasi_video'] = video;
+    if (voice.isNotEmpty) kolom['investigasi_voice'] = voice;
+    if (dokumen.isNotEmpty) kolom['investigasi_dokumen'] = dokumen;
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.revisiInvestigasi.name,
@@ -272,11 +288,7 @@ class PengaduanService {
       oleh: oleh,
       role: UserRole.tpdpk,
       aksi: 'Mengirim ulang hasil investigasi (revisi)',
-      kolomTambahan: {
-        'hasil_investigasi': hasil,
-        'surat_rekomendasi': rekomendasi,
-        'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
-      },
+      kolomTambahan: kolom,
     );
   }
 
@@ -687,8 +699,8 @@ class PengaduanService {
   }
 
   /// DIREKSI (akun Dirut) — approval tahap 2 (hasil investigasi
-  /// diterima?). Tolak -> arsip. Terima -> menunggu pilih eksekutor
-  /// tindak lanjut.
+  /// diterima?). Tolak -> arsip (pelapor diberi notifikasi template
+  /// otomatis). Terima -> menunggu pilih eksekutor tindak lanjut.
   static Future<void> direksiTahap2Aksi({
     required int pengaduanId,
     required String oleh,
@@ -711,6 +723,20 @@ class PengaduanService {
           'alasan_arsip': catatan,
         },
       );
+
+      // Pelapor diberi tahu dengan pesan template otomatis, agar mereka
+      // tahu pengaduannya sudah diproses tuntas meski hasilnya diarsipkan.
+      final row = await detail(pengaduanId);
+      final pelaporId = row?['pelapor_id'] as String?;
+      if (pelaporId != null) {
+        await NotificationService.kirimKePegawai(
+          pegawaiId: pelaporId,
+          judul: 'Pengaduan telah ditindaklanjuti',
+          pesan: 'Terimakasih, pengaduan Anda '
+              '(${row?['nomor_pengaduan']}) sudah kami tindaklanjuti.',
+          pengaduanId: pengaduanId,
+        );
+      }
       return;
     }
 
@@ -732,6 +758,39 @@ class PengaduanService {
       role: UserRole.sdm,
       judul: 'Menunggu tindak lanjut administratif',
       pesan: 'Ada pengaduan yang perlu ditindaklanjuti (penurunan gaji).',
+      pengaduanId: pengaduanId,
+    );
+  }
+
+  /// DIREKSI (akun Dirut) — tahap 2: minta peninjauan kembali. Hasil
+  /// investigasi dianggap belum cukup, sehingga pengaduan dikembalikan ke
+  /// KSPI untuk memilih eksekutor investigasi lagi — alurnya sama persis
+  /// seperti siklus investigasi yang pertama (KSPI pilih eksekutor ->
+  /// investigasi berjalan -> hasil investigasi -> Dirut tahap 2).
+  static Future<void> direksiTahap2PeninjauanKembali({
+    required int pengaduanId,
+    required String oleh,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguDirutTahap2.name,
+      statusBaru: PengaduanStatus.menungguPilihEksekutor.name,
+      oleh: oleh,
+      role: UserRole.direktur,
+      aksi: 'Meminta peninjauan kembali, dikembalikan ke KSPI untuk '
+          'memilih eksekutor investigasi ulang',
+      catatan: catatan,
+      kolomTambahan: {
+        'catatan_peninjauan_kembali': catatan,
+      },
+    );
+
+    await NotificationService.kirimKeRole(
+      role: UserRole.kspi,
+      judul: 'Peninjauan kembali diminta Direktur',
+      pesan: 'Direktur meminta peninjauan kembali atas hasil investigasi. '
+          'Silakan pilih eksekutor investigasi ulang.',
       pengaduanId: pengaduanId,
     );
   }
