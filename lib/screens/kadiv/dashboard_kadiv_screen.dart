@@ -32,14 +32,22 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
   @override
   void initState() {
     super.initState();
-    print('Current auth uid: ${Supabase.instance.client.auth.currentUser?.id}');
-    print('Expected pegawai id: 5aa2fe97-09a0-44c5-b1ec-b8122622b310');
-    _future = PengaduanService.untukRoleSebagaiObjek(UserRole.kadivKategori);
+    _future = _muat();
+  }
+
+  /// Kotak masuk dibatasi sesuai divisi Kadiv yang login: Kadiv
+  /// Administrasi hanya menerima "Pelanggaran Administrasi", Kadiv Teknik
+  /// hanya menerima "Pelanggaran Teknik".
+  Future<List<Pengaduan>> _muat() {
+    return PengaduanService.untukRoleSebagaiObjek(
+      UserRole.kadivKategori,
+      divisiKadiv: widget.user.divisiKadiv?.name,
+    );
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _future = PengaduanService.untukRoleSebagaiObjek(UserRole.kadivKategori);
+      _future = _muat();
     });
     await _future;
   }

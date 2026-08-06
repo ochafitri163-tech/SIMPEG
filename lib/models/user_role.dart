@@ -109,6 +109,18 @@ DivisiKadiv? divisiKadivDariKategori(String kategori) {
   }
 }
 
+/// Kebalikan dari [divisiKadivDariKategori]: memetakan divisi Kadiv ke
+/// nama kategori pengaduan yang dipakai di form pegawai & kolom
+/// `kategori` pada tabel `pengaduan_pegawai`.
+String kategoriDariDivisiKadiv(DivisiKadiv divisi) {
+  switch (divisi) {
+    case DivisiKadiv.administrasi:
+      return 'Pelanggaran Administrasi';
+    case DivisiKadiv.teknik:
+      return 'Pelanggaran Teknik';
+  }
+}
+
 class AppUser {
   final String nik;
   final String name;
