@@ -34,6 +34,14 @@ Pengaduan pengaduanFromRow(
     return Eksekutor.values.firstWhere((e) => e.name == s);
   }
 
+  DivisiKadiv? parseDivisiKadiv(String? s) {
+    if (s == null) return null;
+    return DivisiKadiv.values.firstWhere(
+      (e) => e.name == s,
+      orElse: () => DivisiKadiv.administrasi,
+    );
+  }
+
   final pengaduan = Pengaduan(
     tindakLanjutDiminta: row['tindak_lanjut_diminta'] as String?,
     alasanPenolakanDirektur: row['alasan_penolakan_direktur'] as String?,
@@ -68,6 +76,8 @@ Pengaduan pengaduanFromRow(
     catatanDirutTahap1: row['catatan_dirut_tahap1'] as String?,
     eksekutor: parseEksekutor(row['eksekutor'] as String?),
     petugasInvestigasi: row['petugas_investigasi'] as String?,
+    eksekutorDivisiKadiv:
+        parseDivisiKadiv(row['eksekutor_divisi_kadiv'] as String?),
     hasilInvestigasi: row['hasil_investigasi'] as String?,
     suratRekomendasi: row['surat_rekomendasi'] as String?,
     tanggalHasilInvestigasi: row['tanggal_hasil_investigasi'] != null
@@ -78,6 +88,8 @@ Pengaduan pengaduanFromRow(
     catatanDirutTahap2: row['catatan_dirut_tahap2'] as String?,
     eksekutorTindakLanjut:
         parseEksekutor(row['eksekutor_tindak_lanjut'] as String?),
+    eksekutorTindakLanjutDivisiKadiv: parseDivisiKadiv(
+        row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?),
     catatanTindakLanjutSelesai: row['catatan_tindak_lanjut_selesai'] as String?,
     catatanSdm: row['catatan_sdm'] as String?,
     arsipPadaTahap: row['arsip_pada_tahap'] as String?,
@@ -107,6 +119,12 @@ extension PengaduanIdX on Pengaduan {
 /// CATATAN SKEMA TABEL `pegawai`: perlu kolom `divisi_kadiv` (nilai
 /// 'administrasi' / 'teknik', hanya diisi untuk role kadivKategori) agar
 /// notifikasi pengaduan baru hanya terkirim ke Kadiv yang relevan.
+///
+/// CATATAN SKEMA TABEL `pengaduan_pegawai`: perlu 2 kolom tambahan
+/// bertipe text agar penugasan eksekutor ke Kadiv Administrasi/Teknik
+/// tersimpan per divisi (bukan cuma 'kadiv' generik):
+///   - `eksekutor_divisi_kadiv` (tahap investigasi)
+///   - `eksekutor_tindak_lanjut_divisi_kadiv` (tahap tindak lanjut)
 /// =============================================================
 class PengaduanService {
   PengaduanService._();
@@ -160,28 +178,53 @@ class PengaduanService {
     );
   }
 
-  /// KSPI — review awal & pilih eksekutor investigasi.
+  /// KSPI — review awal & pilih eksekutor investigasi. Eksekutor bisa
+  /// TPDPK, atau salah satu dari 2 Kadiv (Administrasi/Teknik) — kalau
+  /// eksekutor == 'kadiv', [divisiKadiv] WAJIB diisi ('administrasi' |
+  /// 'teknik') supaya tugas hanya masuk ke kotak masuk Kadiv yang dipilih.
   static Future<void> reviewDanPilihEksekutor({
     required int pengaduanId,
     required String oleh,
     required String eksekutor, // 'kadiv' | 'tpdpk'
+    String? divisiKadiv, // 'administrasi' | 'teknik', wajib bila eksekutor == 'kadiv'
     String? petugas,
     String? catatan,
   }) async {
     final statusBaru = PengaduanStatus.investigasiBerjalan.name;
+    final divisi = divisiKadiv != null
+        ? DivisiKadiv.values.firstWhere((e) => e.name == divisiKadiv)
+        : null;
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutor.name,
       statusBaru: statusBaru,
       oleh: oleh,
       role: UserRole.kspi,
-      aksi: 'Review & memilih eksekutor: $eksekutor',
+      aksi: 'Review & memilih eksekutor: '
+          '${eksekutor == 'kadiv' ? divisi?.label ?? 'Kadiv Kategori' : 'TPDPK'}',
       catatan: catatan,
       kolomTambahan: {
         'eksekutor': eksekutor,
+        'eksekutor_divisi_kadiv': divisiKadiv,
         'petugas_investigasi': petugas,
       },
     );
+
+    if (eksekutor == 'kadiv' && divisi != null) {
+      await NotificationService.kirimKeKadivDivisi(
+        divisi: divisi,
+        judul: 'Penugasan investigasi baru',
+        pesan: 'Silakan lakukan investigasi & kirim hasilnya.',
+        pengaduanId: pengaduanId,
+      );
+    } else {
+      await NotificationService.kirimKeRole(
+        role: UserRole.tpdpk,
+        judul: 'Penugasan investigasi baru',
+        pesan: 'Silakan lakukan investigasi & kirim hasilnya.',
+        pengaduanId: pengaduanId,
+      );
+    }
   }
 
   /// KSPI — review hasil investigasi. Sesuai -> Direktur, tidak -> revisi.
@@ -404,12 +447,17 @@ class PengaduanService {
 
   /// Mengambil daftar pengaduan untuk sebuah role.
   ///
-  /// Khusus role Kadiv: bila [divisiKadiv] diisi, pengaduan yang masih
-  /// berstatus `menungguKadiv` HANYA dikembalikan bila kategorinya cocok
-  /// dengan divisi Kadiv tersebut. Jadi pengaduan "Pelanggaran
-  /// Administrasi" tidak akan pernah muncul di kotak masuk Kadiv Teknik,
-  /// dan sebaliknya. Pengaduan pada tahap lanjut (mis. investigasi yang
-  /// ditugaskan ke Kadiv) tetap ikut agar tidak hilang dari dashboard.
+  /// Khusus role Kadiv: bila [divisiKadiv] diisi, dua hal disaring sesuai
+  /// divisi:
+  /// 1. Pengaduan yang masih berstatus `menungguKadiv` HANYA dikembalikan
+  ///    bila kategorinya cocok dengan divisi Kadiv tersebut.
+  /// 2. Pengaduan yang sudah ditugaskan sebagai eksekutor investigasi
+  ///    atau eksekutor tindak lanjut ke Kadiv HANYA dikembalikan bila
+  ///    Kadiv yang ditugaskan (`eksekutor_divisi_kadiv` /
+  ///    `eksekutor_tindak_lanjut_divisi_kadiv`) adalah divisi Kadiv ini.
+  /// Jadi pengaduan "Pelanggaran Administrasi" atau tugas investigasi ke
+  /// Kadiv Administrasi tidak akan pernah muncul di kotak masuk Kadiv
+  /// Teknik, dan sebaliknya.
   static Future<List<Map<String, dynamic>>> untukRole(
     UserRole role, {
     String? divisiKadiv,
@@ -426,15 +474,41 @@ class PengaduanService {
 
     return semua.where((row) {
       final status = row['status'] as String?;
+
       final belumDiverifikasi =
           status == PengaduanStatus.menungguKadiv.name ||
               status == PengaduanStatus.menungguVerifikasiKadiv.name;
-      if (!belumDiverifikasi) return true;
-      final divisi = divisiKadivDariKategori((row['kategori'] ?? '') as String);
-      // Kategori tak dikenal -> tampilkan ke semua Kadiv supaya tidak
-      // ada pengaduan yang "nyangkut" tanpa penanggung jawab.
-      if (divisi == null) return true;
-      return divisi.name == divisiKadiv;
+      if (belumDiverifikasi) {
+        final divisi = divisiKadivDariKategori((row['kategori'] ?? '') as String);
+        // Kategori tak dikenal -> tampilkan ke semua Kadiv supaya tidak
+        // ada pengaduan yang "nyangkut" tanpa penanggung jawab.
+        if (divisi == null) return true;
+        return divisi.name == divisiKadiv;
+      }
+
+      final eksekutorNama = row['eksekutor'] as String?;
+      final sedangDiinvestigasiOlehKadiv =
+          status == PengaduanStatus.investigasiBerjalan.name &&
+              eksekutorNama == Eksekutor.kadiv.name;
+      if (sedangDiinvestigasiOlehKadiv) {
+        final divisi = row['eksekutor_divisi_kadiv'] as String?;
+        // Belum ada divisi tercatat (data lama) -> tetap tampilkan agar
+        // tidak hilang, alih-alih menyembunyikannya dari semua Kadiv.
+        if (divisi == null) return true;
+        return divisi == divisiKadiv;
+      }
+
+      final eksekutorTLNama = row['eksekutor_tindak_lanjut'] as String?;
+      final sedangTindakLanjutOlehKadiv =
+          status == PengaduanStatus.tindakLanjutBerjalan.name &&
+              eksekutorTLNama == Eksekutor.kadiv.name;
+      if (sedangTindakLanjutOlehKadiv) {
+        final divisi = row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?;
+        if (divisi == null) return true;
+        return divisi == divisiKadiv;
+      }
+
+      return true;
     }).toList();
   }
 

@@ -391,7 +391,10 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               final tindakLanjut = semua
                   .where((p) =>
                       p.status == PengaduanStatus.investigasiBerjalan &&
-                      p.eksekutor == Eksekutor.kadiv)
+                      p.eksekutor == Eksekutor.kadiv &&
+                      (widget.user.divisiKadiv == null ||
+                          p.eksekutorDivisiKadiv == null ||
+                          p.eksekutorDivisiKadiv == widget.user.divisiKadiv))
                   .toList();
 
               content = Column(

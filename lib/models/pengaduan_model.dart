@@ -272,6 +272,10 @@ class Pengaduan {
   // --- Tahap KSPI: pilih eksekutor investigasi ---
   Eksekutor? eksekutor;
   String? petugasInvestigasi;
+  /// Diisi hanya bila [eksekutor] == Eksekutor.kadiv — menentukan Kadiv
+  /// divisi apa (administrasi/teknik) yang jadi eksekutor investigasi,
+  /// supaya tugas ini hanya muncul di kotak masuk Kadiv yang bersangkutan.
+  DivisiKadiv? eksekutorDivisiKadiv;
 
   // --- Tahap Investigasi (eksekutor: Kadiv/TPDPK) ---
   String? hasilInvestigasi;
@@ -284,6 +288,9 @@ class Pengaduan {
 
   // --- Tahap tindak lanjut ---
   Eksekutor? eksekutorTindakLanjut;
+  /// Sama seperti [eksekutorDivisiKadiv] tapi untuk tahap tindak lanjut
+  /// (setelah Dirut tahap 2 menerima hasil investigasi).
+  DivisiKadiv? eksekutorTindakLanjutDivisiKadiv;
   String? catatanTindakLanjutSelesai;
 
   // --- Tahap SDM (final) ---
@@ -326,12 +333,14 @@ class Pengaduan {
     this.catatanDirutTahap1,
     this.eksekutor,
     this.petugasInvestigasi,
+    this.eksekutorDivisiKadiv,
     this.hasilInvestigasi,
     this.suratRekomendasi,
     this.tanggalHasilInvestigasi,
     this.keputusanDirutTahap2,
     this.catatanDirutTahap2,
     this.eksekutorTindakLanjut,
+    this.eksekutorTindakLanjutDivisiKadiv,
     this.catatanTindakLanjutSelesai,
     this.catatanSdm,
     this.arsipPadaTahap,

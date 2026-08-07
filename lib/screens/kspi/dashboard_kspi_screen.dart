@@ -266,7 +266,12 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
 
   // ---------- 1. Review awal & pilih eksekutor ----------
   Future<void> _bukaReviewEksekutor(Pengaduan p) async {
+    // Eksekutor sekarang ada 3 pilihan konkret: Kadiv Administrasi, Kadiv
+    // Teknik, atau TPDPK — bukan lagi 'Kadiv Kategori' generik, supaya
+    // tugas investigasi langsung masuk ke kotak masuk Kadiv yang benar
+    // sesuai divisinya.
     Eksekutor eksekutorDipilih = Eksekutor.kadiv;
+    DivisiKadiv divisiDipilih = DivisiKadiv.administrasi;
     int jumlahPetugas = 1;
     final List<TextEditingController> petugasControllers = [
       TextEditingController()
@@ -274,6 +279,30 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     final catatanController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
+      Widget pilihanEksekutorChip({
+        required String label,
+        required bool selected,
+        required VoidCallback onTap,
+      }) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: selected
+                          ? Colors.white
+                          : AppColors.textPrimary(context),
+                      fontWeight: FontWeight.w600)),
+              selected: selected,
+              selectedColor: _accent,
+              onSelected: (_) => setSheetState(onTap),
+            ),
+          ),
+        );
+      }
+
       return SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -290,73 +319,76 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Row(
-              children:
-                  Eksekutor.values.where((e) => e != Eksekutor.kspi).map((e) {
-                final selected = eksekutorDipilih == e;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(e.label,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: selected ? Colors.white : AppColors.textPrimary(context),
-                              fontWeight: FontWeight.w600)),
-                      selected: selected,
-                      selectedColor: _accent,
-                      onSelected: (_) =>
-                          setSheetState(() => eksekutorDipilih = e),
-                    ),
-                  ),
-                );
-              }).toList(),
+              children: [
+                pilihanEksekutorChip(
+                  label: DivisiKadiv.administrasi.label,
+                  selected: eksekutorDipilih == Eksekutor.kadiv &&
+                      divisiDipilih == DivisiKadiv.administrasi,
+                  onTap: () {
+                    eksekutorDipilih = Eksekutor.kadiv;
+                    divisiDipilih = DivisiKadiv.administrasi;
+                  },
+                ),
+                pilihanEksekutorChip(
+                  label: DivisiKadiv.teknik.label,
+                  selected: eksekutorDipilih == Eksekutor.kadiv &&
+                      divisiDipilih == DivisiKadiv.teknik,
+                  onTap: () {
+                    eksekutorDipilih = Eksekutor.kadiv;
+                    divisiDipilih = DivisiKadiv.teknik;
+                  },
+                ),
+                pilihanEksekutorChip(
+                  label: 'TPDPK',
+                  selected: eksekutorDipilih == Eksekutor.tpdpk,
+                  onTap: () => eksekutorDipilih = Eksekutor.tpdpk,
+                ),
+              ],
             ),
-            if (eksekutorDipilih != Eksekutor.kspi) ...[
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('Jumlah petugas investigasi',
-                        style: TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Jumlah petugas investigasi',
+                      style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w700)),
+                ),
+                IconButton(
+                  onPressed: jumlahPetugas > 1
+                      ? () => setSheetState(() {
+                            jumlahPetugas--;
+                            petugasControllers.removeLast().dispose();
+                          })
+                      : null,
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                  color: _accent,
+                ),
+                Text('$jumlahPetugas',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                IconButton(
+                  onPressed: () => setSheetState(() {
+                    jumlahPetugas++;
+                    petugasControllers.add(TextEditingController());
+                  }),
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  color: _accent,
+                ),
+              ],
+            ),
+            ...List.generate(jumlahPetugas, (i) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextField(
+                  controller: petugasControllers[i],
+                  decoration: InputDecoration(
+                    labelText: 'Nama petugas investigasi ${i + 1}',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
-                  IconButton(
-                    onPressed: jumlahPetugas > 1
-                        ? () => setSheetState(() {
-                              jumlahPetugas--;
-                              petugasControllers.removeLast().dispose();
-                            })
-                        : null,
-                    icon: const Icon(Icons.remove_circle_outline_rounded),
-                    color: _accent,
-                  ),
-                  Text('$jumlahPetugas',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    onPressed: () => setSheetState(() {
-                      jumlahPetugas++;
-                      petugasControllers.add(TextEditingController());
-                    }),
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                    color: _accent,
-                  ),
-                ],
-              ),
-              ...List.generate(jumlahPetugas, (i) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: TextField(
-                    controller: petugasControllers[i],
-                    decoration: InputDecoration(
-                      labelText: 'Nama petugas investigasi ${i + 1}',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                );
-              }),
-            ],
+                ),
+              );
+            }),
             const SizedBox(height: 14),
             TextField(
               controller: catatanController,
@@ -372,8 +404,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (eksekutorDipilih != Eksekutor.kspi &&
-                      petugasControllers.any((c) => c.text.trim().isEmpty)) {
+                  if (petugasControllers.any((c) => c.text.trim().isEmpty)) {
                     _showSnack('Nama semua petugas investigasi wajib diisi.',
                         const Color(0xFFE74C3C));
                     return;
@@ -405,29 +436,25 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         .where((s) => s.isNotEmpty)
         .join(', ');
 
+    final labelTujuan = eksekutorDipilih == Eksekutor.kadiv
+        ? divisiDipilih.label
+        : 'TPDPK';
+
     try {
       await PengaduanService.reviewDanPilihEksekutor(
         pengaduanId: id,
         oleh: widget.user.name,
         eksekutor: eksekutorDipilih.name,
+        divisiKadiv:
+            eksekutorDipilih == Eksekutor.kadiv ? divisiDipilih.name : null,
         petugas: daftarPetugas.isEmpty ? null : daftarPetugas,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
       );
 
-      await NotificationService.kirimKeRole(
-        role: eksekutorDipilih == Eksekutor.kadiv
-            ? UserRole.kadivKategori
-            : UserRole.tpdpk,
-        judul: 'Penugasan investigasi baru',
-        pesan:
-            '${p.nomorPengaduan} ditugaskan sebagai eksekutor: ${eksekutorDipilih.label}.',
-        pengaduanId: id,
-      );
-
       if (!mounted) return;
-      _showSnack('${p.nomorPengaduan} diteruskan ke ${eksekutorDipilih.label}.',
+      _showSnack('${p.nomorPengaduan} diteruskan ke $labelTujuan.',
           const Color(0xFF27AE60));
       await _refresh();
     } catch (e) {

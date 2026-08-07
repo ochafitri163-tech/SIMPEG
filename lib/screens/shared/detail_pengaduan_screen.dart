@@ -431,7 +431,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               Icon(Icons.assignment_ind_outlined, size: 15, color: hintGrey),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('Eksekutor Investigasi: ${p.eksekutor!.label}',
+                child: Text(
+                    'Eksekutor Investigasi: '
+                    '${p.eksekutor == Eksekutor.kadiv && p.eksekutorDivisiKadiv != null ? p.eksekutorDivisiKadiv!.label : p.eksekutor!.label}',
                     style: TextStyle(
                         fontSize: 12,
                         color: hintGrey,
