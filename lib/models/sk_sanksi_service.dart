@@ -57,22 +57,9 @@ extension JenisDokumenSkX on JenisDokumenSk {
       case JenisDokumenSk.buktiPelanggaran:
         return 'Bukti Pelanggaran';
       case JenisDokumenSk.hasilInvestigasiSpi:
-        return 'Surat Hasil Investigasi SPI';
+        return 'Surat Hasil Investigasi';
       case JenisDokumenSk.keputusanDireksi:
-        return 'Keputusan Direksi (DIRUT)';
-    }
-  }
-
-  String get keterangan {
-    switch (this) {
-      case JenisDokumenSk.sk:
-        return 'Isi keputusan, mis. penurunan jabatan dari Asmen ke Staf.';
-      case JenisDokumenSk.buktiPelanggaran:
-        return 'Bukti perbuatan, mis. sabotase jaringan / kerusakan meter air.';
-      case JenisDokumenSk.hasilInvestigasiSpi:
-        return 'Lampiran yang diinput SPI sebagai hasil investigasi.';
-      case JenisDokumenSk.keputusanDireksi:
-        return 'Surat persetujuan/keputusan dari Direktur Utama.';
+        return 'Keputusan Direksi';
     }
   }
 

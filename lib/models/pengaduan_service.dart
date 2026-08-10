@@ -57,6 +57,9 @@ Pengaduan pengaduanFromRow(
     nik: row['nik'] as String,
     cabang: (row['cabang'] ?? '') as String,
     golongan: (row['golongan'] ?? '') as String,
+    pihakTerlapor: row['pihak_terlapor'] as String?,
+    nikPelaku: row['nik_pelaku'] as String?,
+    jabatanPelaku: row['jabatan_pelaku'] as String?,
     anonim: (row['anonim'] ?? false) as bool,
     status: parseStatus(row['status'] as String?),
     fotoBukti: List<String>.from(row['foto_bukti'] ?? const []),
@@ -337,11 +340,22 @@ class PengaduanService {
 
   /// Submit pengaduan baru oleh pegawai. Kategori pengaduan (dipilih
   /// pegawai di form) menentukan Kadiv divisi mana yang diberi notifikasi.
+  ///
+  /// CATATAN SKEMA TABEL `pengaduan_pegawai`: perlu 2 kolom tambahan
+  /// bertipe text agar data pelaku/pihak yang diadukan (NIK & jabatan)
+  /// tersimpan dan bisa ditampilkan di semua riwayat/status pengaduan
+  /// di semua role:
+  ///   - `nik_pelaku`
+  ///   - `jabatan_pelaku`
+  /// (kolom `pihak_terlapor` yang sudah ada dipakai untuk nama pelaku.)
   static Future<void> submit({
     required AppUser user,
     required String kategori,
     required String judul,
     required String deskripsi,
+    required String pihakTerlapor,
+    required String nikPelaku,
+    required String jabatanPelaku,
     List<String> fotoBukti = const [],
     List<String> videoBukti = const [],
     List<String> voiceNote = const [],
@@ -374,6 +388,9 @@ class PengaduanService {
               'nik': user.nik,
               'cabang': user.unitKerja,
               'golongan': user.golongan,
+              'pihak_terlapor': pihakTerlapor.trim(),
+              'nik_pelaku': nikPelaku.trim(),
+              'jabatan_pelaku': jabatanPelaku.trim(),
               'anonim': anonim,
               'foto_bukti': fotoBukti,
               'video_bukti': videoBukti,
@@ -411,6 +428,10 @@ class PengaduanService {
       'status_lama': null,
       'oleh': 'Sistem',
       'aksi': 'Pengaduan dibuat',
+      // Keterangan awal berisi info pelaku (nama/NIK/jabatan) supaya
+      // langsung terlihat di riwayat paling atas untuk semua role.
+      'keterangan': 'Pelaku diadukan: ${pihakTerlapor.trim()} · '
+          'NIK ${nikPelaku.trim()} · ${jabatanPelaku.trim()}',
     });
 
     // Notifikasi hanya ke Kadiv divisi yang sesuai kategori.

@@ -247,6 +247,14 @@ class Pengaduan {
   final String nik;
   final String cabang;
   final String golongan;
+  /// Nama pihak/pelaku yang diadukan — orang yang dituju oleh pengaduan
+  /// ini, WAJIB diisi pelapor saat membuat pengaduan.
+  final String? pihakTerlapor;
+  /// NIK pelaku/pihak yang diadukan — WAJIB diisi bersama [pihakTerlapor].
+  final String? nikPelaku;
+  /// Jabatan pelaku/pihak yang diadukan — WAJIB diisi bersama
+  /// [pihakTerlapor].
+  final String? jabatanPelaku;
   final bool anonim;
   final List<String> fotoBukti;
   final List<String> dokumenPendukung;
@@ -316,6 +324,9 @@ class Pengaduan {
     required this.nik,
     required this.cabang,
     required this.golongan,
+    this.pihakTerlapor,
+    this.nikPelaku,
+    this.jabatanPelaku,
     required this.status,
     this.anonim = false,
     List<String>? fotoBukti,
@@ -359,6 +370,34 @@ class Pengaduan {
         investigasiVoice = investigasiVoice ?? [],
         investigasiDokumen = investigasiDokumen ?? [],
         riwayatStatus = riwayatStatus ?? [];
+
+  /// Apakah data pelaku (nama/NIK/jabatan) sudah lengkap diisi.
+  bool get adaDataPelaku =>
+      (pihakTerlapor != null && pihakTerlapor!.trim().isNotEmpty) ||
+      (nikPelaku != null && nikPelaku!.trim().isNotEmpty) ||
+      (jabatanPelaku != null && jabatanPelaku!.trim().isNotEmpty);
+
+  /// Ringkasan data pelaku/pihak yang diadukan (Nama, NIK, Jabatan),
+  /// diformat satu baris supaya bisa ditampilkan secara konsisten di
+  /// kartu info pengaduan maupun di setiap baris riwayat/status, di
+  /// semua role (Kadiv, Dirut, KSPI, TPDPK, SDM, Pegawai).
+  String get infoPelakuRingkas {
+    final bagian = <String>[];
+    if (pihakTerlapor != null && pihakTerlapor!.trim().isNotEmpty) {
+      bagian.add(pihakTerlapor!.trim());
+    }
+    if (nikPelaku != null && nikPelaku!.trim().isNotEmpty) {
+      bagian.add('NIK ${nikPelaku!.trim()}');
+    }
+    if (jabatanPelaku != null && jabatanPelaku!.trim().isNotEmpty) {
+      bagian.add(jabatanPelaku!.trim());
+    }
+    if (bagian.isEmpty) return '-';
+    return bagian.join(' · ');
+  }
+
+  /// Label lengkap "Pelaku: ..." dipakai di keterangan riwayat status.
+  String get infoPelakuLabel => 'Pelaku diadukan: $infoPelakuRingkas';
 
   /// Keterangan/catatan terakhir dari riwayat status.
   String? get keteranganTerakhir {

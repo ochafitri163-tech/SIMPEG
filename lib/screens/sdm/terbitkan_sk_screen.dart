@@ -248,9 +248,7 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _kotakAlur(),
-              const SizedBox(height: 18),
-              _judulBagian('1. Pegawai Terlapor'),
+              _judulBagian('1. Pegawai Terlapor', icon: Icons.badge_rounded),
               _kartu([
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,21 +297,8 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
                 _field(controller: _namaController, label: 'Nama pegawai'),
               ]),
               const SizedBox(height: 18),
-              _judulBagian('2. Isi Keputusan'),
+              _judulBagian('2. Isi Keputusan', icon: Icons.gavel_rounded),
               _kartu([
-                DropdownButtonFormField<String>(
-                  value: _jenisSanksi,
-                  decoration: _dekorasi('Jenis sanksi'),
-                  items: [
-                    for (final j in jenisSanksiPilihan)
-                      DropdownMenuItem(
-                          value: j,
-                          child: Text(j, style: const TextStyle(fontSize: 13))),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => _jenisSanksi = v ?? _jenisSanksi),
-                ),
-                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _tingkat,
                   decoration: _dekorasi('Tingkat pelanggaran'),
@@ -326,54 +311,69 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
                   onChanged: (v) => setState(() => _tingkat = v ?? _tingkat),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(
-                          controller: _jabatanLamaController,
-                          label: 'Jabatan lama'),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _field(
-                          controller: _jabatanBaruController,
-                          label: 'Jabatan baru'),
-                    ),
+                DropdownButtonFormField<String>(
+                  value: _jenisSanksi,
+                  decoration: _dekorasi('Jenis sanksi'),
+                  items: [
+                    for (final j in jenisSanksiPilihan)
+                      DropdownMenuItem(
+                          value: j,
+                          child: Text(j, style: const TextStyle(fontSize: 13))),
                   ],
+                  onChanged: (v) =>
+                      setState(() => _jenisSanksi = v ?? _jenisSanksi),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(
-                          controller: _golonganLamaController,
-                          label: 'Golongan lama'),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _field(
-                          controller: _golonganBaruController,
-                          label: 'Golongan baru'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _field(
-                  controller: _nominalController,
-                  label: 'Penurunan payment / potongan gaji (Rp)',
-                  keyboardType: TextInputType.number,
-                  prefixText: 'Rp ',
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Jabatan turun berarti payment ikut berkurang. Nominal ini '
-                  'langsung dipotong dari slip gaji periode terbaru pegawai.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.35,
-                    color: AppColors.textSecondary(context),
+                if (_tingkat == 'Berat') ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _field(
+                            controller: _jabatanLamaController,
+                            label: 'Jabatan lama'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _field(
+                            controller: _jabatanBaruController,
+                            label: 'Jabatan baru'),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _field(
+                            controller: _golonganLamaController,
+                            label: 'Golongan lama'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _field(
+                            controller: _golonganBaruController,
+                            label: 'Golongan baru'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    controller: _nominalController,
+                    label: 'Penurunan payment / potongan gaji (Rp)',
+                    keyboardType: TextInputType.number,
+                    prefixText: 'Rp ',
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Jabatan turun berarti payment ikut berkurang. Nominal ini '
+                    'langsung dipotong dari slip gaji periode terbaru pegawai.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.35,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 InkWell(
                   onTap: _pilihTanggal,
@@ -401,34 +401,8 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
                 ),
               ]),
               const SizedBox(height: 18),
-              _judulBagian('3. Persetujuan DIRUT'),
-              _kartu([
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  value: _validasiLisanDirut,
-                  activeColor: _green,
-                  onChanged: (v) => setState(() => _validasiLisanDirut = v),
-                  title: const Text(
-                    'Sudah divalidasi (lisan) & disetujui DIRUT',
-                    style:
-                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'SDM mengonfirmasi data pelanggaran ke DIRUT sebelum SK '
-                    'diterbitkan.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _field(
-                    controller: _disetujuiOlehController,
-                    label: 'Disetujui oleh'),
-              ]),
-              const SizedBox(height: 18),
-              _judulBagian('4. Dokumen Wajib (4) + Tambahan'),
+              _judulBagian('3. Dokumen Wajib (4) + Tambahan',
+                  icon: Icons.folder_copy_rounded),
               _kartu([
                 DokumenSkPicker(
                   controller: _dokumen,
@@ -469,65 +443,41 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
     );
   }
 
-  Widget _kotakAlur() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: _navy.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _navy.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.route_rounded, size: 17, color: _navy),
-              SizedBox(width: 7),
-              Text('Alur penerbitan SK',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: _navy)),
+  Widget _judulBagian(String teks, {IconData? icon}) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 15, color: _accent),
+              const SizedBox(width: 6),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Pelanggaran terbukti \u2192 SPI input lampiran investigasi \u2192 '
-            'SDM validasi ke DIRUT \u2192 DIRUT setuju \u2192 SK terbit '
-            '(jabatan turun, payment berkurang) \u2192 pegawai menerima '
-            '4 dokumen.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.45,
-              color: AppColors.textSecondary(context),
+            Text(
+              teks.toUpperCase(),
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: AppColors.textSecondary(context),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _judulBagian(String teks) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          teks.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: AppColors.textSecondary(context),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: AppColors.divider(context),
+              ),
+            ),
+          ],
         ),
       );
 
   Widget _kartu(List<Widget> anak) => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider(context), width: 1),
           boxShadow: AppColors.cardShadow(context),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: anak),

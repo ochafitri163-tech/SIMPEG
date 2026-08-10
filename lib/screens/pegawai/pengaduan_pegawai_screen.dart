@@ -54,6 +54,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   };
 
   final _judulController = TextEditingController();
+  final _pihakTerlaporController = TextEditingController();
+  final _nikPelakuController = TextEditingController();
+  final _jabatanPelakuController = TextEditingController();
   final _deskripsiController = TextEditingController();
 
   String? _kategori;
@@ -65,6 +68,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   @override
   void dispose() {
     _judulController.dispose();
+    _pihakTerlaporController.dispose();
+    _nikPelakuController.dispose();
+    _jabatanPelakuController.dispose();
     _deskripsiController.dispose();
     super.dispose();
   }
@@ -263,6 +269,18 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   }
 
   Future<void> _kirimPengaduan() async {
+    if (_pihakTerlaporController.text.trim().isEmpty) {
+      _showSnack('Nama pelaku/pihak yang diadukan tidak boleh kosong.', red);
+      return;
+    }
+    if (_nikPelakuController.text.trim().isEmpty) {
+      _showSnack('NIK pelaku tidak boleh kosong.', red);
+      return;
+    }
+    if (_jabatanPelakuController.text.trim().isEmpty) {
+      _showSnack('Jabatan pelaku tidak boleh kosong.', red);
+      return;
+    }
     if (_kategori == null) {
       _showSnack('Silakan pilih kategori pengaduan.', red);
       return;
@@ -286,6 +304,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
         user: widget.user,
         kategori: _kategori!,
         judul: _judulController.text.trim(),
+        pihakTerlapor: _pihakTerlaporController.text.trim(),
+        nikPelaku: _nikPelakuController.text.trim(),
+        jabatanPelaku: _jabatanPelakuController.text.trim(),
         deskripsi: _deskripsiController.text.trim(),
         fotoBukti: [...fotoUrls, ..._mediaController.foto],
         videoBukti: _mediaController.video,
@@ -328,6 +349,23 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
               children: [
+                _buildFieldLabel('Pelaku / Pihak yang Diadukan'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _pihakTerlaporController,
+                  hint: 'Nama pegawai atau unit terkait',
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  controller: _nikPelakuController,
+                  hint: 'NIK pelaku',
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  controller: _jabatanPelakuController,
+                  hint: 'Jabatan pelaku',
+                ),
+                const SizedBox(height: 18),
                 _buildFieldLabel('Kategori'),
                 const SizedBox(height: 8),
                 _buildKategoriField(),

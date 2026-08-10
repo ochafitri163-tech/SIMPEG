@@ -404,6 +404,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               ),
             ],
           ),
+          if (p.adaDataPelaku) ...[
+            SizedBox(height: isSmallScreen ? 10.0 : 12.0),
+            _buildPelakuCard(p, isSmallScreen),
+          ],
           SizedBox(height: isSmallScreen ? 10.0 : 12.0),
           Text(p.judul,
               style: TextStyle(
@@ -550,6 +554,68 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             color: labelDark));
   }
 
+  /// Kartu info pelaku/pihak yang diadukan (Nama, NIK, Jabatan) — selalu
+  /// ditampilkan mencolok di bagian atas, terlihat oleh semua role.
+  Widget _buildPelakuCard(Pengaduan p, bool isSmallScreen) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmallScreen ? 12.0 : 14.0),
+      decoration: BoxDecoration(
+        color: red.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: red.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.report_gmailerrorred_rounded,
+                  size: isSmallScreen ? 15.0 : 16.0, color: red),
+              const SizedBox(width: 6),
+              Text('Pelaku / Pihak yang Diadukan',
+                  style: TextStyle(
+                      fontSize: isSmallScreen ? 11.5 : 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: red)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (p.pihakTerlapor != null && p.pihakTerlapor!.trim().isNotEmpty)
+            _buildPelakuRow('Nama', p.pihakTerlapor!.trim(), isSmallScreen),
+          if (p.nikPelaku != null && p.nikPelaku!.trim().isNotEmpty)
+            _buildPelakuRow('NIK', p.nikPelaku!.trim(), isSmallScreen),
+          if (p.jabatanPelaku != null && p.jabatanPelaku!.trim().isNotEmpty)
+            _buildPelakuRow('Jabatan', p.jabatanPelaku!.trim(), isSmallScreen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPelakuRow(String label, String value, bool isSmallScreen) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 58,
+            child: Text(label,
+                style:
+                    TextStyle(fontSize: isSmallScreen ? 11.0 : 12.0, color: hintGrey)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: TextStyle(
+                    fontSize: isSmallScreen ? 11.5 : 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: labelDark)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTimeline(Pengaduan p, bool isSmallScreen) {
     if (p.riwayatStatus.isEmpty) {
       return Text('Belum ada riwayat.',
@@ -572,14 +638,17 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           for (int i = 0; i < p.riwayatStatus.length; i++)
             _buildTimelineItem(p.riwayatStatus[i],
                 isLast: i == p.riwayatStatus.length - 1,
-                isSmallScreen: isSmallScreen),
+                isSmallScreen: isSmallScreen,
+                pelakuLabel: p.adaDataPelaku ? p.infoPelakuLabel : null),
         ],
       ),
     );
   }
 
   Widget _buildTimelineItem(StatusHistoryEntry h,
-      {required bool isLast, required bool isSmallScreen}) {
+      {required bool isLast,
+      required bool isSmallScreen,
+      String? pelakuLabel}) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,6 +684,15 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       style: TextStyle(
                           fontSize: isSmallScreen ? 10.5 : 11.0,
                           color: hintGrey)),
+                  if (pelakuLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(pelakuLabel,
+                        style: TextStyle(
+                            fontSize: isSmallScreen ? 11.0 : 11.5,
+                            color: red,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4)),
+                  ],
                   if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(h.keterangan!,

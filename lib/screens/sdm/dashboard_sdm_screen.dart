@@ -95,7 +95,30 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             color: AppColors.divider(context), borderRadius: BorderRadius.circular(10)),
       );
 
-  // ---------- Selesaikan tindak lanjut administratif ----------
+  // ---------- Selesaikan tindak lanjut administratif (via SK Sanksi) ----------
+  // Tombol "Selesaikan" pada kartu pengaduan langsung membuka form
+  // Terbitkan SK Sanksi dengan data pengaduan (NIK, nama, golongan,
+  // ringkasan) sudah terisi otomatis. Saat SK diterbitkan di sana,
+  // [SkSanksiService.terbitkan] otomatis menandai pengaduan ini selesai
+  // (lihat pengaduanId di dalamnya), jadi tidak perlu lagi menu terpisah
+  // "Terbitkan SK Sanksi" di titik tiga.
+  Future<void> _bukaTerbitkanSk(Pengaduan p) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TerbitkanSkScreen(
+          user: widget.user,
+          pengaduan: p,
+          pengaduanId: p.supabaseId,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _refresh();
+  }
+
+  // ---------- (lama) Selesaikan tanpa SK — tidak lagi dipakai tombol utama,
+  // tetap disimpan agar tidak menghapus fitur/logic yang sudah ada. ----------
   Future<void> _bukaSelesaikan(Pengaduan p) async {
     final catatanController = TextEditingController();
     final nikController = TextEditingController();
@@ -278,7 +301,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               content = _buildSection(
                 'MENUNGGU TINDAK LANJUT SDM',
                 menungguSdm,
-                (p) => _bukaSelesaikan(p),
+                (p) => _bukaTerbitkanSk(p),
                 'Tidak ada pengaduan yang perlu ditindaklanjuti.',
                 'Selesaikan',
               );
@@ -418,14 +441,6 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
           ),
           onSelected: (nilai) {
             switch (nilai) {
-              case 'sk':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TerbitkanSkScreen(user: widget.user),
-                  ),
-                );
-                break;
               case 'pengumuman':
                 Navigator.push(
                   context,
@@ -454,7 +469,6 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             }
           },
           itemBuilder: (context) => [
-            _itemMenu('sk', Icons.gavel_rounded, 'Terbitkan SK Sanksi'),
             _itemMenu('pengumuman', Icons.campaign_rounded,
                 'Kelola Pengumuman'),
             _itemMenu('riwayat', Icons.history_rounded, 'Riwayat Pengaduan'),

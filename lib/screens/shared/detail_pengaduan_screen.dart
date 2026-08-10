@@ -277,6 +277,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   children: [
                     _buildInfoCard(p),
                     const SizedBox(height: 16),
+                    if (p.adaDataPelaku) ...[
+                      _buildPelakuCard(p),
+                      const SizedBox(height: 16),
+                    ],
                     if (p.fotoBukti.isNotEmpty) ...[
                       _buildSectionTitle('Foto Bukti'),
                       const SizedBox(height: 8),
@@ -658,6 +662,66 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     }
   }
 
+  /// Kartu info pelaku/pihak yang diadukan (Nama, NIK, Jabatan) — selalu
+  /// ditampilkan mencolok di bagian atas, terlihat oleh semua role.
+  Widget _buildPelakuCard(Pengaduan p) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: red.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: red.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.report_gmailerrorred_rounded, size: 16, color: red),
+              const SizedBox(width: 6),
+              Text('Pelaku / Pihak yang Diadukan',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: red)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (p.pihakTerlapor != null && p.pihakTerlapor!.trim().isNotEmpty)
+            _buildPelakuRow('Nama', p.pihakTerlapor!.trim()),
+          if (p.nikPelaku != null && p.nikPelaku!.trim().isNotEmpty)
+            _buildPelakuRow('NIK', p.nikPelaku!.trim()),
+          if (p.jabatanPelaku != null && p.jabatanPelaku!.trim().isNotEmpty)
+            _buildPelakuRow('Jabatan', p.jabatanPelaku!.trim()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPelakuRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(label,
+                style: TextStyle(fontSize: 12, color: hintGrey)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: labelDark)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String text) {
     return Text(text,
         style: TextStyle(
@@ -677,13 +741,15 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         children: [
           for (int i = 0; i < p.riwayatStatus.length; i++)
             _buildTimelineItem(p.riwayatStatus[i],
-                isLast: i == p.riwayatStatus.length - 1),
+                isLast: i == p.riwayatStatus.length - 1,
+                pelakuLabel: p.adaDataPelaku ? p.infoPelakuLabel : null),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineItem(StatusHistoryEntry h, {required bool isLast}) {
+  Widget _buildTimelineItem(StatusHistoryEntry h,
+      {required bool isLast, String? pelakuLabel}) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,6 +783,15 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   Text(
                       '${h.oleh}${h.role != null ? ' (${h.role!.label})' : ''} · ${formatTanggalJam(h.tanggal)}',
                       style: TextStyle(fontSize: 11, color: hintGrey)),
+                  if (pelakuLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(pelakuLabel,
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: red,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4)),
+                  ],
                   if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(h.keterangan!,

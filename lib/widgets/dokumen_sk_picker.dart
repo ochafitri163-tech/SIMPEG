@@ -163,54 +163,63 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: (lengkap ? _green : _accent).withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(12),
+            color: (lengkap ? _green : _accent).withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: (lengkap ? _green : _accent).withValues(alpha: 0.3),
+              color: (lengkap ? _green : _accent).withValues(alpha: 0.25),
             ),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                lengkap
-                    ? Icons.verified_rounded
-                    : Icons.rule_folder_rounded,
-                size: 18,
-                color: lengkap ? _green : _accent,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
                       lengkap
-                          ? '4 dokumen wajib lengkap \u00b7 ${c.total} berkas'
-                          : 'Kelengkapan dokumen: '
-                              '${4 - kurang.length}/4',
+                          ? 'Dokumen wajib lengkap \u00b7 ${c.total} berkas'
+                          : 'Kelengkapan dokumen wajib',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: lengkap ? _green : _accent,
+                        color: lengkap ? _green : AppColors.textPrimary(context),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Jumlah berkas bebas \u2014 satu file boleh memuat '
-                      'beberapa dokumen, atau diunggah terpisah. Yang wajib '
-                      'ada: SK, bukti pelanggaran, hasil investigasi SPI, dan '
-                      'keputusan direksi. Di luar itu SDM boleh menambah '
-                      'dokumen pendukung lain sebanyak yang diperlukan.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        height: 1.35,
-                        color: AppColors.textSecondary(context),
-                      ),
+                  ),
+                  Text(
+                    '${4 - kurang.length}/4',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: lengkap ? _green : _accent,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: LinearProgressIndicator(
+                  value: (4 - kurang.length) / 4,
+                  minHeight: 6,
+                  backgroundColor:
+                      AppColors.divider(context).withValues(alpha: 0.6),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      lengkap ? _green : _accent),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Jumlah berkas bebas \u2014 satu file boleh memuat beberapa '
+                'dokumen, atau diunggah terpisah. Di luar dokumen wajib, SDM '
+                'boleh menambah dokumen pendukung lain sebanyak yang '
+                'diperlukan.',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.35,
+                  color: AppColors.textSecondary(context),
                 ),
               ),
             ],
@@ -392,10 +401,10 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
     final sedang = _sedangUnggahTambahan == index;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _accent.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -532,14 +541,17 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
     final sedang = _sedangUnggah == jenis;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(12),
+        color: terisi
+            ? _green.withValues(alpha: 0.05)
+            : AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: terisi
-              ? _green.withValues(alpha: 0.35)
-              : _red.withValues(alpha: 0.25),
+              ? _green.withValues(alpha: 0.3)
+              : AppColors.divider(context),
+          width: 1,
         ),
       ),
       child: Column(
@@ -589,14 +601,6 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      jenis.keterangan,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary(context),
-                      ),
                     ),
                   ],
                 ),
