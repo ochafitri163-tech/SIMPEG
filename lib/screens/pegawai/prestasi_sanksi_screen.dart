@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/feature_scaffold.dart';
+import 'sk_sanksi_screen.dart';
 
 class _PrestasiRow {
   final String judul;
@@ -140,6 +141,37 @@ class _PrestasiSanksiScreenState extends State<PrestasiSanksiScreen> {
               ],
             ),
           ),
+          if (_tab == 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SkSanksiScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.gavel_rounded, size: 17),
+                  label: const Text(
+                    'Lihat SK Sanksi & dokumen pendukung',
+                    style: TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: FeatureScaffold.navy,
+                    side: BorderSide(
+                      color: FeatureScaffold.navy.withValues(alpha: 0.35),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: _tab == 0 ? _buildPrestasi() : _buildSanksi(),
           ),
