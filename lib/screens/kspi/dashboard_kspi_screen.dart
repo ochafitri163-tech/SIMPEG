@@ -27,6 +27,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
 
   late Future<List<Pengaduan>> _future;
 
+  /// Tab kategori "Review Awal dari Kadiv": 0 = Diterima Kadiv,
+  /// 1 = Ditolak Kadiv. Keduanya tetap masuk ke KSPI untuk ditinjau &
+  /// diverifikasi ulang (baik yang diterima maupun ditolak Kadiv).
+  int _kadivTab = 0;
+
   @override
   void initState() {
     super.initState();
@@ -153,18 +158,55 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     }
   }
 
-  // ---------- Teruskan ke Dirut (status reviewKspi) ----------
+  // ---------- Teruskan ke Dirut / Tolak (status reviewKspi) ----------
+  // Baik pengaduan yang tadinya DITERIMA maupun DITOLAK Kadiv sama-sama
+  // masuk ke sini untuk ditinjau & diverifikasi ulang oleh KSPI. Dari
+  // sini KSPI bisa meneruskan ke Direktur ATAU menolaknya sendiri
+  // (wajib isi alasan) — bila ditolak, proses berhenti & diarsipkan.
   Future<void> _bukaTeruskanKeDirut(Pengaduan p) async {
     final catatanController = TextEditingController();
 
-    final ok = await _openSheet<bool>((ctx, setSheetState) {
+    final aksi = await _openSheet<String>((ctx, setSheetState) {
       return SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            _judulSheet('Teruskan ke Direktur', p),
+            _judulSheet('Review & Verifikasi KSPI', p),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (p.keputusanKadiv == Keputusan.tolak
+                        ? const Color(0xFFE74C3C)
+                        : const Color(0xFF27AE60))
+                    .withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    p.keputusanKadiv == Keputusan.tolak
+                        ? Icons.close_rounded
+                        : Icons.check_rounded,
+                    size: 16,
+                    color: p.keputusanKadiv == Keputusan.tolak
+                        ? const Color(0xFFE74C3C)
+                        : const Color(0xFF27AE60),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Keputusan Kadiv: ${p.keputusanKadiv?.label ?? '-'}'
+                      '${(p.catatanKadiv ?? '').trim().isNotEmpty ? ' — ${p.catatanKadiv}' : ''}',
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             _infoBlok('Judul', p.judul),
             const SizedBox(height: 10),
             _infoBlok('Deskripsi', p.deskripsi),
@@ -173,47 +215,86 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Catatan untuk Direktur (opsional)',
+                labelText:
+                    'Catatan (opsional utk teruskan, WAJIB bila tolak)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, true),
-                icon: const Icon(Icons.send_rounded, size: 18),
-                label: const Text('Teruskan ke Dirut'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      if (catatanController.text.trim().isEmpty) {
+                        _showSnack(
+                            'Alasan penolakan wajib diisi.',
+                            const Color(0xFFE74C3C));
+                        return;
+                      }
+                      Navigator.pop(ctx, 'tolak');
+                    },
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Tolak'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFE74C3C),
+                      side: const BorderSide(color: Color(0xFFE74C3C)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, 'teruskan'),
+                    icon: const Icon(Icons.send_rounded, size: 18),
+                    label: const Text('Teruskan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       );
     });
 
-    if (ok != true) return;
+    if (aksi == null) return;
     final id = p.supabaseId;
     if (id == null) return;
 
     try {
-      await PengaduanService.kspiTeruskanKeDirut(
-        pengaduanId: id,
-        oleh: widget.user.name,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
-      );
-      if (!mounted) return;
-      _showSnack('${p.nomorPengaduan} diteruskan ke Direktur.',
-          const Color(0xFF27AE60));
+      if (aksi == 'tolak') {
+        await PengaduanService.kspiTolak(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          catatan: catatanController.text.trim(),
+        );
+        if (!mounted) return;
+        _showSnack(
+            '${p.nomorPengaduan} ditolak KSPI & diarsipkan. Pelapor telah diberi tahu.',
+            const Color(0xFFE74C3C));
+      } else {
+        await PengaduanService.kspiTeruskanKeDirut(
+          pengaduanId: id,
+          oleh: widget.user.name,
+          catatan: catatanController.text.trim().isEmpty
+              ? null
+              : catatanController.text.trim(),
+        );
+        if (!mounted) return;
+        _showSnack('${p.nomorPengaduan} diteruskan ke Direktur.',
+            const Color(0xFF27AE60));
+      }
       await _refresh();
     } catch (e) {
       if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
@@ -794,9 +875,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               );
             } else {
               final semua = snapshot.data ?? [];
-              final siapTeruskan = semua
+              final siapTeruskanSemua = semua
                   .where((p) => p.status == PengaduanStatus.reviewKspi)
                   .toList();
+              final siapTeruskanDiterima = siapTeruskanSemua
+                  .where((p) => p.keputusanKadiv == Keputusan.terima)
+                  .toList();
+              final siapTeruskanDitolak = siapTeruskanSemua
+                  .where((p) => p.keputusanKadiv == Keputusan.tolak)
+                  .toList();
+              final siapTeruskan =
+                  _kadivTab == 0 ? siapTeruskanDiterima : siapTeruskanDitolak;
               final reviewAwal = semua
                   .where(
                       (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
@@ -816,12 +905,35 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSection(
-                      'SIAP DITERUSKAN KE DIRUT',
-                      siapTeruskan,
-                      _bukaTeruskanKeDirut,
-                      'Belum ada pengaduan untuk diteruskan ke Dirut.',
-                      'Teruskan ke Dirut'),
+                  Text(
+                    'REVIEW AWAL DARI KADIV',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: AppColors.textSecondary(context)),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildKadivTabBar(
+                      siapTeruskanDiterima.length, siapTeruskanDitolak.length),
+                  const SizedBox(height: 12),
+                  if (siapTeruskan.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _kadivTab == 0
+                            ? 'Belum ada pengaduan yang diterima Kadiv.'
+                            : 'Belum ada pengaduan yang ditolak Kadiv.',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary(context)),
+                      ),
+                    )
+                  else
+                    ...siapTeruskan.map((p) => _buildPengaduanCard(
+                        p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
+                  const SizedBox(height: 14),
                   _buildSection(
                       'PILIH EKSEKUTOR INVESTIGASI',
                       reviewAwal,
@@ -1100,6 +1212,43 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Topbar segmented tab "Diterima" / "Ditolak" — mengelompokkan
+  /// pengaduan yang masuk ke KSPI berdasarkan keputusan Kadiv sebelumnya.
+  Widget _buildKadivTabBar(int jumlahDiterima, int jumlahDitolak) {
+    Widget tab(String label, int index, int jumlah, Color warna) {
+      final selected = _kadivTab == index;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _kadivTab = index),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
+            decoration: BoxDecoration(
+              color: selected ? warna : warna.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$label ($jumlah)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : warna,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tab('Diterima Kadiv', 0, jumlahDiterima, const Color(0xFF27AE60)),
+        tab('Ditolak Kadiv', 1, jumlahDitolak, const Color(0xFFE74C3C)),
+      ],
     );
   }
 

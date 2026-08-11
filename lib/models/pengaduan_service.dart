@@ -718,6 +718,44 @@ class PengaduanService {
     );
   }
 
+  /// KSPI — menolak pengaduan pada tahap review awal (status `reviewKspi`,
+  /// setelah ditinjau Kadiv — baik yang tadinya diterima maupun ditolak
+  /// Kadiv). KSPI WAJIB mengisi catatan/alasan penolakan. Alur berhenti di
+  /// sini: pengaduan langsung diarsipkan (TIDAK diteruskan ke Dirut), dan
+  /// alasan penolakan disampaikan ke pelapor lewat notifikasi.
+  static Future<void> kspiTolak({
+    required int pengaduanId,
+    required String oleh,
+    required String catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.reviewKspi.name,
+      statusBaru: PengaduanStatus.arsip.name,
+      oleh: oleh,
+      role: UserRole.kspi,
+      aksi: 'KSPI menolak pengaduan, diarsipkan',
+      catatan: catatan,
+      kolomTambahan: {
+        'arsip_pada_tahap': 'kspi',
+        'alasan_arsip': catatan,
+      },
+    );
+
+    final row = await detail(pengaduanId);
+    final pelaporId = row?['pelapor_id'] as String?;
+    final nomor = row?['nomor_pengaduan'];
+    if (pelaporId != null) {
+      await NotificationService.kirimKePegawai(
+        pegawaiId: pelaporId,
+        judul: 'Pengaduan ditolak KSPI',
+        pesan: 'Pengaduan Anda ($nomor) ditolak oleh KSPI setelah ditinjau. '
+            'Alasan: $catatan',
+        pengaduanId: pengaduanId,
+      );
+    }
+  }
+
   /// KSPI — meneruskan pengaduan ke Dirut (tombol "Teruskan ke Dirut").
   static Future<void> kspiTeruskanKeDirut({
     required int pengaduanId,

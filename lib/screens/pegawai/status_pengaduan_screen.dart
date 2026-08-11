@@ -4,6 +4,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
+import '../shared/riwayat_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 
 
@@ -33,6 +34,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   Set<PengaduanStatus> _filterStatus = {};
   String? _filterCabang;
   DateTimeRange? _filterTanggal;
+
+  /// ID pengaduan yang riwayatnya sedang ditampilkan (expand) di kartu.
+  final Set<int> _riwayatTerbuka = {};
+  /// Cache riwayat status per pengaduan supaya tidak fetch ulang setiap
+  /// kali kartu di-expand/collapse.
+  final Map<int, Future<Pengaduan?>> _riwayatCache = {};
 
   late Future<List<Pengaduan>> _pengaduanFuture;
 
@@ -694,6 +701,43 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                 ),
               ),
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RiwayatPengaduanScreen(user: widget.user),
+                  ),
+                ),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 8.0 : 10.0,
+                      vertical: isSmallScreen ? 5.0 : 6.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.history_rounded,
+                          size: isSmallScreen ? 13.0 : 14.0,
+                          color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Riwayat Pengaduan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 10.0 : 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -750,6 +794,47 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 ),
               ),
               const SizedBox(width: 10),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  await _refresh();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Status pengaduan dimuat ulang.',
+                            style: TextStyle(fontSize: 12.5)),
+                        backgroundColor: accent,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        margin: const EdgeInsets.all(16),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  width: isSmallScreen ? 38.0 : 44.0,
+                  height: isSmallScreen ? 38.0 : 44.0,
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    color: AppColors.textPrimary(context),
+                    size: isSmallScreen ? 18.0 : 20.0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               FutureBuilder<List<Pengaduan>>(
                 future: _pengaduanFuture,
                 builder: (context, snapshot) {
@@ -782,6 +867,84 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Ringkasan riwayat status pengaduan (timeline sederhana) yang
+  /// ditampilkan inline di kartu Status Pengaduan pelapor — supaya
+  /// pelapor bisa melihat perjalanan pengaduannya tanpa perlu membuka
+  /// halaman detail.
+  Widget _buildRiwayatRingkas(
+      List<StatusHistoryEntry> riwayat, bool isSmallScreen) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted(context),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < riwayat.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == riwayat.length - 1 ? 0 : 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        margin: const EdgeInsets.only(top: 3),
+                        decoration: BoxDecoration(
+                          color: riwayat[i].status.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      if (i != riwayat.length - 1)
+                        Container(
+                          width: 2,
+                          height: 34,
+                          color: AppColors.divider(context),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          riwayat[i].aksi,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11.5 : 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: labelDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${riwayat[i].oleh} · ${formatTanggalJam(riwayat[i].tanggal)}',
+                          style: TextStyle(fontSize: 10.5, color: hintGrey),
+                        ),
+                        if ((riwayat[i].keterangan ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            riwayat[i].keterangan!.trim(),
+                            style: TextStyle(
+                                fontSize: 11, color: labelDark, height: 1.3),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -970,6 +1133,103 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    // ---- Toggle Riwayat Pengaduan ----
+                    InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        final id = p.supabaseId;
+                        if (id == null) return;
+                        setState(() {
+                          if (_riwayatTerbuka.contains(id)) {
+                            _riwayatTerbuka.remove(id);
+                          } else {
+                            _riwayatTerbuka.add(id);
+                            _riwayatCache.putIfAbsent(
+                                id, () => PengaduanService.detailLengkap(id));
+                          }
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.history_rounded,
+                                size: isSmallScreen ? 14.0 : 15.0,
+                                color: accent),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _riwayatTerbuka.contains(p.supabaseId)
+                                    ? 'Sembunyikan riwayat'
+                                    : 'Lihat riwayat pengaduan',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 11.0 : 12.0,
+                                  fontWeight: FontWeight.w700,
+                                  color: accent,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              _riwayatTerbuka.contains(p.supabaseId)
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                              size: 18,
+                              color: accent,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (p.supabaseId != null &&
+                        _riwayatTerbuka.contains(p.supabaseId))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 4),
+                        child: FutureBuilder<Pengaduan?>(
+                          future: _riwayatCache[p.supabaseId],
+                          builder: (context, snap) {
+                            if (snap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (snap.hasError) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  'Gagal memuat riwayat: ${snap.error}',
+                                  style: TextStyle(
+                                      fontSize: 11, color: hintGrey),
+                                ),
+                              );
+                            }
+                            final riwayat =
+                                snap.data?.riwayatStatus ?? const [];
+                            if (riwayat.isEmpty) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  'Belum ada riwayat status.',
+                                  style: TextStyle(
+                                      fontSize: 11.5, color: hintGrey),
+                                ),
+                              );
+                            }
+                            return _buildRiwayatRingkas(riwayat, isSmallScreen);
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 4),
                     SizedBox(
                       width: double.infinity,
                       height: isSmallScreen ? 38.0 : 42.0,

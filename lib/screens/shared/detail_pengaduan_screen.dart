@@ -1324,39 +1324,115 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   }
 
   Widget _panelTeruskanKeDirut(Pengaduan p, String oleh) {
+    final keputusanKadivLabel = p.keputusanKadiv?.label ?? '-';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Teruskan ke Dirut'),
+        _buildSectionTitle('Review & Verifikasi KSPI'),
         const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: (p.keputusanKadiv == Keputusan.tolak ? red : green)
+                .withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                p.keputusanKadiv == Keputusan.tolak
+                    ? Icons.close_rounded
+                    : Icons.check_rounded,
+                size: 16,
+                color: p.keputusanKadiv == Keputusan.tolak ? red : green,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Keputusan Kadiv: $keputusanKadivLabel'
+                  '${p.catatanKadiv != null && p.catatanKadiv!.trim().isNotEmpty ? ' — ${p.catatanKadiv}' : ''}',
+                  style: TextStyle(
+                      fontSize: 11.5, color: labelDark, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         Text(
-          'Pengaduan sudah diverifikasi Kadiv. Teruskan ke Dirut untuk '
-          'persetujuan investigasi.',
+          'Tinjau & verifikasi kembali laporan ini sebelum diteruskan ke '
+          'Dirut. KSPI dapat menolak pengaduan di tahap ini — bila ditolak, '
+          'proses berhenti, pengaduan diarsipkan, dan alasannya '
+          'disampaikan ke pelapor.',
           style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: _isProcessing
-                ? null
-                : () => _jalankan(
-                      () => PengaduanService.kspiTeruskanKeDirut(
-                        pengaduanId: p.supabaseId!,
-                        oleh: oleh,
-                      ),
-                      sukses: 'Pengaduan diteruskan ke Dirut.',
-                    ),
-            icon: const Icon(Icons.forward_to_inbox_rounded, size: 18),
-            label: const Text('Teruskan ke Dirut'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () async {
+                          final catatan = await _dialogCatatan(
+                            judul: 'Alasan Penolakan KSPI',
+                            hint:
+                                'Jelaskan alasan pengaduan ini ditolak...',
+                            wajib: true,
+                            labelTombol: 'Tolak & Arsipkan',
+                            warnaTombol: red,
+                          );
+                          if (catatan == null) return;
+                          await _jalankan(
+                            () => PengaduanService.kspiTolak(
+                              pengaduanId: p.supabaseId!,
+                              oleh: oleh,
+                              catatan: catatan,
+                            ),
+                            sukses:
+                                'Pengaduan ditolak KSPI & diarsipkan. Pelapor telah diberi tahu.',
+                          );
+                        },
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Tolak'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: red,
+                    side: const BorderSide(color: red),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _jalankan(
+                            () => PengaduanService.kspiTeruskanKeDirut(
+                              pengaduanId: p.supabaseId!,
+                              oleh: oleh,
+                            ),
+                            sukses: 'Pengaduan diteruskan ke Dirut.',
+                          ),
+                  icon: const Icon(Icons.forward_to_inbox_rounded, size: 18),
+                  label: const Text('Teruskan ke Dirut'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
