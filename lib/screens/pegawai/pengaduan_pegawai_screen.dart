@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_service.dart';
@@ -359,6 +360,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                 _buildTextField(
                   controller: _nikPelakuController,
                   hint: 'NIK pelaku',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
                 const SizedBox(height: 10),
                 _buildTextField(
@@ -560,6 +563,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       width: double.infinity,
@@ -567,6 +572,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: TextStyle(fontSize: 13.5, color: labelDark),
         decoration: InputDecoration(
           hintText: hint,

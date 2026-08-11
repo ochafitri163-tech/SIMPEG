@@ -29,6 +29,11 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
 
   late Future<List<Pengaduan>> _future;
 
+  /// Tab status keputusan Kadiv: 0 = Diterima, 1 = Ditolak. Menampilkan
+  /// riwayat pengaduan yang sudah diputuskan Kadiv (keduanya tetap
+  /// diteruskan ke KSPI untuk ditinjau ulang).
+  int _keputusanTab = 0;
+
   @override
   void initState() {
     super.initState();
@@ -396,6 +401,26 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                           p.eksekutorDivisiKadiv == null ||
                           p.eksekutorDivisiKadiv == widget.user.divisiKadiv))
                   .toList();
+              // Riwayat keputusan Kadiv (Terima/Tolak) yang sudah dicatat,
+              // dikelompokkan untuk topbar status "Diterima" / "Ditolak".
+              // Kedua kelompok ini SAMA-SAMA sudah/sedang ditinjau ulang
+              // oleh KSPI — keputusan Kadiv hanya dicatat, bukan final.
+              final keputusanKadivSaya = semua
+                  .where((p) => p.keputusanKadiv != null)
+                  .where((p) => widget.user.divisiKadiv == null
+                      ? true
+                      : divisiKadivDariKategori(p.kategori) ==
+                              widget.user.divisiKadiv ||
+                          p.kategoriDivisi != null)
+                  .toList();
+              final diterimaKadiv = keputusanKadivSaya
+                  .where((p) => p.keputusanKadiv == Keputusan.terima)
+                  .toList();
+              final ditolakKadiv = keputusanKadivSaya
+                  .where((p) => p.keputusanKadiv == Keputusan.tolak)
+                  .toList();
+              final keputusanTerpilih =
+                  _keputusanTab == 0 ? diterimaKadiv : ditolakKadiv;
 
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,6 +461,30 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     ...tindakLanjut.map((p) => _buildPengaduanCard(
                           p,
                           tombolLabel: 'Kirim Hasil',
+                          onAksi: () => _bukaDetail(p),
+                        )),
+                  const SizedBox(height: 20),
+                  Text(
+                    'STATUS PENGADUAN',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildKeputusanTabBar(
+                      diterimaKadiv.length, ditolakKadiv.length),
+                  const SizedBox(height: 12),
+                  if (keputusanTerpilih.isEmpty)
+                    _buildEmptyState(_keputusanTab == 0
+                        ? 'Belum ada pengaduan yang Anda terima.'
+                        : 'Belum ada pengaduan yang Anda tolak.')
+                  else
+                    ...keputusanTerpilih.map((p) => _buildPengaduanCard(
+                          p,
+                          tombolLabel: 'Detail',
                           onAksi: () => _bukaDetail(p),
                         )),
                 ],
@@ -695,6 +744,44 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Topbar segmented tab "Diterima" / "Ditolak" — riwayat keputusan
+  /// Kadiv terhadap pengaduan yang masuk (keduanya tetap diteruskan &
+  /// ditinjau ulang oleh KSPI).
+  Widget _buildKeputusanTabBar(int jumlahDiterima, int jumlahDitolak) {
+    Widget tab(String label, int index, int jumlah, Color warna) {
+      final selected = _keputusanTab == index;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _keputusanTab = index),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
+            decoration: BoxDecoration(
+              color: selected ? warna : warna.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$label ($jumlah)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : warna,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tab('Diterima', 0, jumlahDiterima, const Color(0xFF27AE60)),
+        tab('Ditolak', 1, jumlahDitolak, const Color(0xFFE74C3C)),
+      ],
     );
   }
 

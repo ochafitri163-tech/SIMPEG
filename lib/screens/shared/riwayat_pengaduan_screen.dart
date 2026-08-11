@@ -62,15 +62,32 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
   late Future<List<Pengaduan>> _future;
   _FilterRiwayat _filter = _FilterRiwayat.semua;
 
+  /// Sumber data disesuaikan per role:
+  /// - Pegawai (pelapor) HANYA melihat pengaduan miliknya sendiri (bukan
+  ///   seluruh pengaduan semua orang).
+  /// - Kadiv dibatasi sesuai divisinya (administrasi/teknik), sama seperti
+  ///   di dashboard Kadiv, supaya tidak bocor ke divisi lain.
+  /// - Role lain (KSPI, TPDPK, Direktur, SDM) melihat semua pengaduan
+  ///   sesuai kewenangannya seperti sebelumnya.
+  Future<List<Pengaduan>> _muatData() {
+    if (widget.user.role == UserRole.pegawai) {
+      return PengaduanService.punyaSayaSebagaiObjek();
+    }
+    return PengaduanService.untukRoleSebagaiObjek(
+      widget.user.role,
+      divisiKadiv: widget.user.divisiKadiv?.name,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _future = PengaduanService.untukRoleSebagaiObjek(widget.user.role);
+    _future = _muatData();
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _future = PengaduanService.untukRoleSebagaiObjek(widget.user.role);
+      _future = _muatData();
     });
     await _future;
   }
