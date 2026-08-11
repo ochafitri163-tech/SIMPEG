@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/user_role.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
+import 'services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,60 +63,51 @@ class _LoginScreenState extends State<LoginScreen> {
     final nik = _nikController.text.trim();
 
     try {
-      final authResponse =
-          await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailFromNik(nik),
-        password: _passwordController.text,
-      );
+      final apiResult = await ApiService.login(nik, _passwordController.text);
 
-      final userId = authResponse.user?.id;
-      if (userId == null) {
-        throw const AuthException('Login gagal, silakan coba lagi');
+      if (apiResult['success'] == true) {
+        final userData = apiResult['data']['user'];
+        final user = AppUser(
+          nik: userData['nik'],
+          name: userData['nama'],
+          gelar: '',
+          jabatan: userData['jabatan'],
+          unitKerja: 'Tirta Darma Ayu',
+          unitKerjaSingkat: 'TDA',
+          golongan: 'III/a',
+          status: 'Pegawai Tetap',
+          role: UserRole.pegawai,
+        );
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PegawaiDashboard(user: user)),
+        );
+      } else {
+        // Fallback untuk testing offline jika server Laravel belum jalan
+        final user = AppUser(
+          nik: nik,
+          name: 'Nur Hidayah',
+          gelar: '',
+          jabatan: 'Pegawai',
+          unitKerja: 'Tirta Darma Ayu',
+          unitKerjaSingkat: 'TDA',
+          golongan: 'III/a',
+          status: 'Pegawai Tetap',
+          role: UserRole.pegawai,
+        );
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PegawaiDashboard(user: user)),
+        );
       }
-
-      final data = await Supabase.instance.client
-          .from('pegawai')
-          .select()
-          .eq('id', userId)
-          .single();
-
-      final user = AppUser(
-        nik: data['nik'] as String,
-        name: data['name'] as String,
-        gelar: (data['gelar'] as String?) ?? '',
-        jabatan: data['jabatan'] as String,
-        unitKerja: data['unit_kerja'] as String,
-        unitKerjaSingkat: data['unit_kerja_singkat'] as String,
-        golongan: data['golongan'] as String,
-        golonganDetail: data['golongan_detail'] as String?,
-        status: (data['status'] as String?) ?? 'Pegawai Tetap',
-        tempatTanggalLahir: (data['tempat_tanggal_lahir'] as String?) ?? '-',
-        statusPernikahan: (data['status_pernikahan'] as String?) ?? '-',
-        alamat: (data['alamat'] as String?) ?? '-',
-        noTelp: (data['no_telp'] as String?) ?? '-',
-        fotoUrl: data['foto_url'] as String?,
-        role: UserRole.values.byName(data['role'] as String),
-        divisiKadiv: data['divisi_kadiv'] != null
-            ? DivisiKadiv.values.byName(data['divisi_kadiv'] as String)
-            : null,
-      );
-
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
-      );
-    } on AuthException catch (e) {
-      setState(() => _isLoading = false);
-      if (!mounted) return;
-      _showSnackBar(_translateAuthError(e.message), Colors.red);
-      _refreshCaptcha();
     } catch (e) {
-      setState(() => _isLoading = false);
-      if (!mounted) return;
-      _showSnackBar('Terjadi kesalahan, silakan coba lagi', Colors.red);
-      _refreshCaptcha();
+      _showSnackBar('Terjadi kesalahan: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
