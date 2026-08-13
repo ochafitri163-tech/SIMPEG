@@ -68,10 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (apiResult['success'] == true) {
         final userData = apiResult['data']['user'];
         final user = AppUser(
-          nik: userData['nik'],
-          name: userData['nama'],
+          nik: userData['nik'] ?? nik,
+          name: userData['nama'] ?? 'Pegawai',
           gelar: '',
-          jabatan: userData['jabatan'],
+          jabatan: userData['jabatan'] ?? 'Pegawai',
           unitKerja: 'Tirta Darma Ayu',
           unitKerjaSingkat: 'TDA',
           golongan: 'III/a',
@@ -85,27 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => PegawaiDashboard(user: user)),
         );
       } else {
-        // Fallback untuk testing offline jika server Laravel belum jalan
-        final user = AppUser(
-          nik: nik,
-          name: 'Nur Hidayah',
-          gelar: '',
-          jabatan: 'Pegawai',
-          unitKerja: 'Tirta Darma Ayu',
-          unitKerjaSingkat: 'TDA',
-          golongan: 'III/a',
-          status: 'Pegawai Tetap',
-          role: UserRole.pegawai,
-        );
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => PegawaiDashboard(user: user)),
-        );
+        final errorMsg = apiResult['message'] ?? 'NIK atau Kata Sandi salah';
+        _showSnackBar(errorMsg, Colors.red);
+        _refreshCaptcha();
       }
     } catch (e) {
-      _showSnackBar('Terjadi kesalahan: $e', Colors.red);
+      _showSnackBar('Terjadi kesalahan koneksi: $e', Colors.red);
+      _refreshCaptcha();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
