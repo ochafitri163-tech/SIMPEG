@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/user_role.dart';
+import 'screens/dirut/dashboard_dirut_screen.dart';
+import 'screens/kadiv/dashboard_kadiv_screen.dart';
+import 'screens/kspi/dashboard_kspi_screen.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
+import 'screens/sdm/dashboard_sdm_screen.dart';
+import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
 import 'services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -67,6 +72,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (apiResult['success'] == true) {
         final userData = apiResult['data']['user'];
+        final roleStr = userData['role'] ?? 'PEGAWAI';
+        final userRole = UserRoleX.fromKode(roleStr);
+
         final user = AppUser(
           nik: userData['nik'] ?? nik,
           name: userData['nama'] ?? 'Pegawai',
@@ -76,13 +84,13 @@ class _LoginScreenState extends State<LoginScreen> {
           unitKerjaSingkat: 'TDA',
           golongan: 'III/a',
           status: 'Pegawai Tetap',
-          role: UserRole.pegawai,
+          role: userRole,
         );
 
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => PegawaiDashboard(user: user)),
+          MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
         );
       } else {
         final errorMsg = apiResult['message'] ?? 'NIK atau Kata Sandi salah';
@@ -106,7 +114,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    return PegawaiDashboard(user: user);
+    switch (user.role) {
+      case UserRole.kadivKategori:
+        return DashboardKadivScreen(user: user);
+      case UserRole.kspi:
+        return DashboardKspiScreen(user: user);
+      case UserRole.tpdpk:
+        return DashboardTpdpkScreen(user: user);
+      case UserRole.direktur:
+        return DashboardDirutScreen(user: user);
+      case UserRole.sdm:
+        return DashboardSdmScreen(user: user);
+      case UserRole.pegawai:
+      default:
+        return PegawaiDashboard(user: user);
+    }
   }
 
   void _showSnackBar(String message, Color color) {
