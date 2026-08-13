@@ -1,11 +1,21 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Ganti dengan IP komputer / domain server Laravel jika dijalankan di HP fisik / Emulator
-  // 10.0.2.2 untuk Android Emulator ke localhost, atau 127.0.0.1 untuk Windows Desktop/Web
-  static const String baseUrl = 'http://10.0.2.2:8000/api/v1';
+  // Dynamic Host URL per platform:
+  // - Web / Windows / macOS / iOS: http://127.0.0.1:8000/api/v1
+  // - Android Emulator: http://10.0.2.2:8000/api/v1
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000/api/v1';
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api/v1';
+    } else {
+      return 'http://127.0.0.1:8000/api/v1';
+    }
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

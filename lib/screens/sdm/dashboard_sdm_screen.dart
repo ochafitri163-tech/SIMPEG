@@ -268,85 +268,78 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.sdm],
-      child: Scaffold(
-        backgroundColor: AppColors.pageBackground(context),
-        // Header & kartu profil sekarang ikut discroll dalam satu ListView
-        // (tidak lagi sticky), dan kartu profil diletakkan dalam Stack agar
-        // selalu tampil di depan header biru (tidak lagi ketimpa/clip).
-        body: FutureBuilder<List<Pengaduan>>(
-          future: _future,
-          builder: (context, snapshot) {
-            Widget content;
+      child: Material(
+        color: AppColors.pageBackground(context),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 80),
+          child: FutureBuilder<List<Pengaduan>>(
+            future: _future,
+            builder: (context, snapshot) {
+              Widget content;
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              content = const Padding(
-                padding: EdgeInsets.only(top: 80),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            } else if (snapshot.hasError) {
-              content = Padding(
-                padding: const EdgeInsets.all(40),
-                child: Text(
-                  'Gagal memuat data: ${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
-                ),
-              );
-            } else {
-              final semua = snapshot.data ?? [];
-              final menungguSdm = semua
-                  .where((p) => p.status == PengaduanStatus.menungguSdm)
-                  .toList();
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                content = const Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              } else if (snapshot.hasError) {
+                content = Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Text(
+                    'Gagal memuat data: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                  ),
+                );
+              } else {
+                final semua = snapshot.data ?? [];
+                final menungguSdm = semua
+                    .where((p) => p.status == PengaduanStatus.menungguSdm)
+                    .toList();
 
-              content = _buildSection(
-                'MENUNGGU TINDAK LANJUT SDM',
-                menungguSdm,
-                (p) => _bukaTerbitkanSk(p),
-                'Tidak ada pengaduan yang perlu ditindaklanjuti.',
-                'Selesaikan',
-              );
-            }
+                content = _buildSection(
+                  'MENUNGGU TINDAK LANJUT SDM',
+                  menungguSdm,
+                  (p) => _bukaTerbitkanSk(p),
+                  'Tidak ada pengaduan yang perlu ditindaklanjuti.',
+                  'Selesaikan',
+                );
+              }
 
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              // Struktur disamakan dengan dashboard pegawai: header & kartu
-              // ada dalam satu Column yang discroll bersama (topbar ikut
-              // ikut ke atas saat discroll, tidak lagi sticky), dan kartu
-              // profil "mengambang" lewat Transform.translate — Column
-              // tidak meng-clip contentnya seperti ListView, jadi kartu
-              // selalu tampil di depan header, jarak/spacing pun sama
-              // persis seperti kartu jadwal di dashboard pegawai.
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTopHeader(context),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Transform.translate(
-                            offset: const Offset(0, -28),
-                            child: _buildProfileCard(
-                              snapshot.data
-                                      ?.where((p) =>
-                                          p.status ==
-                                          PengaduanStatus.menungguSdm)
-                                      .length ??
-                                  0,
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTopHeader(context),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Transform.translate(
+                              offset: const Offset(0, -28),
+                              child: _buildProfileCard(
+                                snapshot.data
+                                        ?.where((p) =>
+                                            p.status ==
+                                            PengaduanStatus.menungguSdm)
+                                        .length ??
+                                    0,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 18),
-                          content,
-                        ],
+                            const SizedBox(height: 18),
+                            content,
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

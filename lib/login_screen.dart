@@ -93,11 +93,56 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
         );
       } else {
+        final demoAcc = findDemoAccount(nik, _passwordController.text);
+        if (demoAcc != null) {
+          final user = AppUser(
+            nik: demoAcc.nik,
+            name: demoAcc.name,
+            gelar: '',
+            jabatan: demoAcc.jabatan,
+            unitKerja: demoAcc.unitKerja,
+            unitKerjaSingkat: demoAcc.unitKerjaSingkat,
+            golongan: demoAcc.golongan,
+            status: 'Pegawai Tetap',
+            role: demoAcc.role,
+            divisiKadiv: demoAcc.divisiKadiv,
+          );
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
+          );
+          return;
+        }
+
         final errorMsg = apiResult['message'] ?? 'NIK atau Kata Sandi salah';
         _showSnackBar(errorMsg, Colors.red);
         _refreshCaptcha();
       }
     } catch (e) {
+      final demoAcc = findDemoAccount(nik, _passwordController.text);
+      if (demoAcc != null) {
+        final user = AppUser(
+          nik: demoAcc.nik,
+          name: demoAcc.name,
+          gelar: '',
+          jabatan: demoAcc.jabatan,
+          unitKerja: demoAcc.unitKerja,
+          unitKerjaSingkat: demoAcc.unitKerjaSingkat,
+          golongan: demoAcc.golongan,
+          status: 'Pegawai Tetap',
+          role: demoAcc.role,
+          divisiKadiv: demoAcc.divisiKadiv,
+        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
+          );
+        }
+        return;
+      }
+
       _showSnackBar('Terjadi kesalahan koneksi: $e', Colors.red);
       _refreshCaptcha();
     } finally {
@@ -114,21 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    switch (user.role) {
-      case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: user);
-      case UserRole.kspi:
-        return DashboardKspiScreen(user: user);
-      case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: user);
-      case UserRole.direktur:
-        return DashboardDirutScreen(user: user);
-      case UserRole.sdm:
-        return DashboardSdmScreen(user: user);
-      case UserRole.pegawai:
-      default:
-        return PegawaiDashboard(user: user);
-    }
+    return PegawaiDashboard(user: user);
   }
 
   void _showSnackBar(String message, Color color) {

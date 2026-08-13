@@ -282,6 +282,17 @@ final List<DemoAccount> demoAccounts = [
     golongan: 'B.1 / Pelaksana',
     role: UserRole.sdm,
   ),
+  const DemoAccount(
+    nik: '5000000002',
+    password: 'sdm123',
+    name: 'Rina Amelia',
+    email: 'rina.amelia@pdam.co.id',
+    jabatan: 'Staf SDM',
+    unitKerja: 'Kantor Pusat',
+    unitKerjaSingkat: 'Kantor Pusat',
+    golongan: 'B.1 / Pelaksana',
+    role: UserRole.sdm,
+  ),
 ];
 
 DemoAccount? findDemoAccount(String nik, String password) {
