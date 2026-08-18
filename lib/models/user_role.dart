@@ -238,7 +238,7 @@ final List<DemoAccount> demoAccounts = [
   ),
   const DemoAccount(
     nik: '4000000001',
-    password: 'kadivadmin123',
+    password: 'kadiv123',
     name: 'Siti Rahmawati',
     email: 'siti.rahmawati@pdam.co.id',
     jabatan: 'Kepala Divisi Administrasi',
@@ -250,7 +250,7 @@ final List<DemoAccount> demoAccounts = [
   ),
   const DemoAccount(
     nik: '4000000006',
-    password: 'kadivteknik123',
+    password: 'kadivteknik2026',
     name: 'Agus Setiawan',
     email: 'agus.setiawan@pdam.co.id',
     jabatan: 'Kepala Divisi Teknik',
@@ -295,14 +295,14 @@ final List<DemoAccount> demoAccounts = [
   ),
   const DemoAccount(
     nik: '5000000002',
-    password: 'direksi123',
+    password: 'sdm123',
     name: 'Victoria Usang',
     email: 'victoria.usang@pdam.co.id',
-    jabatan: 'Direktur Umum',
+    jabatan: 'Staf SDM',
     unitKerja: 'Kantor Pusat',
     unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.1 / Struktural',
-    role: UserRole.direktur,
+    golongan: 'PT',
+    role: UserRole.sdm,
   ),
   const DemoAccount(
     nik: '6000000001',
@@ -317,14 +317,15 @@ final List<DemoAccount> demoAccounts = [
   ),
   const DemoAccount(
     nik: '4000000005',
-    password: 'pegawai123',
+    password: 'kadiv123',
     name: 'Nur Aisyah Lestari',
     email: 'nur.aisyah@pdam.co.id',
-    jabatan: 'Staf Administrasi',
+    jabatan: 'Kepala Divisi Administrasi',
     unitKerja: 'Kantor Pusat',
     unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'B.2 / Pelaksana',
-    role: UserRole.pegawai,
+    golongan: 'A.2 / Struktural',
+    role: UserRole.kadivKategori,
+    divisiKadiv: DivisiKadiv.administrasi,
   ),
 ];
 
