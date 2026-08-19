@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
+import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
@@ -382,6 +383,15 @@ class ProfileDetailScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                           builder: (_) => const KeluargaScreen()),
+                    ),
+                  ),
+                  _QuickAction(
+                    icon: Icons.description_rounded,
+                    label: 'Dokumen',
+                    isSmallScreen: isSmallScreen,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => DokumenResmiScreen(user: user)),
                     ),
                   ),
                 ],

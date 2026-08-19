@@ -238,6 +238,7 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
 
   final _judulC = TextEditingController();
   final _pegawaiIdC = TextEditingController();
+  final _nomorC = TextEditingController();
   String _kategori = 'Umum';
   String? _fileUrl;
   String? _fileNama;
@@ -248,6 +249,7 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
   void dispose() {
     _judulC.dispose();
     _pegawaiIdC.dispose();
+    _nomorC.dispose();
     super.dispose();
   }
 
@@ -290,6 +292,7 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
         fileUrl: _fileUrl!,
         fileNama: _fileNama ?? 'dokumen',
         diunggahOleh: widget.user.name,
+        nomor: _nomorC.text,
       );
       if (mounted) Navigator.pop(context, true);
     } on ArgumentError catch (e) {
@@ -340,6 +343,16 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
               controller: _judulC,
               decoration: InputDecoration(
                 labelText: 'Judul Dokumen *',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _nomorC,
+              decoration: InputDecoration(
+                labelText: 'Nomor Surat (opsional)',
+                hintText: 'Mis. SK/SDM/2024/001',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
