@@ -649,9 +649,9 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                     ),
                                   ],
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
+                                  children: [
                                     Text('Baca Detail',
                                         style: TextStyle(
                                             color: Colors.white,
