@@ -189,7 +189,8 @@ class PengaduanService {
     required int pengaduanId,
     required String oleh,
     required String eksekutor, // 'kadiv' | 'tpdpk'
-    String? divisiKadiv, // 'administrasi' | 'teknik', wajib bila eksekutor == 'kadiv'
+    String?
+        divisiKadiv, // 'administrasi' | 'teknik', wajib bila eksekutor == 'kadiv'
     String? petugas,
     String? catatan,
   }) async {
@@ -362,9 +363,11 @@ class PengaduanService {
     List<String> dokumenPendukung = const [],
     bool anonim = false,
   }) async {
+    // Tidak wajib ada sesi Supabase Auth. Identitas pelapor memakai NIK
+// karena login aplikasi lewat NIK, bukan Supabase Auth.
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) {
-      throw Exception('User belum login');
+    if (user.nik.trim().isEmpty) {
+      throw Exception('NIK pegawai tidak tersedia.');
     }
 
     // Buat pengaduan dengan nomor unik. Bila terjadi bentrok nomor
@@ -380,7 +383,7 @@ class PengaduanService {
             .from('pengaduan_pegawai')
             .insert({
               'nomor_pengaduan': nomor,
-              'pelapor_id': userId,
+              if (userId != null) 'pelapor_id': userId,
               'kategori': kategori,
               'judul': judul,
               'deskripsi': deskripsi,
@@ -449,20 +452,29 @@ class PengaduanService {
       await _client.from('notifikasi').insert({
         'untuk_pegawai_id': kadiv['id'],
         'judul': 'Pengaduan baru masuk',
-        'pesan': '${user.name} membuat pengaduan baru ($nomor).', // ignore: unnecessary_brace_in_string_interps
+        'pesan':
+            '${user.name} membuat pengaduan baru ($nomor).', // ignore: unnecessary_brace_in_string_interps
         'pengaduan_id': pengaduanId,
       });
     }
   }
 
-  static Future<List<Map<String, dynamic>>> punyaSaya() async {
+  /// Daftar pengaduan milik pegawai. Prioritas filter memakai [nik] karena
+  /// login aplikasi berbasis NIK; `pelapor_id` hanya dipakai bila memang
+  /// ada sesi Supabase Auth.
+  static Future<List<Map<String, dynamic>>> punyaSaya({String? nik}) async {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
-    final rows = await _client
-        .from('pengaduan_pegawai')
-        .select()
-        .eq('pelapor_id', userId)
-        .order('tanggal_pengaduan', ascending: false);
+    var query = _client.from('pengaduan_pegawai').select();
+
+    if (nik != null && nik.trim().isNotEmpty) {
+      query = query.eq('nik', nik.trim());
+    } else if (userId != null) {
+      query = query.eq('pelapor_id', userId);
+    } else {
+      return [];
+    }
+
+    final rows = await query.order('tanggal_pengaduan', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
@@ -496,11 +508,11 @@ class PengaduanService {
     return semua.where((row) {
       final status = row['status'] as String?;
 
-      final belumDiverifikasi =
-          status == PengaduanStatus.menungguKadiv.name ||
-              status == PengaduanStatus.menungguVerifikasiKadiv.name;
+      final belumDiverifikasi = status == PengaduanStatus.menungguKadiv.name ||
+          status == PengaduanStatus.menungguVerifikasiKadiv.name;
       if (belumDiverifikasi) {
-        final divisi = divisiKadivDariKategori((row['kategori'] ?? '') as String);
+        final divisi =
+            divisiKadivDariKategori((row['kategori'] ?? '') as String);
         // Kategori tak dikenal -> tampilkan ke semua Kadiv supaya tidak
         // ada pengaduan yang "nyangkut" tanpa penanggung jawab.
         if (divisi == null) return true;
@@ -599,8 +611,8 @@ class PengaduanService {
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
-  static Future<List<Pengaduan>> punyaSayaSebagaiObjek() async {
-    final rows = await punyaSaya();
+  static Future<List<Pengaduan>> punyaSayaSebagaiObjek({String? nik}) async {
+    final rows = await punyaSaya(nik: nik);
     return rows.map((row) => pengaduanFromRow(row)).toList();
   }
 
@@ -713,7 +725,8 @@ class PengaduanService {
     await NotificationService.kirimKeRole(
       role: UserRole.kspi,
       judul: 'Pengaduan siap diteruskan ke Dirut',
-      pesan: 'Ada pengaduan terverifikasi Kadiv yang perlu diteruskan ke Dirut.',
+      pesan:
+          'Ada pengaduan terverifikasi Kadiv yang perlu diteruskan ke Dirut.',
       pengaduanId: pengaduanId,
     );
   }
@@ -1113,8 +1126,8 @@ class PengaduanService {
     final potonganBaru = potonganLama + nominal;
     await _client
         .from('payroll')
-        .update({'potongan_sanksi_perusahaan': potonganBaru})
-        .eq('id', payrollRow['id']);
+        .update({'potongan_sanksi_perusahaan': potonganBaru}).eq(
+            'id', payrollRow['id']);
 
     // 4. Beri tahu pegawai yang gajinya diturunkan.
     await NotificationService.kirimKePegawai(
