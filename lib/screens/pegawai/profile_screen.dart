@@ -108,7 +108,7 @@ class ProfileScreen extends StatelessWidget {
                         subtitle: 'Riwayat penghargaan & sanksi disiplin',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const PrestasiSanksiScreen()),
+                              builder: (_) => PrestasiSanksiScreen(user: user)),
                         ),
                         isLast: true,
                         isSmallScreen: isSmallScreen,

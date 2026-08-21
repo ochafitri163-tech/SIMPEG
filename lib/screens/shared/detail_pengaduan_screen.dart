@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
+import '../../models/sk_sanksi_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../theme/app_colors.dart';
@@ -295,6 +296,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     _buildSectionTitle('Riwayat Status'),
                     const SizedBox(height: 8),
                     _buildTimeline(p),
+                    const SizedBox(height: 16),
+                    _buildKartuSk(p),
                     const SizedBox(height: 20),
                     _buildActionPanel(p),
                   ],
@@ -724,6 +727,69 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             fontSize: 13.5, fontWeight: FontWeight.bold, color: labelDark));
   }
 
+  /// SK Sanksi yang terbit dari pengaduan ini (kalau ada). Ditampilkan
+  /// untuk semua role agar SDM bisa memverifikasi hasil penerbitannya.
+  Widget _buildKartuSk(Pengaduan p) {
+    if (p.supabaseId == null) return const SizedBox.shrink();
+    return FutureBuilder<List<SkSanksi>>(
+      future: SkSanksiService.untukPengaduan(p.supabaseId!),
+      builder: (context, snap) {
+        final list = snap.data ?? const <SkSanksi>[];
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('SK Sanksi Terbit'),
+            const SizedBox(height: 8),
+            ...list.map((sk) => Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: green.withValues(alpha: 0.35)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.gavel_rounded, size: 16, color: green),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(sk.nomorSk,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: labelDark)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${sk.jenisSanksi} \u00b7 ${sk.tingkat}'
+                        '${sk.perubahanJabatan != null ? ' \u00b7 ${sk.perubahanJabatan}' : ''}',
+                        style: TextStyle(fontSize: 12, color: hintGrey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${sk.totalBerkas} berkas'
+                        '${sk.dokumenLengkap ? ' \u00b7 dokumen wajib lengkap' : ' \u00b7 dokumen wajib BELUM lengkap'}',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: sk.dokumenLengkap ? green : red,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTimeline(Pengaduan p) {
     if (p.riwayatStatus.isEmpty) {
       return Text('Belum ada riwayat.',
@@ -747,60 +813,70 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
 
   Widget _buildTimelineItem(StatusHistoryEntry h,
       {required bool isLast, String? pelakuLabel}) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
+    // CATATAN: JANGAN pakai IntrinsicHeight + Expanded untuk garis timeline.
+    // IntrinsicHeight membulatkan tinggi baris teks sehingga menimbulkan
+    // "BOTTOM OVERFLOWED BY 1.00 PIXELS". Stack + Positioned membuat garis
+    // mengikuti tinggi konten apa adanya, tanpa pengukuran intrinsic.
+    return Stack(
+      children: [
+        // Garis penghubung vertikal (di belakang konten).
+        if (!isLast)
+          Positioned(
+            left: 4,
+            top: 10,
+            bottom: 0,
+            child: Container(width: 2, color: const Color(0xFFE0E4E9)),
+          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Container(
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
                     color: h.status.color, shape: BoxShape.circle),
               ),
-              if (!isLast)
-                Expanded(
-                    child: Container(width: 2, color: const Color(0xFFE0E4E9))),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(h.aksi,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: labelDark)),
-                  const SizedBox(height: 2),
-                  Text(
-                      '${h.oleh}${h.role != null ? ' (${h.role!.label})' : ''} · ${formatTanggalJam(h.tanggal)}',
-                      style: TextStyle(fontSize: 11, color: hintGrey)),
-                  if (pelakuLabel != null) ...[
-                    const SizedBox(height: 4),
-                    Text(pelakuLabel,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(h.aksi,
                         style: TextStyle(
-                            fontSize: 11.5,
-                            color: red,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            height: 1.4)),
+                            color: labelDark)),
+                    const SizedBox(height: 2),
+                    Text(
+                        '${h.oleh}${h.role != null ? ' (${h.role!.label})' : ''} · ${formatTanggalJam(h.tanggal)}',
+                        style: TextStyle(fontSize: 11, color: hintGrey)),
+                    if (pelakuLabel != null) ...[
+                      const SizedBox(height: 4),
+                      Text(pelakuLabel,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: red,
+                              fontWeight: FontWeight.w600,
+                              height: 1.4)),
+                    ],
+                    if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(h.keterangan!,
+                          style: TextStyle(
+                              fontSize: 12, color: labelDark, height: 1.4)),
+                    ],
                   ],
-                  if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(h.keterangan!,
-                        style: TextStyle(
-                            fontSize: 12, color: labelDark, height: 1.4)),
-                  ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
