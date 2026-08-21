@@ -279,14 +279,19 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
 
   Widget _buildItem(
       BuildContext context, Pengumuman p, bool isDark, bool belumDibaca) {
-    final adaGambar = _lampiranAdalahGambar(p);
-    final aksen = p.isPenting ? _danger : _accent;
-    final surface = isDark ? const Color(0xFF1B2230) : Colors.white;
+    final bool adaGambar = _lampiranAdalahGambar(p);
+    final Color surface = isDark ? const Color(0xFF1B2230) : Colors.white;
+    final Color textColor = isDark ? Colors.white : const Color(0xFF1B2733);
+    final Color subColor =
+        isDark ? const Color(0xFF9AA6B2) : const Color(0xFF6F7C8A);
+    final Color lineColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFE8EDF3);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         splashColor: _accent.withValues(alpha: 0.08),
         highlightColor: _accent.withValues(alpha: 0.04),
         onTap: () async {
@@ -294,190 +299,239 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
           _refresh();
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
             color: surface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.black.withValues(alpha: 0.04),
+              color: belumDibaca
+                  ? _accent.withValues(alpha: 0.22)
+                  : lineColor,
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
+            // IntrinsicHeight WAJIB di sini: Row dengan
+            // CrossAxisAlignment.stretch butuh tinggi pasti untuk bisa
+            // meregangkan Container aksen (width:5, tanpa height) ke
+            // tinggi konten di sebelahnya. Tanpa ini, layout jadi
+            // sirkular dan menyebabkan RenderBox gagal (muncul sebagai
+            // "mouse_tracker assertion" di console, layar jadi kosong).
             child: IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Garis aksen tipis di kiri sebagai penanda "belum dibaca",
-                  // pengganti glow/border tebal agar terasa lebih modern.
+                  // Garis biru di kiri sebagai aksen, bukan emoji/icon
+                  // tambahan.
                   Container(
-                    width: 4,
-                    color: belumDibaca ? _accent : Colors.transparent,
+                    width: 5,
+                    color: belumDibaca
+                        ? _accent
+                        : _accent.withValues(alpha: 0.30),
                   ),
+
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    // Baris badge: jenis (PENTING/INFO),
-                                    // pin, dan penanda "Baru".
-                                    Row(
-                                      children: [
-                                        if (p.disematkan) ...[
-                                          Icon(Icons.push_pin_rounded,
-                                              size: 12, color: _warning),
-                                          const SizedBox(width: 4),
-                                        ],
-                                        _typeBadge(p.isPenting),
-                                        if (belumDibaca) ...[
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: const BoxDecoration(
-                                              color: _accent,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text('Baru',
-                                              style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: _accent,
-                                              )),
-                                        ],
-                                      ],
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header kecil: badge + status baru
+                        Row(
+                          children: [
+                            _typeBadge(p.isPenting),
+                            if (belumDibaca) ...[
+                              const SizedBox(width: 7),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _accent.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  'Baru',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _accent,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Ikon biru clean, bukan emoji.
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: _accent.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: Icon(
+                                p.isPenting
+                                    ? Icons.notifications_active_rounded
+                                    : Icons.campaign_rounded,
+                                color: _accent,
+                                size: 21,
+                              ),
+                            ),
+
+                            const SizedBox(width: 11),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    p.judul,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.22,
+                                      color: textColor,
                                     ),
-                                    const SizedBox(height: 8),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    p.ringkasan,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      height: 1.42,
+                                      color: subColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            if (adaGambar) ...[
+                              const SizedBox(width: 10),
+                              _ThumbnailGambar(
+                                url: p.lampiranUrl!,
+                                isDark: isDark,
+                              ),
+                            ],
+                          ],
+                        ),
+
+                        const SizedBox(height: 13),
+
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            _statusBadge(p.sedangTayang),
+                            if (p.adaLampiran)
+                              _lampiranBadge(isDark, adaGambar),
+                          ],
+                        ),
+
+                        const SizedBox(height: 13),
+
+                        Divider(
+                          height: 1,
+                          color: lineColor,
+                        ),
+
+                        const SizedBox(height: 11),
+
+                        Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: _accent.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                Icons.event_rounded,
+                                size: 15,
+                                color: _accent,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                formatTanggalJam(p.tanggalPublikasi),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: subColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () async {
+                                await showPengumumanDetail(context, p);
+                                _refresh();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 13,
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _accent.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _accent.withValues(alpha: 0.14),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
                                     Text(
-                                      p.judul,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                      'Lihat Detail',
                                       style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.25,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF1B2733),
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: _accentDark,
                                       ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 14,
+                                      color: _accentDark,
                                     ),
                                   ],
                                 ),
                               ),
-                              if (adaGambar) ...[
-                                const SizedBox(width: 12),
-                                _ThumbnailGambar(
-                                    url: p.lampiranUrl!, isDark: isDark),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            p.ringkasan,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.45,
-                              color: isDark
-                                  ? const Color(0xFF9AA6B2)
-                                  : Colors.grey[700],
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              _statusBadge(p.sedangTayang),
-                              if (p.adaLampiran)
-                                _lampiranBadge(isDark, adaGambar),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Divider(
-                            height: 1,
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.06)
-                                : Colors.black.withValues(alpha: 0.05),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(Icons.event_rounded,
-                                  size: 13,
-                                  color: isDark
-                                      ? const Color(0xFF9AA6B2)
-                                      : Colors.grey[500]),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  formatTanggalJam(p.tanggalPublikasi),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark
-                                        ? const Color(0xFF9AA6B2)
-                                        : Colors.grey[600],
-                                  ),
-                                ),
-                              ),
-                              InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () async {
-                                  await showPengumumanDetail(context, p);
-                                  _refresh();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: aksen.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Lihat Detail',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: _accentDark,
-                                          )),
-                                      const SizedBox(width: 3),
-                                      Icon(Icons.arrow_forward_rounded,
-                                          size: 13, color: _accentDark),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                ),
                 ],
               ),
             ),

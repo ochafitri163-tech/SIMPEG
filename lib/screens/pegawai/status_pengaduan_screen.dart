@@ -7,7 +7,6 @@ import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 
-
 class StatusPengaduanScreen extends StatefulWidget {
   final AppUser user;
   final bool showBackButton;
@@ -37,6 +36,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
 
   /// ID pengaduan yang riwayatnya sedang ditampilkan (expand) di kartu.
   final Set<int> _riwayatTerbuka = {};
+
   /// Cache riwayat status per pengaduan supaya tidak fetch ulang setiap
   /// kali kartu di-expand/collapse.
   final Map<int, Future<Pengaduan?>> _riwayatCache = {};
@@ -46,12 +46,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   @override
   void initState() {
     super.initState();
-    _pengaduanFuture = PengaduanService.punyaSayaSebagaiObjek();
+    _pengaduanFuture =
+        PengaduanService.punyaSayaSebagaiObjek(nik: widget.user.nik);
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _pengaduanFuture = PengaduanService.punyaSayaSebagaiObjek();
+      _pengaduanFuture =
+          PengaduanService.punyaSayaSebagaiObjek(nik: widget.user.nik);
     });
     await _pengaduanFuture;
   }
@@ -130,203 +132,207 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       Center(
                         child: Container(
                           width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0E4E9),
-                          borderRadius: BorderRadius.circular(4),
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0E4E9),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Filter Pengaduan',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: navy,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setSheetState(() {
-                              tempStatus = {};
-                              tempCabang = null;
-                              tempTanggal = null;
-                            });
-                          },
-                          child: Text('Reset',
-                              style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: hintGrey,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text('Status',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: labelDark)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: PengaduanStatus.values.map((s) {
-                        final selected = tempStatus.contains(s);
-                        return FilterChip(
-                          label: Text(s.label,
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 10.5 : 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: selected ? Colors.white : s.color,
-                              )),
-                          selected: selected,
-                          onSelected: (v) {
-                            setSheetState(() {
-                              if (v) {
-                                tempStatus.add(s);
-                              } else {
-                                tempStatus.remove(s);
-                              }
-                            });
-                          },
-                          selectedColor: s.color,
-                          backgroundColor: s.color.withValues(alpha: 0.1),
-                          checkmarkColor: Colors.white,
-                          side: BorderSide(color: s.color.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 18),
-                    Text('Cabang',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: labelDark)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _daftarCabang(semua).map((c) {
-                        final selected = tempCabang == c;
-                        return ChoiceChip(
-                          label: Text(c,
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 10.5 : 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: selected ? Colors.white : labelDark,
-                              )),
-                          selected: selected,
-                          onSelected: (v) {
-                            setSheetState(() {
-                              tempCabang = v ? c : null;
-                            });
-                          },
-                          selectedColor: accent,
-                          backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 18),
-                    Text('Rentang Tanggal',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: labelDark)),
-                    const SizedBox(height: 10),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () async {
-                        final now = DateTime.now();
-                        final range = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(now.year - 2),
-                          lastDate: DateTime(now.year + 1),
-                          initialDateRange: tempTanggal,
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: accent,
-                                  onPrimary: Colors.white,
-                                  onSurface: labelDark,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (range != null) {
-                          setSheetState(() => tempTanggal = range);
-                        }
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: AppColors.pageBackground(context),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.date_range_rounded,
-                                size: 18, color: accent),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                tempTanggal == null
-                                    ? 'Pilih rentang tanggal'
-                                    : '${formatTanggalIndonesia(tempTanggal!.start)}  —  ${formatTanggalIndonesia(tempTanggal!.end)}',
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 11.0 : 12.0,
-                                  fontWeight: FontWeight.w600,
-                                  color: tempTanggal == null
-                                      ? hintGrey
-                                      : labelDark,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _filterStatus = tempStatus;
-                            _filterCabang = tempCabang;
-                            _filterTanggal = tempTanggal;
-                          });
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: navy,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: const Text('Terapkan Filter',
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Filter Pengaduan',
                             style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600)),
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: navy,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setSheetState(() {
+                                tempStatus = {};
+                                tempCabang = null;
+                                tempTanggal = null;
+                              });
+                            },
+                            child: Text('Reset',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: hintGrey,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      Text('Status',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: labelDark)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: PengaduanStatus.values.map((s) {
+                          final selected = tempStatus.contains(s);
+                          return FilterChip(
+                            label: Text(s.label,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10.5 : 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected ? Colors.white : s.color,
+                                )),
+                            selected: selected,
+                            onSelected: (v) {
+                              setSheetState(() {
+                                if (v) {
+                                  tempStatus.add(s);
+                                } else {
+                                  tempStatus.remove(s);
+                                }
+                              });
+                            },
+                            selectedColor: s.color,
+                            backgroundColor: s.color.withValues(alpha: 0.1),
+                            checkmarkColor: Colors.white,
+                            side: BorderSide(
+                                color: s.color.withValues(alpha: 0.3)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      Text('Cabang',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: labelDark)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _daftarCabang(semua).map((c) {
+                          final selected = tempCabang == c;
+                          return ChoiceChip(
+                            label: Text(c,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10.5 : 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected ? Colors.white : labelDark,
+                                )),
+                            selected: selected,
+                            onSelected: (v) {
+                              setSheetState(() {
+                                tempCabang = v ? c : null;
+                              });
+                            },
+                            selectedColor: accent,
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF10151C)
+                                    : const Color(0xFFF3F6F9),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      Text('Rentang Tanggal',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: labelDark)),
+                      const SizedBox(height: 10),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final range = await showDateRangePicker(
+                            context: context,
+                            firstDate: DateTime(now.year - 2),
+                            lastDate: DateTime(now.year + 1),
+                            initialDateRange: tempTanggal,
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: accent,
+                                    onPrimary: Colors.white,
+                                    onSurface: labelDark,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (range != null) {
+                            setSheetState(() => tempTanggal = range);
+                          }
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: AppColors.pageBackground(context),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.date_range_rounded,
+                                  size: 18, color: accent),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  tempTanggal == null
+                                      ? 'Pilih rentang tanggal'
+                                      : '${formatTanggalIndonesia(tempTanggal!.start)}  —  ${formatTanggalIndonesia(tempTanggal!.end)}',
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 11.0 : 12.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: tempTanggal == null
+                                        ? hintGrey
+                                        : labelDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _filterStatus = tempStatus;
+                              _filterCabang = tempCabang;
+                              _filterTanggal = tempTanggal;
+                            });
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: navy,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const Text('Terapkan Filter',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -343,7 +349,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF10151C)
+          : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: FutureBuilder<List<Pengaduan>>(
         future: _pengaduanFuture,
@@ -445,7 +453,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     );
   }
 
-  Widget _buildRingkasanBar(int jumlah, List<Pengaduan> semua, bool isSmallScreen) {
+  Widget _buildRingkasanBar(
+      int jumlah, List<Pengaduan> semua, bool isSmallScreen) {
     return Container(
       width: double.infinity,
       color: AppColors.pageBackground(context),
@@ -453,7 +462,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         isSmallScreen ? 16.0 : 20.0,
         isSmallScreen ? 14.0 : 18.0,
         isSmallScreen ? 16.0 : 20.0,
-        _adaFilterAktif ? (isSmallScreen ? 6.0 : 8.0) : (isSmallScreen ? 10.0 : 14.0),
+        _adaFilterAktif
+            ? (isSmallScreen ? 6.0 : 8.0)
+            : (isSmallScreen ? 10.0 : 14.0),
       ),
       child: Container(
         width: double.infinity,
@@ -541,33 +552,33 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ],
             ),
             if (_adaFilterAktif) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final s in _filterStatus)
-                  _buildFilterChipAktif(
-                    label: s.label,
-                    color: s.color,
-                    onRemove: () => setState(() => _filterStatus.remove(s)),
-                  ),
-                if (_filterCabang != null)
-                  _buildFilterChipAktif(
-                    label: _filterCabang!,
-                    color: accent,
-                    onRemove: () => setState(() => _filterCabang = null),
-                  ),
-                if (_filterTanggal != null)
-                  _buildFilterChipAktif(
-                    label:
-                        '${formatTanggalIndonesia(_filterTanggal!.start)} — ${formatTanggalIndonesia(_filterTanggal!.end)}',
-                    color: navy,
-                    onRemove: () => setState(() => _filterTanggal = null),
-                  ),
-              ],
-            ),
-          ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final s in _filterStatus)
+                    _buildFilterChipAktif(
+                      label: s.label,
+                      color: s.color,
+                      onRemove: () => setState(() => _filterStatus.remove(s)),
+                    ),
+                  if (_filterCabang != null)
+                    _buildFilterChipAktif(
+                      label: _filterCabang!,
+                      color: accent,
+                      onRemove: () => setState(() => _filterCabang = null),
+                    ),
+                  if (_filterTanggal != null)
+                    _buildFilterChipAktif(
+                      label:
+                          '${formatTanggalIndonesia(_filterTanggal!.start)} — ${formatTanggalIndonesia(_filterTanggal!.end)}',
+                      color: navy,
+                      onRemove: () => setState(() => _filterTanggal = null),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -619,11 +630,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            navy,
-            navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85)
-          ],
+          colors: [navy, navy.withValues(alpha: 0.85), const Color(0xFF123A85)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -649,7 +656,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.18)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -742,12 +750,14 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           ),
           const SizedBox(height: 4),
           Padding(
-            padding: EdgeInsets.only(left: widget.showBackButton ? (isSmallScreen ? 42.0 : 50.0) : 0.0),
+            padding: EdgeInsets.only(
+                left: widget.showBackButton
+                    ? (isSmallScreen ? 42.0 : 50.0)
+                    : 0.0),
             child: Text(
               'Riwayat seluruh pengaduan yang pernah kamu buat',
               style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 10.5 : 11.5),
+                  color: Colors.white70, fontSize: isSmallScreen ? 10.5 : 11.5),
             ),
           ),
           const SizedBox(height: 16),
@@ -770,8 +780,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search_rounded,
-                          color: hintGrey, size: 20),
+                      Icon(Icons.search_rounded, color: hintGrey, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
@@ -846,7 +855,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       width: isSmallScreen ? 38.0 : 44.0,
                       height: isSmallScreen ? 38.0 : 44.0,
                       decoration: BoxDecoration(
-                        color: _adaFilterAktif ? accent : AppColors.card(context),
+                        color:
+                            _adaFilterAktif ? accent : AppColors.card(context),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
@@ -858,7 +868,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                       ),
                       child: Icon(
                         Icons.tune_rounded,
-                        color: _adaFilterAktif ? Colors.white : AppColors.textPrimary(context),
+                        color: _adaFilterAktif
+                            ? Colors.white
+                            : AppColors.textPrimary(context),
                         size: isSmallScreen ? 18.0 : 20.0,
                       ),
                     ),
@@ -890,7 +902,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         children: [
           for (int i = 0; i < riwayat.length; i++)
             Padding(
-              padding: EdgeInsets.only(bottom: i == riwayat.length - 1 ? 0 : 12),
+              padding:
+                  EdgeInsets.only(bottom: i == riwayat.length - 1 ? 0 : 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -931,7 +944,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                           '${riwayat[i].oleh} · ${formatTanggalJam(riwayat[i].tanggal)}',
                           style: TextStyle(fontSize: 10.5, color: hintGrey),
                         ),
-                        if ((riwayat[i].keterangan ?? '').trim().isNotEmpty) ...[
+                        if ((riwayat[i].keterangan ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 3),
                           Text(
                             riwayat[i].keterangan!.trim(),
@@ -1118,8 +1133,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     Row(
                       children: [
                         Icon(Icons.calendar_today_rounded,
-                            size: isSmallScreen ? 12.0 : 13.0,
-                            color: hintGrey),
+                            size: isSmallScreen ? 12.0 : 13.0, color: hintGrey),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -1207,8 +1221,8 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                                     const EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
                                   'Gagal memuat riwayat: ${snap.error}',
-                                  style: TextStyle(
-                                      fontSize: 11, color: hintGrey),
+                                  style:
+                                      TextStyle(fontSize: 11, color: hintGrey),
                                 ),
                               );
                             }

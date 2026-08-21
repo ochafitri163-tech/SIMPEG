@@ -19,6 +19,7 @@ class DokumenKepegawaian {
   final String kategori;
   final String fileUrl;
   final String fileNama;
+  final String? nomor;
   final String? diunggahOleh;
   final DateTime dibuatPada;
 
@@ -30,6 +31,7 @@ class DokumenKepegawaian {
     required this.fileNama,
     required this.dibuatPada,
     this.pegawaiId,
+    this.nomor,
     this.diunggahOleh,
   });
 
@@ -43,6 +45,7 @@ class DokumenKepegawaian {
       kategori: (row['kategori'] ?? 'Umum') as String,
       fileUrl: (row['file_url'] ?? '') as String,
       fileNama: (row['file_nama'] ?? 'dokumen') as String,
+      nomor: row['nomor'] as String?,
       diunggahOleh: row['diunggah_oleh'] as String?,
       dibuatPada: DateTime.tryParse(row['created_at'].toString()) ??
           DateTime.now(),
@@ -59,12 +62,18 @@ class DokumenService {
 
   static const List<String> kategoriPilihan = [
     'SK',
+    'Diklat',
     'Kontrak',
     'Sertifikat',
     'Surat',
     'Slip Gaji',
     'Umum',
   ];
+
+  /// Kategori resmi yang diterbitkan SDM & ditampilkan di kartu
+  /// "Dokumen Resmi Pegawai" pada halaman Profil (Surat Kerja & Surat
+  /// Diklat/Pelatihan).
+  static const List<String> kategoriResmi = ['SK', 'Diklat'];
 
   /// Dokumen yang bisa diakses user login: miliknya + dokumen umum.
   static Future<List<DokumenKepegawaian>> untukSaya() async {
@@ -78,6 +87,14 @@ class DokumenService {
     return (rows as List)
         .map((r) => DokumenKepegawaian.fromRow(r as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Dokumen resmi (Surat Kerja/SK & Surat Diklat/Pelatihan) milik user
+  /// login, untuk ditampilkan di kartu "Dokumen Resmi Pegawai (SDM)" pada
+  /// halaman Profil. Hanya view & unduh — tanpa opsi unggah untuk pegawai.
+  static Future<List<DokumenKepegawaian>> dokumenResmiSaya() async {
+    final semua = await untukSaya();
+    return semua.where((d) => kategoriResmi.contains(d.kategori)).toList();
   }
 
   /// SDM — seluruh dokumen.
@@ -108,6 +125,7 @@ class DokumenService {
     required String fileUrl,
     required String fileNama,
     required String diunggahOleh,
+    String? nomor,
   }) async {
     if (judul.trim().isEmpty) {
       throw ArgumentError('Judul dokumen wajib diisi.');
@@ -119,6 +137,7 @@ class DokumenService {
       'file_url': fileUrl,
       'file_nama': fileNama,
       'diunggah_oleh': diunggahOleh,
+      'nomor': (nomor == null || nomor.trim().isEmpty) ? null : nomor.trim(),
     });
   }
 

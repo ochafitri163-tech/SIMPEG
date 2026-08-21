@@ -47,18 +47,11 @@ class FeatureScaffold extends StatelessWidget {
               right: 20,
               bottom: 22,
             ),
-            decoration: BoxDecoration(
-              // Header gradasi tetap sama di kedua mode supaya brand
-              // PDAM tetap konsisten; hanya sedikit digelapkan agar
-              // tidak terlalu terang di lingkungan gelap.
-              gradient: LinearGradient(
-                colors: isDark
-                    ? const [Color(0xFF081A45), Color(0xFF1F5F79)]
-                    : const [navy, accent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
+            decoration: const BoxDecoration(
+              // Header biru solid (bukan gradasi) supaya brand PDAM
+              // tetap konsisten dan terlihat clean di kedua mode.
+              color: navy,
+              borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(28),
                 bottomRight: Radius.circular(28),
               ),

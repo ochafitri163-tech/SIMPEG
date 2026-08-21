@@ -71,7 +71,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
   ///   sesuai kewenangannya seperti sebelumnya.
   Future<List<Pengaduan>> _muatData() {
     if (widget.user.role == UserRole.pegawai) {
-      return PengaduanService.punyaSayaSebagaiObjek();
+      return PengaduanService.punyaSayaSebagaiObjek(nik: widget.user.nik);
     }
     return PengaduanService.untukRoleSebagaiObjek(
       widget.user.role,
@@ -115,7 +115,8 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                 child: Text(
                   'Gagal memuat riwayat: ${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary(context), fontSize: 13),
+                  style: TextStyle(
+                      color: AppColors.textSecondary(context), fontSize: 13),
                 ),
               ),
             );
@@ -170,7 +171,9 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : AppColors.textPrimary(context),
+                    color: selected
+                        ? Colors.white
+                        : AppColors.textPrimary(context),
                   ),
                 ),
                 selected: selected,
@@ -198,7 +201,8 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
         const SizedBox(height: 10),
         Text(
           'Belum ada riwayat pengaduan.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context)),
+          style: TextStyle(
+              fontSize: 12.5, color: AppColors.textSecondary(context)),
         ),
       ],
     );
@@ -278,12 +282,14 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
               const SizedBox(height: 4),
               Text(
                 'Pelapor: $pelapor',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+                style: TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary(context)),
               ),
               const SizedBox(height: 2),
               Text(
                 'Kategori: ${p.kategori} \u00b7 ${formatTanggalJam(p.tanggalPengaduan)}',
-                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context)),
+                style: TextStyle(
+                    fontSize: 11.5, color: AppColors.textSecondary(context)),
               ),
               const SizedBox(height: 8),
               Row(
@@ -293,7 +299,8 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                   const SizedBox(width: 4),
                   Text(
                     'Ketuk untuk lihat detail & alur status',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary(context)),
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary(context)),
                   ),
                 ],
               ),
