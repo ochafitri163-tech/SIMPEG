@@ -84,6 +84,9 @@ class _LoginScreenState extends State<LoginScreen> {
           role: userRole,
         );
 
+        // Simpan session user agar tidak perlu login ulang
+        await ApiService.saveUserSession(user.toJson());
+
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
@@ -104,6 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
             role: demoAcc.role,
             divisiKadiv: demoAcc.divisiKadiv,
           );
+          // Simpan session user
+          await ApiService.saveUserSession(user.toJson());
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -131,6 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
           role: demoAcc.role,
           divisiKadiv: demoAcc.divisiKadiv,
         );
+        // Simpan session user
+        await ApiService.saveUserSession(user.toJson());
         if (mounted) {
           Navigator.pushReplacement(
             context,

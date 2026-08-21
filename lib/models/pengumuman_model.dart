@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
-import 'pengaduan_service.dart' as notif;
+import 'pengaduan_service.dart' as pengaduan_notif;
+import '../services/notification_service.dart';
 
 /// =============================================================
 /// FITUR PENGUMUMAN (versi lengkap)
@@ -318,9 +319,17 @@ class PengumumanService {
     required String judul,
     required List<UserRole> target,
   }) async {
+    try {
+      // Tampilkan notifikasi lokal untuk pembuat/pengirim pengumuman
+      await NotificationService.instance.showPengumuman(
+        title: '📢 Pengumuman Baru Terpublikasi',
+        body: judul,
+      );
+    } catch (_) {}
+
     for (final r in target) {
       try {
-        await notif.NotificationService.kirimKeRole(
+        await pengaduan_notif.NotificationService.kirimKeRole(
           role: r,
           judul: '📢 Pengumuman Baru',
           pesan: judul,

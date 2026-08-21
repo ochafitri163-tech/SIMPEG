@@ -127,9 +127,31 @@ class ApiService {
     }
   }
 
+  /// Simpan session pengguna ke SharedPreferences
+  static Future<void> saveUserSession(Map<String, dynamic> userMap) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_session_json', jsonEncode(userMap));
+  }
+
+  /// Ambil data session pengguna yang tersimpan (jika ada)
+  static Future<Map<String, dynamic>?> getSavedUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString('user_session_json');
+    if (jsonStr == null || jsonStr.isEmpty) return null;
+    try {
+      return jsonDecode(jsonStr) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 8. Logout
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('auth_token');
+    await prefs.remove('user_nik');
+    await prefs.remove('user_nama');
+    await prefs.remove('user_jabatan');
+    await prefs.remove('user_session_json');
   }
 }
