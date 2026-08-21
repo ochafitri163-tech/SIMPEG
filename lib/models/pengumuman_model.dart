@@ -91,10 +91,9 @@ class Pengumuman {
           ? 'penting'
           : 'umum',
       disematkan: (row['disematkan'] ?? false) as bool,
-      targetRoles: (row['target_roles'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          const [],
+      targetRoles:
+          (row['target_roles'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
       pembuat: (row['pembuat'] ?? 'SDM') as String,
       pembuatId: row['pembuat_id'] as String?,
       tanggalPublikasi: parse(row['created_at']) ?? DateTime.now().toUtc(),
@@ -118,12 +117,16 @@ class PengumumanService {
   static const _tableDibaca = 'pengumuman_dibaca';
 
   /// 5 role tujuan default (tanpa SDM, karena SDM adalah pengelola).
+  /// 7 role tujuan pengumuman. SDM ikut dimasukkan supaya pengumuman
+  /// juga tampil di dashboard SDM (bukan hanya sebagai pengelola).
   static const List<UserRole> roleTujuan = [
     UserRole.pegawai,
     UserRole.kadivKategori,
     UserRole.kspi,
     UserRole.tpdpk,
     UserRole.direktur,
+    UserRole.sdm,
+    UserRole.keuangan,
   ];
 
   /// Stream realtime pengumuman yang SEDANG TAYANG untuk [role] tertentu.
@@ -135,22 +138,24 @@ class PengumumanService {
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .map((rows) {
-      final list = rows
-          .map(Pengumuman.fromRow)
-          .where((p) => p.sedangTayang && p.untukRole(role))
-          .toList();
-      list.sort((a, b) {
-        if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
-        return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
-      });
-      return list;
-    });
+          final list = rows
+              .map(Pengumuman.fromRow)
+              .where((p) => p.sedangTayang && p.untukRole(role))
+              .toList();
+          list.sort((a, b) {
+            if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
+            return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
+          });
+          return list;
+        });
   }
 
   /// Seluruh pengumuman (untuk halaman riwayat / kelola). Terbaru di atas.
   static Future<List<Pengumuman>> semua() async {
-    final rows =
-        await _client.from(_table).select().order('created_at', ascending: false);
+    final rows = await _client
+        .from(_table)
+        .select()
+        .order('created_at', ascending: false);
     return (rows as List)
         .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
         .toList();
@@ -200,8 +205,7 @@ class PengumumanService {
 
   /// Jumlah pengumuman tayang yang BELUM dibaca oleh [role] user login.
   static Future<int> jumlahBelumDibaca(UserRole role) async {
-    final rows =
-        await _client.from(_table).select().eq('aktif', true);
+    final rows = await _client.from(_table).select().eq('aktif', true);
     final tayang = (rows as List)
         .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
         .where((p) => p.sedangTayang && p.untukRole(role))
@@ -253,8 +257,9 @@ class PengumumanService {
       if (lampiranNama != null) 'lampiran_nama': lampiranNama,
     });
 
-    final langsungTayang =
-        aktif && (terbitPada == null || !DateTime.now().toUtc().isBefore(terbitPada.toUtc()));
+    final langsungTayang = aktif &&
+        (terbitPada == null ||
+            !DateTime.now().toUtc().isBefore(terbitPada.toUtc()));
     if (langsungTayang) {
       await _kirimNotifikasi(judul: j, target: target ?? roleTujuan);
     }

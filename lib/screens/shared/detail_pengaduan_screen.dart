@@ -5,6 +5,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../theme/app_colors.dart';
+import '../sdm/terbitkan_sk_screen.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -256,7 +257,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF10151C)
+          : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
@@ -409,19 +412,16 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   fontSize: 12.5, color: accent, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           Text(p.deskripsi,
-              style:
-                  TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
+              style: TextStyle(fontSize: 13, height: 1.5, color: labelDark)),
           const SizedBox(height: 14),
           Row(
             children: [
-              Icon(Icons.person_outline_rounded,
-                  size: 15, color: hintGrey),
+              Icon(Icons.person_outline_rounded, size: 15, color: hintGrey),
               const SizedBox(width: 6),
               Text(p.anonim ? 'Anonim' : p.namaPegawai,
                   style: TextStyle(fontSize: 12, color: hintGrey)),
               const SizedBox(width: 14),
-              Icon(Icons.calendar_today_outlined,
-                  size: 13, color: hintGrey),
+              Icon(Icons.calendar_today_outlined, size: 13, color: hintGrey),
               const SizedBox(width: 6),
               Text(formatTanggalIndonesia(p.tanggalPengaduan),
                   style: TextStyle(fontSize: 12, color: hintGrey)),
@@ -429,57 +429,58 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ),
           if (p.eksekutor != null) const SizedBox(height: 10),
           if (p.eksekutor != null)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.assignment_ind_outlined, size: 15, color: hintGrey),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                    'Eksekutor Investigasi: '
-                    '${p.eksekutor == Eksekutor.kadiv && p.eksekutorDivisiKadiv != null ? p.eksekutorDivisiKadiv!.label : p.eksekutor!.label}',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: hintGrey,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.assignment_ind_outlined, size: 15, color: hintGrey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                      'Eksekutor Investigasi: '
+                      '${p.eksekutor == Eksekutor.kadiv && p.eksekutorDivisiKadiv != null ? p.eksekutorDivisiKadiv!.label : p.eksekutor!.label}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
           if (p.petugasInvestigasi != null &&
               p.petugasInvestigasi!.trim().isNotEmpty)
             const SizedBox(height: 8),
           if (p.petugasInvestigasi != null &&
               p.petugasInvestigasi!.trim().isNotEmpty)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.groups_outlined, size: 15, color: hintGrey),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('Petugas: ${p.petugasInvestigasi}',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: hintGrey,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.groups_outlined, size: 15, color: hintGrey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Petugas: ${p.petugasInvestigasi}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
           if (p.eksekutorTindakLanjut != null) const SizedBox(height: 8),
           if (p.eksekutorTindakLanjut != null)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.engineering_outlined, size: 15, color: hintGrey),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('Eksekutor Tindak Lanjut: ${p.eksekutorTindakLanjut!.label}',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: hintGrey,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.engineering_outlined, size: 15, color: hintGrey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                      'Eksekutor Tindak Lanjut: ${p.eksekutorTindakLanjut!.label}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: hintGrey,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -553,7 +554,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-              color: AppColors.card(context), borderRadius: BorderRadius.circular(14)),
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(14)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -593,8 +595,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 _buildLampiranLinks(
                     'Voice Note', p.investigasiVoice, Icons.mic_rounded),
               if (p.investigasiDokumen.isNotEmpty)
-                _buildLampiranLinks('Dokumen', p.investigasiDokumen,
-                    Icons.attach_file_rounded),
+                _buildLampiranLinks(
+                    'Dokumen', p.investigasiDokumen, Icons.attach_file_rounded),
             ],
           ),
         ),
@@ -611,9 +613,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: labelDark)),
+                  fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -623,13 +623,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 InkWell(
                   onTap: () => _bukaUrl(urls[i]),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: accent.withValues(alpha: 0.3)),
+                      border: Border.all(color: accent.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -682,9 +681,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               const SizedBox(width: 6),
               Text('Pelaku / Pihak yang Diadukan',
                   style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: red)),
+                      fontSize: 12.5, fontWeight: FontWeight.bold, color: red)),
             ],
           ),
           const SizedBox(height: 10),
@@ -707,8 +704,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         children: [
           SizedBox(
             width: 60,
-            child: Text(label,
-                style: TextStyle(fontSize: 12, color: hintGrey)),
+            child: Text(label, style: TextStyle(fontSize: 12, color: hintGrey)),
           ),
           Expanded(
             child: Text(value,
@@ -736,7 +732,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: AppColors.card(context), borderRadius: BorderRadius.circular(14)),
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(14)),
       child: Column(
         children: [
           for (int i = 0; i < p.riwayatStatus.length; i++)
@@ -905,12 +902,36 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         panel = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Tindak Lanjut SDM — Penurunan Gaji'),
-            const SizedBox(height: 10),
+            _buildSectionTitle('Tindak Lanjut SDM — Terbitkan SK Sanksi'),
+            const SizedBox(height: 6),
+            Text(
+              'SK Sanksi memuat penurunan jabatan/golongan, potongan gaji, '
+              'dan 4 dokumen wajib. Pengaduan otomatis ditandai selesai '
+              'setelah SK diterbitkan.',
+              style: TextStyle(fontSize: 12.5, color: hintGrey, height: 1.45),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
+                onPressed: _isProcessing ? null : () => _bukaTerbitkanSk(p),
+                icon: const Icon(Icons.description_rounded),
+                label: const Text('Terbitkan SK Sanksi'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+// Opsi lama: selesaikan tanpa SK (hanya catatan penurunan gaji).
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: TextButton.icon(
                 onPressed: _isProcessing
                     ? null
                     : () async {
@@ -928,14 +949,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                           sukses: 'Penurunan gaji dicatat, pengaduan selesai.',
                         );
                       },
-                icon: const Icon(Icons.trending_down_rounded),
-                label: const Text('Turunkan Gaji & Selesaikan'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
+                icon: const Icon(Icons.trending_down_rounded, size: 18),
+                label: const Text('Selesaikan tanpa SK (catatan saja)'),
+                style: TextButton.styleFrom(foregroundColor: hintGrey),
               ),
             ),
           ],
@@ -955,6 +971,24 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       ),
       child: panel,
     );
+  }
+
+  /// Buka halaman Terbitkan SK Sanksi dengan data terlapor sudah terisi
+  /// otomatis. [SkSanksiService.terbitkan] akan menandai pengaduan ini
+  /// selesai, jadi setelah kembali cukup reload detail.
+  Future<void> _bukaTerbitkanSk(Pengaduan p) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TerbitkanSkScreen(
+          user: widget.user,
+          pengaduan: p,
+          pengaduanId: p.supabaseId,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _reload();
   }
 
   Widget _panelTerimaTolak({
@@ -1025,7 +1059,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             onPressed: _isProcessing
                 ? null
                 : () async {
-                    final e = await _dialogPilihEksekutor(judul: judul, opsi: opsi);
+                    final e =
+                        await _dialogPilihEksekutor(judul: judul, opsi: opsi);
                     if (e != null) onPilih(e);
                   },
             icon: const Icon(Icons.person_search_rounded, size: 18),
@@ -1064,8 +1099,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           maxLines: 3,
           decoration: InputDecoration(
             hintText: 'Uraikan hasil investigasi...',
-            border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
         const SizedBox(height: 12),
@@ -1078,8 +1112,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           maxLines: 3,
           decoration: InputDecoration(
             hintText: 'Contoh: gaji dipotong 10% selama 3 bulan.',
-            border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
         const SizedBox(height: 12),
@@ -1202,8 +1235,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               'otomatis dialihkan ke Kadiv divisi tersebut. Selama jenisnya '
               'tetap di divisi Anda, Terima maupun Tolak sama-sama '
               'diteruskan ke KSPI (keputusan tetap dicatat).',
-              style:
-                  TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
+              style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
             ),
             const SizedBox(height: 12),
             Text('Kategori Pelanggaran',
@@ -1221,8 +1253,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     selected: kategoriPilihan == k,
                     selectedColor: accent,
                     labelStyle: TextStyle(
-                      color:
-                          kategoriPilihan == k ? Colors.white : labelDark,
+                      color: kategoriPilihan == k ? Colors.white : labelDark,
                     ),
                     onSelected: (_) => setLocal(() => kategoriPilihan = k),
                   ),
@@ -1274,48 +1305,48 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 ),
               ),
             ] else ...[
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: _isProcessing
-                          ? null
-                          : () => proses(Keputusan.tolak),
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('Tolak'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: red,
-                        side: const BorderSide(color: red),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: _isProcessing
+                            ? null
+                            : () => proses(Keputusan.tolak),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('Tolak'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: red,
+                          side: const BorderSide(color: red),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: _isProcessing
-                          ? null
-                          : () => proses(Keputusan.terima),
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Terima'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: _isProcessing
+                            ? null
+                            : () => proses(Keputusan.terima),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Terima'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             ],
           ],
         );
@@ -1352,8 +1383,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 child: Text(
                   'Keputusan Kadiv: $keputusanKadivLabel'
                   '${p.catatanKadiv != null && p.catatanKadiv!.trim().isNotEmpty ? ' — ${p.catatanKadiv}' : ''}',
-                  style: TextStyle(
-                      fontSize: 11.5, color: labelDark, height: 1.4),
+                  style:
+                      TextStyle(fontSize: 11.5, color: labelDark, height: 1.4),
                 ),
               ),
             ],
@@ -1379,8 +1410,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       : () async {
                           final catatan = await _dialogCatatan(
                             judul: 'Alasan Penolakan KSPI',
-                            hint:
-                                'Jelaskan alasan pengaduan ini ditolak...',
+                            hint: 'Jelaskan alasan pengaduan ini ditolak...',
                             wajib: true,
                             labelTombol: 'Tolak & Arsipkan',
                             warnaTombol: red,

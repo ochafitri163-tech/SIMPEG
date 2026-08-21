@@ -25,8 +25,8 @@ import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
 
-
 import '../../services/theme_controller.dart';
+
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
 /// login. Sumber utama adalah presensi harian nyata (tabel
 /// `absensi_harian`); bila belum ada, jatuh ke agregat bulanan lama
@@ -125,6 +125,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         return DashboardDirutScreen(user: widget.user);
       case UserRole.sdm:
         return DashboardSdmScreen(user: widget.user);
+      case UserRole.keuangan:
       case UserRole.pegawai:
         return const SizedBox.shrink();
     }
@@ -176,7 +177,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF10151C)
+          : const Color(0xFFF3F6F9),
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         bottom: false,
@@ -190,7 +193,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             // "Status Pengaduan" milik Pegawai biasa.
             _hasRoleFeature
                 ? _buildRoleDashboardTab()
-                : StatusPengaduanScreen(user: widget.user, showBackButton: false),
+                : StatusPengaduanScreen(
+                    user: widget.user, showBackButton: false),
             ProfileDetailScreen(user: widget.user, showBackButton: false),
           ],
         ),
@@ -532,7 +536,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                   final isDark = mode == ThemeMode.dark;
                   return IconButton(
                     icon: Icon(
-                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      isDark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
                       color: Colors.white,
                     ),
                     tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
@@ -1126,8 +1132,8 @@ class _QuickMenuCircleState extends State<_QuickMenuCircle>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black
-                        .withValues(alpha: _pressed ? 0.03 : 0.06),
+                    color:
+                        Colors.black.withValues(alpha: _pressed ? 0.03 : 0.06),
                     blurRadius: _pressed ? 8 : 16,
                     offset: const Offset(0, 6),
                   ),

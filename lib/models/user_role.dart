@@ -10,6 +10,7 @@ enum UserRole {
   tpdpk,
   direktur,
   sdm,
+  keuangan,
 }
 
 extension UserRoleX on UserRole {
@@ -27,6 +28,8 @@ extension UserRoleX on UserRole {
         return 'Direktur (DIRUT)';
       case UserRole.sdm:
         return 'SDM';
+      case UserRole.keuangan:
+        return 'Keuangan';
     }
   }
 
@@ -44,6 +47,8 @@ extension UserRoleX on UserRole {
         return 'DIRUT';
       case UserRole.sdm:
         return 'SDM';
+      case UserRole.keuangan:
+        return 'KEUANGAN';
     }
   }
 
@@ -59,6 +64,8 @@ extension UserRoleX on UserRole {
         return UserRole.direktur;
       case 'SDM':
         return UserRole.sdm;
+      case 'KEUANGAN':
+        return UserRole.keuangan;
       case 'PEGAWAI':
       default:
         return UserRole.pegawai;

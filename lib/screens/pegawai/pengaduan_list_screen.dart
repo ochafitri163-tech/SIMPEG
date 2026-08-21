@@ -76,6 +76,9 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
             p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut;
       case UserRole.sdm:
         return p.status == PengaduanStatus.menungguSdm;
+      case UserRole.keuangan:
+        // Keuangan tidak ikut alur approval pengaduan.
+        return false;
     }
   }
 
@@ -92,7 +95,9 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF10151C) : const Color(0xFFF3F6F9),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF10151C)
+          : const Color(0xFFF3F6F9),
       body: Column(
         children: [
           _buildHeader(context),
