@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'sk_sanksi_screen.dart';
 
@@ -83,7 +84,8 @@ Future<List<_SanksiRow>> _fetchSanksi() async {
 /// catatan sanksi/disiplin pegawai yang sedang login, diambil dari
 /// Supabase (tabel `prestasi` dan `sanksi`).
 class PrestasiSanksiScreen extends StatefulWidget {
-  const PrestasiSanksiScreen({super.key});
+  final AppUser user;
+  const PrestasiSanksiScreen({super.key, required this.user});
 
   @override
   State<PrestasiSanksiScreen> createState() => _PrestasiSanksiScreenState();
@@ -150,14 +152,14 @@ class _PrestasiSanksiScreenState extends State<PrestasiSanksiScreen> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const SkSanksiScreen(),
+                      builder: (_) => SkSanksiScreen(user: widget.user),
                     ),
                   ),
                   icon: const Icon(Icons.gavel_rounded, size: 17),
                   label: const Text(
                     'Lihat SK Sanksi & dokumen pendukung',
-                    style: TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w600),
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: FeatureScaffold.navy,

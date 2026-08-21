@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/pengaduan_model.dart';
 import '../../models/sk_sanksi_service.dart';
+import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/feature_scaffold.dart';
 
@@ -15,7 +16,11 @@ import '../../widgets/feature_scaffold.dart';
 /// melihat dasar keputusannya secara utuh.
 /// =============================================================
 class SkSanksiScreen extends StatefulWidget {
-  const SkSanksiScreen({super.key});
+  /// Wajib: filter SK memakai NIK karena login aplikasi berbasis NIK,
+  /// bukan Supabase Auth (auth.currentUser selalu null).
+  final AppUser user;
+
+  const SkSanksiScreen({super.key, required this.user});
 
   @override
   State<SkSanksiScreen> createState() => _SkSanksiScreenState();
@@ -31,11 +36,11 @@ class _SkSanksiScreenState extends State<SkSanksiScreen> {
   @override
   void initState() {
     super.initState();
-    _future = SkSanksiService.untukSaya();
+    _future = SkSanksiService.untukSaya(nik: widget.user.nik);
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = SkSanksiService.untukSaya());
+    setState(() => _future = SkSanksiService.untukSaya(nik: widget.user.nik));
     await _future;
   }
 
@@ -301,8 +306,8 @@ class _SkSanksiScreenState extends State<SkSanksiScreen> {
                   onTap: () => _buka(url),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceMuted(context),
                       borderRadius: BorderRadius.circular(8),
@@ -324,8 +329,7 @@ class _SkSanksiScreenState extends State<SkSanksiScreen> {
                           ),
                         ),
                         Icon(Icons.open_in_new_rounded,
-                            size: 14,
-                            color: AppColors.textSecondary(context)),
+                            size: 14, color: AppColors.textSecondary(context)),
                       ],
                     ),
                   ),
