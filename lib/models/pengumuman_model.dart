@@ -259,10 +259,7 @@ class PengumumanService {
       if (lampiranNama != null) 'lampiran_nama': lampiranNama,
     });
 
-    final langsungTayang = aktif &&
-        (terbitPada == null ||
-            !DateTime.now().toUtc().isBefore(terbitPada.toUtc()));
-    if (langsungTayang) {
+    if (aktif) {
       await _kirimNotifikasi(judul: j, target: target ?? roleTujuan);
     }
   }
@@ -309,6 +306,14 @@ class PengumumanService {
       'aktif': aktif,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
+
+    if (aktif) {
+      try {
+        final res = await _client.from(_table).select('judul').eq('id', id).single();
+        final judul = res['judul'] as String? ?? 'Pengumuman Baru';
+        await _kirimNotifikasi(judul: judul, target: roleTujuan);
+      } catch (_) {}
+    }
   }
 
   /// SDM — hapus permanen.
