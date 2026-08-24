@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import 'pengaduan_service.dart' as pengaduan_notif;
 import '../services/notification_service.dart';
+import '../services/fcm_service.dart';
 
 /// =============================================================
 /// FITUR PENGUMUMAN (versi lengkap)
@@ -320,9 +321,9 @@ class PengumumanService {
     required List<UserRole> target,
   }) async {
     try {
-      // Tampilkan notifikasi lokal untuk pembuat/pengirim pengumuman
-      await NotificationService.instance.showPengumuman(
-        title: '📢 Pengumuman Baru Terpublikasi',
+      // 1. Tampilkan notifikasi push broadcast FCM ke seluruh device pegawai
+      await FcmService.sendBroadcastNotification(
+        title: '📢 Pengumuman Baru',
         body: judul,
       );
     } catch (_) {}

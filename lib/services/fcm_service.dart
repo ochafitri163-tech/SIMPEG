@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
 
 @pragma('vm:entry-point')
@@ -72,8 +73,37 @@ class FcmService {
       if (kDebugMode) {
         print('Notifikasi FCM Diklik: ${message.notification?.title}');
       }
-      // Tempat jika ingin menambahkan navigasi otomatis ke halaman pengumuman
     });
+
+    // 3. Supabase Realtime Listener untuk Pengumuman Baru
+    try {
+      Supabase.instance.client
+          .channel('public:pengumuman')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'pengumuman',
+            callback: (payload) {
+              final newRecord = payload.newRecord;
+              final judul = newRecord['judul'] as String? ?? 'Pengumuman Baru';
+              final isi = newRecord['isi'] as String? ?? 'Ada pengumuman terbaru dari PDAM.';
+              
+              if (kDebugMode) {
+                print('Supabase Realtime Insert Detected: $judul');
+              }
+
+              NotificationService.instance.showPengumuman(
+                title: '📢 Pengumuman Baru',
+                body: judul.isNotEmpty ? judul : isi,
+              );
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Supabase Realtime subscription error: $e');
+      }
+    }
 
     _initialized = true;
   }
@@ -84,6 +114,53 @@ class FcmService {
       return await _fcm.getToken();
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Mengirimkan Notifikasi Push Broadcast saat Pengumuman baru dibuat
+  static Future<void> sendBroadcastNotification({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      // 1. Tampilkan notifikasi lokal di perangkat pengirim
+      await NotificationService.instance.showPengumuman(
+        title: title,
+        body: body,
+      );
+
+      // 2. Kirim pesan HTTP ke FCM endpoint (Legacy & HTTP v1 bridge)
+      final url = Uri.parse('https://fcm.googleapis.com/fcm/send');
+      const serverKey = 'AIzaSyBelknoNku3tnAqPupRbWNK2UwVSyFuNNY'; // Web / API key
+
+      final payload = {
+        'to': '/topics/$topicPengumuman',
+        'priority': 'high',
+        'notification': {
+          'title': title,
+          'body': body,
+          'sound': 'default',
+          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+        },
+        'data': {
+          'title': title,
+          'body': body,
+          'type': 'pengumuman',
+        },
+      };
+
+      await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$serverKey',
+        },
+        body: jsonEncode(payload),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending FCM broadcast: $e');
+      }
     }
   }
 }

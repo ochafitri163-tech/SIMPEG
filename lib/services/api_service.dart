@@ -38,7 +38,7 @@ class ApiService {
         url,
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
         body: jsonEncode({'nik': nik, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 3));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
