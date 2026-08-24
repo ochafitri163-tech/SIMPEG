@@ -1,9 +1,15 @@
-﻿build/
+build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 android/local.properties
 .idea/
 *.iml
-
 android/.gradle/
+
+# Flutter ephemeral / platform build cache
+**/ephemeral/
+.gradle/
+.pub-cache/
+.pub/
+
