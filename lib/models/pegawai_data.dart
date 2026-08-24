@@ -810,6 +810,11 @@ class AttendanceSummary {
   final int telat;
   final int izin;
 
+  const AttendanceSummary({
+    required this.bulanLabel,
+    required this.hadir,
+    required this.telat,
+    required this.izin,
   });
 }
 
