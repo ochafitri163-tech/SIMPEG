@@ -10,6 +10,7 @@ enum UserRole {
   tpdpk,
   direktur,
   sdm,
+  keuangan,
 }
 
 extension UserRoleX on UserRole {
@@ -27,6 +28,8 @@ extension UserRoleX on UserRole {
         return 'Direktur (DIRUT)';
       case UserRole.sdm:
         return 'SDM';
+      case UserRole.keuangan:
+        return 'Keuangan';
     }
   }
 
@@ -44,6 +47,8 @@ extension UserRoleX on UserRole {
         return 'DIRUT';
       case UserRole.sdm:
         return 'SDM';
+      case UserRole.keuangan:
+        return 'KEUANGAN';
     }
   }
 
@@ -59,6 +64,8 @@ extension UserRoleX on UserRole {
         return UserRole.direktur;
       case 'SDM':
         return UserRole.sdm;
+      case 'KEUANGAN':
+        return UserRole.keuangan;
       case 'PEGAWAI':
       default:
         return UserRole.pegawai;
@@ -170,6 +177,53 @@ class AppUser {
     if (parts.isEmpty) return '';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  /// Serialisasi ke Map untuk disimpan di SharedPreferences
+  Map<String, dynamic> toJson() => {
+        'nik': nik,
+        'name': name,
+        'gelar': gelar,
+        'jabatan': jabatan,
+        'unitKerja': unitKerja,
+        'unitKerjaSingkat': unitKerjaSingkat,
+        'golongan': golongan,
+        'golonganDetail': golonganDetail,
+        'status': status,
+        'tempatTanggalLahir': tempatTanggalLahir,
+        'statusPernikahan': statusPernikahan,
+        'alamat': alamat,
+        'noTelp': noTelp,
+        'fotoUrl': fotoUrl,
+        'role': role.kode,
+        'divisiKadiv': divisiKadiv?.name,
+      };
+
+  /// Deserialisasi dari Map yang disimpan di SharedPreferences
+  factory AppUser.fromJson(Map<String, dynamic> json) {
+    DivisiKadiv? divisi;
+    final divisiStr = json['divisiKadiv'] as String?;
+    if (divisiStr == 'administrasi') divisi = DivisiKadiv.administrasi;
+    if (divisiStr == 'teknik') divisi = DivisiKadiv.teknik;
+
+    return AppUser(
+      nik: json['nik'] ?? '',
+      name: json['name'] ?? '',
+      gelar: json['gelar'] ?? '',
+      jabatan: json['jabatan'] ?? 'Pegawai',
+      unitKerja: json['unitKerja'] ?? 'Tirta Darma Ayu',
+      unitKerjaSingkat: json['unitKerjaSingkat'] ?? 'TDA',
+      golongan: json['golongan'] ?? 'III/a',
+      golonganDetail: json['golonganDetail'] as String?,
+      status: json['status'] ?? 'Pegawai Tetap',
+      tempatTanggalLahir: json['tempatTanggalLahir'] ?? '',
+      statusPernikahan: json['statusPernikahan'] ?? '',
+      alamat: json['alamat'] ?? '',
+      noTelp: json['noTelp'] ?? '',
+      fotoUrl: json['fotoUrl'] as String?,
+      role: UserRoleX.fromKode(json['role'] ?? 'PEGAWAI'),
+      divisiKadiv: divisi,
+    );
   }
 }
 

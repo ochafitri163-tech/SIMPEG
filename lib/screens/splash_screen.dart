@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../login_screen.dart';
+import '../models/user_role.dart';
+import '../services/api_service.dart';
+import '../screens/pegawai/pegawai_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -31,8 +34,6 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
 
-    // Bagian ini yang sebelumnya hilang -> makanya splash-nya stuck
-    // terus di splash, gak pernah pindah ke LoginScreen.
     _goToNextScreen();
   }
 
@@ -40,10 +41,24 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(_animDuration + _holdDuration);
     if (!mounted) return;
 
+    // Cek apakah ada session user yang tersimpan
+    final savedSession = await ApiService.getSavedUserSession();
+
+    if (!mounted) return;
+
+    Widget nextScreen;
+    if (savedSession != null) {
+      // Auto-login: langsung ke Dashboard tanpa perlu login ulang
+      final user = AppUser.fromJson(savedSession);
+      nextScreen = PegawaiDashboard(user: user);
+    } else {
+      nextScreen = const LoginScreen();
+    }
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, __, ___) => const LoginScreen(),
+        pageBuilder: (_, __, ___) => nextScreen,
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },

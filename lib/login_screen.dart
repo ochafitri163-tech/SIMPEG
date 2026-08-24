@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'models/user_role.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
 import 'services/api_service.dart';
+import 'services/remembered_account_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,10 +32,108 @@ class _LoginScreenState extends State<LoginScreen> {
   late String _captchaCode;
   bool _isLoading = false;
 
+  /// Status checkbox "Ingat saya".
+  bool _ingatSaya = false;
+
+  /// Akun yang pernah login di perangkat ini (kredensial terenkripsi).
+  List<AkunTersimpan> _akunTersimpan = const [];
+
+  /// NIK akun tersimpan yang sedang dipilih (untuk highlight kartu).
+  String? _nikDipilih;
+
   @override
   void initState() {
     super.initState();
     _captchaCode = _generateCaptcha();
+    _muatAkunTersimpan();
+  }
+
+  /// Ambil daftar akun tersimpan lalu isi otomatis akun terakhir dipakai.
+  Future<void> _muatAkunTersimpan() async {
+    final list = await RememberedAccountService.semua();
+    if (!mounted) return;
+    setState(() {
+      _akunTersimpan = list;
+      if (list.isNotEmpty) {
+        _ingatSaya = true;
+        _pakaiAkun(list.first, setStatePanggil: false);
+      }
+    });
+  }
+
+  /// Isi form dari akun tersimpan. User cukup isi captcha lalu tekan Login.
+  void _pakaiAkun(AkunTersimpan akun, {bool setStatePanggil = true}) {
+    _nikController.text = akun.nik;
+    _passwordController.text = akun.password;
+    _nikDipilih = akun.nik;
+    _ingatSaya = true;
+    if (setStatePanggil) setState(() {});
+  }
+
+  /// Hapus satu akun tersimpan dari perangkat (dengan konfirmasi).
+  Future<void> _hapusAkun(AkunTersimpan akun) async {
+    final ya = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus akun tersimpan?',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Kredensial ${akun.nama} (${akun.nik}) akan dihapus dari '
+          'perangkat ini. Sesi login yang sedang berjalan tidak terpengaruh.',
+          style: const TextStyle(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (ya != true) return;
+
+    await RememberedAccountService.hapus(akun.nik);
+    final list = await RememberedAccountService.semua();
+    if (!mounted) return;
+    setState(() {
+      _akunTersimpan = list;
+      if (_nikDipilih == akun.nik) {
+        _nikDipilih = null;
+        _nikController.clear();
+        _passwordController.clear();
+        _ingatSaya = list.isNotEmpty;
+      }
+    });
+    _showSnackBar('Akun tersimpan dihapus', _navy);
+  }
+
+  /// Simpan / lupakan kredensial lalu masuk ke dashboard.
+  /// Dipanggil hanya setelah autentikasi BERHASIL.
+  Future<void> _selesaikanLogin(AppUser user) async {
+    if (_ingatSaya) {
+      await RememberedAccountService.simpan(
+        nik: user.nik,
+        nama: user.name,
+        password: _passwordController.text,
+      );
+      // Beri tahu OS/browser agar Password Manager menawarkan simpan.
+      TextInput.finishAutofillContext();
+    } else {
+      await RememberedAccountService.lupakanJikaAda(user.nik);
+      TextInput.finishAutofillContext(shouldSave: false);
+    }
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
+    );
   }
 
   String _generateCaptcha() {
@@ -84,11 +183,11 @@ class _LoginScreenState extends State<LoginScreen> {
           role: userRole,
         );
 
+        // Simpan session user agar tidak perlu login ulang
+        await ApiService.saveUserSession(user.toJson());
+
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
-        );
+        await _selesaikanLogin(user);
       } else {
         final demoAcc = findDemoAccount(nik, _passwordController.text);
         if (demoAcc != null) {
@@ -104,11 +203,10 @@ class _LoginScreenState extends State<LoginScreen> {
             role: demoAcc.role,
             divisiKadiv: demoAcc.divisiKadiv,
           );
+          // Simpan session user
+          await ApiService.saveUserSession(user.toJson());
           if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
-          );
+          await _selesaikanLogin(user);
           return;
         }
 
@@ -131,11 +229,10 @@ class _LoginScreenState extends State<LoginScreen> {
           role: demoAcc.role,
           divisiKadiv: demoAcc.divisiKadiv,
         );
+        // Simpan session user
+        await ApiService.saveUserSession(user.toJson());
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
-          );
+          await _selesaikanLogin(user);
         }
         return;
       }
@@ -260,75 +357,89 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _buildLabeledField(
-                                label: 'NIK',
-                                controller: _nikController,
-                                icon: Icons.badge_outlined,
-                                hint: 'Masukkan NIK',
-                                inputType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(20),
-                                ],
-                                isSmall: isSmallScreen,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildLabeledField(
-                                label: 'Kata Sandi',
-                                controller: _passwordController,
-                                icon: Icons.lock_outline_rounded,
-                                hint: 'Masukkan kata sandi',
-                                obscure: _obscurePassword,
-                                suffix: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_rounded
-                                        : Icons.visibility_rounded,
-                                    color: _navy.withValues(alpha: 0.55),
-                                    size: 18,
+                          child: AutofillGroup(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildLabeledField(
+                                  label: 'NIK',
+                                  controller: _nikController,
+                                  icon: Icons.badge_outlined,
+                                  hint: 'Masukkan NIK',
+                                  inputType: TextInputType.number,
+                                  autofillHints: const [
+                                    AutofillHints.username,
+                                  ],
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(20),
+                                  ],
+                                  isSmall: isSmallScreen,
+                                ),
+                                const SizedBox(height: 12),
+                                _buildLabeledField(
+                                  label: 'Kata Sandi',
+                                  controller: _passwordController,
+                                  icon: Icons.lock_outline_rounded,
+                                  hint: 'Masukkan kata sandi',
+                                  obscure: _obscurePassword,
+                                  autofillHints: const [
+                                    AutofillHints.password,
+                                  ],
+                                  suffix: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_rounded
+                                          : Icons.visibility_rounded,
+                                      color: _navy.withValues(alpha: 0.55),
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      setState(() =>
+                                          _obscurePassword = !_obscurePassword);
+                                    },
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    splashRadius: 18,
                                   ),
-                                  onPressed: () {
-                                    setState(() =>
-                                        _obscurePassword = !_obscurePassword);
-                                  },
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  splashRadius: 18,
+                                  isSmall: isSmallScreen,
                                 ),
-                                isSmall: isSmallScreen,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildCaptchaRow(isSmallScreen),
-                              const SizedBox(height: 10),
-                              _buildLabeledField(
-                                label: 'Kode Keamanan',
-                                controller: _captchaController,
-                                icon: Icons.verified_user_outlined,
-                                hint: 'Masukkan 6 angka di atas',
-                                inputType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(6),
+                                const SizedBox(height: 12),
+                                _buildCaptchaRow(isSmallScreen),
+                                const SizedBox(height: 10),
+                                _buildLabeledField(
+                                  label: 'Kode Keamanan',
+                                  controller: _captchaController,
+                                  icon: Icons.verified_user_outlined,
+                                  hint: 'Masukkan 6 angka di atas',
+                                  inputType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(6),
+                                  ],
+                                  isSmall: isSmallScreen,
+                                ),
+                                const SizedBox(height: 14),
+                                _buildIngatSaya(isSmallScreen),
+                                if (_akunTersimpan.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  _buildDaftarAkunTersimpan(isSmallScreen),
                                 ],
-                                isSmall: isSmallScreen,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildLoginButton(isSmallScreen),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'Pendaftaran & lupa kata sandi melalui website resmi',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: _textMuted,
-                                  fontSize: 10.5,
-                                  height: 1.45,
-                                  fontWeight: FontWeight.w400,
+                                const SizedBox(height: 18),
+                                _buildLoginButton(isSmallScreen),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Pendaftaran & lupa kata sandi melalui website resmi',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _textMuted,
+                                    fontSize: 10.5,
+                                    height: 1.45,
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
 
@@ -560,6 +671,195 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Checkbox "Ingat saya" + tombol hapus seluruh kredensial.
+  Widget _buildIngatSaya(bool isSmall) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 22,
+          height: 22,
+          child: Checkbox(
+            value: _ingatSaya,
+            activeColor: _navy,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+            onChanged: (v) => setState(() => _ingatSaya = v ?? false),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _ingatSaya = !_ingatSaya),
+            child: Text(
+              'Ingat saya di perangkat ini',
+              style: TextStyle(
+                fontSize: isSmall ? 12 : 12.5,
+                fontWeight: FontWeight.w600,
+                color: _textDark,
+              ),
+            ),
+          ),
+        ),
+        if (_akunTersimpan.isNotEmpty)
+          TextButton(
+            onPressed: _isLoading
+                ? null
+                : () async {
+                    await RememberedAccountService.hapusSemua();
+                    if (!mounted) return;
+                    setState(() {
+                      _akunTersimpan = const [];
+                      _nikDipilih = null;
+                      _ingatSaya = false;
+                      _nikController.clear();
+                      _passwordController.clear();
+                    });
+                    _showSnackBar('Semua akun tersimpan dihapus', _navy);
+                  },
+            style: TextButton.styleFrom(
+              foregroundColor: _textMuted,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(0, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Hapus semua',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+      ],
+    );
+  }
+
+  /// Daftar akun tersimpan. Ketuk kartu -> form terisi otomatis.
+  Widget _buildDaftarAkunTersimpan(bool isSmall) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: _fieldBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderColor, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.switch_account_rounded,
+                  size: 15, color: _navy.withValues(alpha: 0.65)),
+              const SizedBox(width: 6),
+              Text(
+                'Akun tersimpan (${_akunTersimpan.length})',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: _textDark,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._akunTersimpan.map((akun) {
+            final terpilih = _nikDipilih == akun.nik;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: _isLoading ? null : () => _pakaiAkun(akun),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    color:
+                        terpilih ? _navy.withValues(alpha: 0.08) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: terpilih
+                          ? _navy.withValues(alpha: 0.45)
+                          : _borderColor,
+                      width: terpilih ? 1.4 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _navyLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          akun.inisial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              akun.nama,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: isSmall ? 12 : 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: _textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              'NIK ${akun.nik} \u00b7 \u2022\u2022\u2022\u2022\u2022\u2022',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: _textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (terpilih)
+                        Icon(Icons.check_circle_rounded,
+                            size: 16, color: _navy),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 17, color: Color(0xFFE74C3C)),
+                        tooltip: 'Hapus akun tersimpan',
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 30, minHeight: 30),
+                        splashRadius: 16,
+                        onPressed: _isLoading ? null : () => _hapusAkun(akun),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+          Text(
+            'Kredensial disimpan terenkripsi di perangkat ini saja, '
+            'tidak dikirim ke server.',
+            style: const TextStyle(
+              fontSize: 9.8,
+              color: _textMuted,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLabeledField({
     required String label,
     required TextEditingController controller,
@@ -569,6 +869,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Widget? suffix,
     TextInputType? inputType,
     List<TextInputFormatter>? inputFormatters,
+    List<String>? autofillHints,
     required bool isSmall,
   }) {
     return Column(
@@ -613,6 +914,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   keyboardType: inputType,
                   inputFormatters: inputFormatters,
+                  autofillHints: autofillHints,
                   decoration: InputDecoration(
                     isDense: true,
                     suffixIcon: suffix,

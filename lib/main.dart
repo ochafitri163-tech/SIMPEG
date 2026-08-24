@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
 import 'services/theme_controller.dart';
 
 // Ganti dengan URL & anon key project Supabase kamu
@@ -12,6 +14,14 @@ const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inisialisasi Firebase Cloud Messaging (Push Notification)
+  try {
+    await Firebase.initializeApp();
+    await FcmService.instance.init();
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
 
   await Supabase.initialize(
     url: supabaseUrl,

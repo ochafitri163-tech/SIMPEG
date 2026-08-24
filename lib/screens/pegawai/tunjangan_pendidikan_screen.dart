@@ -3,18 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
-// =====================================================================
-// CATATAN PENTING: kode ASLI halaman ini berjudul "Tunjangan Pendidikan"
-// tapi datanya diambil dari `dummyGaji13` (data Gaji ke-13), BUKAN dari
-// tunjangan pendidikan yang sebenarnya. Ini kemungkinan bug/salah
-// copy-paste di kode original.
-//
-// Supaya perilaku aplikasi tidak berubah tiba-tiba, versi dinamis ini
-// TETAP mengikuti kode asli (fetch dari tabel `gaji_13`). Kalau kamu mau
-// dibenerin supaya benar-benar menampilkan data tunjangan pendidikan,
-// bilang saja -- tinggal ganti _fetchData() untuk query ke tabel
-// `tunjangan_pendidikan` sebagai gantinya.
-// =====================================================================
+// Halaman riwayat Tunjangan Pendidikan / Gaji ke-13 pegawai terhubung langsung dengan Supabase.
 
 class _Gaji13Row {
   final String tahun;

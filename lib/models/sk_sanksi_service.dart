@@ -179,8 +179,8 @@ class SkSanksi {
   });
 
   /// True kalau keempat jenis dokumen wajib tersedia.
-  bool get dokumenLengkap => JenisDokumenSk.values
-      .every((j) => (dokumen[j] ?? const []).isNotEmpty);
+  bool get dokumenLengkap =>
+      JenisDokumenSk.values.every((j) => (dokumen[j] ?? const []).isNotEmpty);
 
   /// Total berkas dari seluruh dokumen wajib + tambahan (jumlah file bebas).
   int get totalBerkas =>
@@ -188,8 +188,7 @@ class SkSanksi {
       tambahan.fold<int>(0, (acc, d) => acc + d.berkas.length);
 
   /// True kalau SDM melampirkan dokumen pendukung di luar yang wajib.
-  bool get adaDokumenTambahan =>
-      tambahan.any((d) => d.berkas.isNotEmpty);
+  bool get adaDokumenTambahan => tambahan.any((d) => d.berkas.isNotEmpty);
 
   /// Ringkasan perubahan jabatan, mis. "Asmen → Staf".
   String? get perubahanJabatan {
@@ -453,7 +452,8 @@ class SkSanksiService {
             .single();
         break;
       } on PostgrestException catch (e) {
-        final bentrok = e.code == '23505' && '${e.message}'.contains('nomor_sk');
+        final bentrok =
+            e.code == '23505' && '${e.message}'.contains('nomor_sk');
         if (!bentrok || percobaan == 4) rethrow;
         nomor = await generateNomorSk();
         if (percobaan >= 1) {
@@ -547,15 +547,21 @@ class SkSanksiService {
   // Pembacaan
   // ---------------------------------------------------------------
 
-  /// SK milik pegawai yang sedang login.
-  static Future<List<SkSanksi>> untukSaya() async {
+  /// SK milik pegawai yang sedang login. Filter memakai [nik] karena login
+  /// aplikasi berbasis NIK, bukan Supabase Auth.
+  static Future<List<SkSanksi>> untukSaya({String? nik}) async {
     final uid = _client.auth.currentUser?.id;
-    if (uid == null) return [];
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('pegawai_id', uid)
-        .order('created_at', ascending: false);
+    var query = _client.from(_table).select();
+
+    if (nik != null && nik.trim().isNotEmpty) {
+      query = query.eq('nik', nik.trim());
+    } else if (uid != null) {
+      query = query.eq('pegawai_id', uid);
+    } else {
+      return [];
+    }
+
+    final rows = await query.order('created_at', ascending: false);
     return (rows as List)
         .map((r) => SkSanksi.fromRow(r as Map<String, dynamic>))
         .toList();
@@ -563,8 +569,10 @@ class SkSanksiService {
 
   /// Seluruh SK (SDM/KSPI/DIRUT).
   static Future<List<SkSanksi>> semua() async {
-    final rows =
-        await _client.from(_table).select().order('created_at', ascending: false);
+    final rows = await _client
+        .from(_table)
+        .select()
+        .order('created_at', ascending: false);
     return (rows as List)
         .map((r) => SkSanksi.fromRow(r as Map<String, dynamic>))
         .toList();

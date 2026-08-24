@@ -153,6 +153,12 @@ class Authz {
           'Surat Rekomendasi',
           'Riwayat',
         ];
+      case UserRole.keuangan:
+        return const [
+          'Pengumuman',
+          'Payroll',
+          'Insentif & Tunjangan',
+        ];
       case UserRole.sdm:
         return const [
           'Menunggu Tindak Lanjut SDM',
@@ -182,6 +188,5 @@ class Authz {
 
   /// Apakah role boleh melihat riwayat lengkap semua pengaduan (bukan hanya
   /// miliknya sendiri).
-  static bool bolehLihatSemuaRiwayat(UserRole role) =>
-      role != UserRole.pegawai;
+  static bool bolehLihatSemuaRiwayat(UserRole role) => role != UserRole.pegawai;
 }
