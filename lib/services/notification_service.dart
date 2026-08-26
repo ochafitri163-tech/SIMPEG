@@ -141,6 +141,36 @@ class NotificationService {
     );
   }
 
+  Future<void> schedulePengumuman({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+  }) async {
+    final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
+    final nowTz = tz.TZDateTime.now(tz.local);
+    if (tzDate.isBefore(nowTz)) {
+      return;
+    }
+
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tzDate,
+      const NotificationDetails(android: _channelPengumuman),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  Future<void> cancelPengumuman(int id) async {
+    try {
+      await _plugin.cancel(id);
+    } catch (_) {}
+  }
+
   Future<void> _scheduleDaily({
     required int id,
     required int hour,

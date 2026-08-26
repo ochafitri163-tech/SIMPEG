@@ -75,27 +75,85 @@ class FcmService {
       }
     });
 
-    // 3. Supabase Realtime Listener untuk Pengumuman Baru
+    // 3. Supabase Realtime Listener untuk Pengumuman Baru & Update
     try {
       Supabase.instance.client
           .channel('public:pengumuman')
           .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
+            event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'pengumuman',
             callback: (payload) {
               final newRecord = payload.newRecord;
-              final judul = newRecord['judul'] as String? ?? 'Pengumuman Baru';
-              final isi = newRecord['isi'] as String? ?? 'Ada pengumuman terbaru dari PDAM.';
-              
-              if (kDebugMode) {
-                print('Supabase Realtime Insert Detected: $judul');
+              final oldRecord = payload.oldRecord;
+              final eventType = payload.eventType;
+
+              if (eventType == PostgresChangeEvent.delete) {
+                final oldId = (oldRecord['id'] as num?)?.toInt();
+                if (oldId != null) {
+                  NotificationService.instance.cancelPengumuman(oldId);
+                }
+                return;
               }
 
-              NotificationService.instance.showPengumuman(
-                title: '📢 Pengumuman Baru',
-                body: judul.isNotEmpty ? judul : isi,
-              );
+              if (newRecord.isEmpty) return;
+
+              final id = (newRecord['id'] as num?)?.toInt() ??
+                  (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+              final aktif = newRecord['aktif'] as bool? ?? true;
+
+              // Jika dinonaktifkan, batalkan notifikasi terjadwal
+              if (!aktif) {
+                NotificationService.instance.cancelPengumuman(id);
+                return;
+              }
+
+              final judul = newRecord['judul'] as String? ?? 'Pengumuman Baru';
+              final isi = newRecord['isi'] as String? ?? 'Ada pengumuman terbaru dari PDAM.';
+              final title = '📢 Pengumuman Baru';
+              final body = judul.isNotEmpty ? judul : isi;
+
+              final terbitStr = newRecord['terbit_pada'] as String?;
+              final kedaluwarsaStr = newRecord['kedaluwarsa_pada'] as String?;
+              final now = DateTime.now().toUtc();
+
+              DateTime? terbitPada = terbitStr != null
+                  ? DateTime.tryParse(terbitStr)?.toUtc()
+                  : null;
+              DateTime? kedaluwarsaPada = kedaluwarsaStr != null
+                  ? DateTime.tryParse(kedaluwarsaStr)?.toUtc()
+                  : null;
+
+              // Jika sudah kedaluwarsa, batalkan & abaikan
+              if (kedaluwarsaPada != null && kedaluwarsaPada.isBefore(now)) {
+                NotificationService.instance.cancelPengumuman(id);
+                return;
+              }
+
+              // Jika dijadwalkan di masa depan, jadwalkan notifikasi lokal
+              if (terbitPada != null && terbitPada.isAfter(now)) {
+                if (kDebugMode) {
+                  print('Pengumuman terjadwal diterima: $judul untuk $terbitPada');
+                }
+                NotificationService.instance.schedulePengumuman(
+                  id: id,
+                  title: title,
+                  body: body,
+                  scheduledDate: terbitPada.toLocal(),
+                );
+                return;
+              }
+
+              // Jika baru di-insert dan langsung tayang (tidak di masa depan)
+              if (eventType == PostgresChangeEvent.insert) {
+                if (kDebugMode) {
+                  print('Supabase Realtime Insert Langsung Tayang: $judul');
+                }
+                NotificationService.instance.showPengumuman(
+                  title: title,
+                  body: body,
+                );
+              }
             },
           )
           .subscribe();

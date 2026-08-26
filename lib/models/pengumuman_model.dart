@@ -219,6 +219,7 @@ class PengumumanService {
 
   /// SDM — buat pengumuman. Melempar [ArgumentError] jika judul/isi kosong.
   /// Bila langsung tayang, kirim notifikasi otomatis ke role tujuan.
+  /// Bila dijadwalkan di masa depan, jadwalkan notifikasi lokal tanpa broadcast instan.
   static Future<void> buat({
     required String judul,
     required String isi,
@@ -241,7 +242,7 @@ class PengumumanService {
         ? roleTujuan.map((e) => e.name).toList()
         : target.map((e) => e.name).toList();
 
-    await _client.from(_table).insert({
+    final inserted = await _client.from(_table).insert({
       'judul': j,
       'isi': i,
       'aktif': aktif,
@@ -257,10 +258,31 @@ class PengumumanService {
         'kedaluwarsa_pada': kedaluwarsaPada.toUtc().toIso8601String(),
       if (lampiranUrl != null) 'lampiran_url': lampiranUrl,
       if (lampiranNama != null) 'lampiran_nama': lampiranNama,
-    });
+    }).select('id').maybeSingle();
 
-    if (aktif) {
-      await _kirimNotifikasi(judul: j, target: target ?? roleTujuan);
+    final id = (inserted?['id'] as num?)?.toInt() ??
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+
+    final now = DateTime.now().toUtc();
+    final isTerjadwal =
+        terbitPada != null && terbitPada.toUtc().isAfter(now);
+    final isExpired =
+        kedaluwarsaPada != null && kedaluwarsaPada.toUtc().isBefore(now);
+
+    if (aktif && !isExpired) {
+      if (isTerjadwal) {
+        // Jangan kirim notifikasi broadcast langsung sekarang.
+        // Jadwalkan notifikasi lokal pada waktu terbit yang ditentukan.
+        await NotificationService.instance.schedulePengumuman(
+          id: id,
+          title: '📢 Pengumuman Baru',
+          body: j,
+          scheduledDate: terbitPada!.toLocal(),
+        );
+      } else {
+        // Langsung terbit sekarang -> kirim notifikasi
+        await _kirimNotifikasi(judul: j, target: target ?? roleTujuan);
+      }
     }
   }
 
@@ -298,6 +320,18 @@ class PengumumanService {
       'lampiran_nama': lampiranNama,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
+
+    final now = DateTime.now().toUtc();
+    if (kedaluwarsaPada != null && kedaluwarsaPada.toUtc().isBefore(now)) {
+      await NotificationService.instance.cancelPengumuman(id);
+    } else if (terbitPada != null && terbitPada.toUtc().isAfter(now)) {
+      await NotificationService.instance.schedulePengumuman(
+        id: id,
+        title: '📢 Pengumuman Baru',
+        body: j,
+        scheduledDate: terbitPada.toLocal(),
+      );
+    }
   }
 
   /// SDM — publikasikan / batalkan publikasi.
@@ -309,16 +343,64 @@ class PengumumanService {
 
     if (aktif) {
       try {
-        final res = await _client.from(_table).select('judul').eq('id', id).single();
-        final judul = res['judul'] as String? ?? 'Pengumuman Baru';
-        await _kirimNotifikasi(judul: judul, target: roleTujuan);
+        final res = await _client
+            .from(_table)
+            .select()
+            .eq('id', id)
+            .single();
+        final p = Pengumuman.fromRow(res);
+        final now = DateTime.now().toUtc();
+
+        if (p.kedaluwarsaPada != null && p.kedaluwarsaPada!.isBefore(now)) {
+          return;
+        }
+
+        if (p.terbitPada != null && p.terbitPada!.isAfter(now)) {
+          await NotificationService.instance.schedulePengumuman(
+            id: p.id,
+            title: '📢 Pengumuman Baru',
+            body: p.judul,
+            scheduledDate: p.terbitPada!.toLocal(),
+          );
+        } else {
+          await _kirimNotifikasi(judul: p.judul, target: roleTujuan);
+        }
       } catch (_) {}
+    } else {
+      await NotificationService.instance.cancelPengumuman(id);
     }
   }
 
   /// SDM — hapus permanen.
   static Future<void> hapus({required int id}) async {
+    await NotificationService.instance.cancelPengumuman(id);
     await _client.from(_table).delete().eq('id', id);
+  }
+
+  /// Sinkronisasi notifikasi terjadwal untuk seluruh pengumuman aktif.
+  static Future<void> sinkronkanJadwalPengumuman() async {
+    try {
+      final rows = await _client
+          .from(_table)
+          .select()
+          .eq('aktif', true);
+      final now = DateTime.now().toUtc();
+      for (final r in (rows as List)) {
+        final p = Pengumuman.fromRow(r as Map<String, dynamic>);
+        if (p.kedaluwarsaPada != null && p.kedaluwarsaPada!.isBefore(now)) {
+          await NotificationService.instance.cancelPengumuman(p.id);
+          continue;
+        }
+        if (p.terbitPada != null && p.terbitPada!.isAfter(now)) {
+          await NotificationService.instance.schedulePengumuman(
+            id: p.id,
+            title: '📢 Pengumuman Baru',
+            body: p.judul,
+            scheduledDate: p.terbitPada!.toLocal(),
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   static Future<void> _kirimNotifikasi({

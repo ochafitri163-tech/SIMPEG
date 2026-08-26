@@ -451,8 +451,8 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
     _penting = e?.isPenting ?? false;
     _sematkan = e?.disematkan ?? false;
     _publikasikan = e?.aktif ?? true;
-    _terbitPada = e?.terbitPada?.add(const Duration(hours: 7));
-    _kedaluwarsa = e?.kedaluwarsaPada?.add(const Duration(hours: 7));
+    _terbitPada = e?.terbitPada?.toLocal();
+    _kedaluwarsa = e?.kedaluwarsaPada?.toLocal();
     _lampiranUrl = e?.lampiranUrl;
     _lampiranNama = e?.lampiranNama;
     if (e != null && e.targetRoles.isNotEmpty) {
@@ -526,6 +526,17 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
       _pesan('Pilih minimal satu role tujuan.');
       return;
     }
+    if (_terbitPada != null &&
+        _kedaluwarsa != null &&
+        _kedaluwarsa!.isBefore(_terbitPada!)) {
+      _pesan('Jadwal kedaluwarsa tidak boleh lebih awal dari jadwal terbit.');
+      return;
+    }
+    if (_kedaluwarsa != null && _kedaluwarsa!.isBefore(DateTime.now())) {
+      _pesan('Jadwal kedaluwarsa sudah lewat dari waktu saat ini.');
+      return;
+    }
+
     setState(() => _menyimpan = true);
     try {
       final target = _target.toList();
@@ -561,6 +572,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
           lampiranNama: _lampiranNama,
         );
       }
+      await PengumumanService.sinkronkanJadwalPengumuman();
       if (mounted) Navigator.pop(context, true);
     } on ArgumentError catch (e) {
       setState(() => _menyimpan = false);

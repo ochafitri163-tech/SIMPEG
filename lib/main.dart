@@ -6,6 +6,7 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
 import 'services/theme_controller.dart';
+import 'models/pengumuman_model.dart';
 
 // Ganti dengan URL & anon key project Supabase kamu
 // Ambil di: Supabase Dashboard > Settings > API
@@ -28,10 +29,15 @@ Future<void> main() async {
     anonKey: supabaseAnonKey,
   );
 
-  // Notifikasi lokal (pengingat absensi & pengumuman kantor) & preferensi
-  // mode gelap harus siap SEBELUM UI pertama kali dirender.
   await NotificationService.instance.init();
   await ThemeController.instance.loadSaved();
+
+  // Sinkronkan pengumuman terjadwal agar notifikasi lokal terpasang
+  try {
+    await PengumumanService.sinkronkanJadwalPengumuman();
+  } catch (e) {
+    debugPrint('Sinkronisasi jadwal pengumuman error: $e');
+  }
 
   runApp(const SimpegApp());
 }
