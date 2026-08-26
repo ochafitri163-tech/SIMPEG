@@ -1302,6 +1302,22 @@ class PengumumanCard extends StatefulWidget {
 class _PengumumanCardState extends State<PengumumanCard> {
   final PageController _pc = PageController();
   int _current = 0;
+  List<Pengumuman>? _cachedList;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatAwal();
+  }
+
+  Future<void> _muatAwal() async {
+    try {
+      final res = await PengumumanService.tayangSekali(widget.role);
+      if (mounted && res.isNotEmpty) {
+        setState(() => _cachedList = res);
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -1312,9 +1328,10 @@ class _PengumumanCardState extends State<PengumumanCard> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Pengumuman>>(
+      initialData: _cachedList,
       stream: PengumumanService.streamTayang(widget.role),
       builder: (context, snapshot) {
-        final list = snapshot.data ?? const <Pengumuman>[];
+        final list = snapshot.data ?? _cachedList ?? const <Pengumuman>[];
         if (list.isEmpty) return const SizedBox.shrink();
 
         // Index halaman aktif untuk indikator titik, dijaga tetap valid

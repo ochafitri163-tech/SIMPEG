@@ -5,6 +5,7 @@ import 'models/user_role.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
 import 'services/api_service.dart';
 import 'services/remembered_account_service.dart';
+import 'services/onesignal_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -128,6 +129,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await RememberedAccountService.lupakanJikaAda(user.nik);
       TextInput.finishAutofillContext(shouldSave: false);
     }
+
+    // Registrasi User NIK & Role ke OneSignal untuk Target Push Notification
+    await OneSignalService.instance.loginUser(user.nik, role: user.role.name);
 
     if (!mounted) return;
     Navigator.pushReplacement(

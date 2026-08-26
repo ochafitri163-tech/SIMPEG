@@ -67,23 +67,44 @@ class Pengumuman {
   bool get sedangTerjadwal {
     if (!aktif || sudahKedaluwarsa) return false;
     if (terbitPada == null) return false;
-    return DateTime.now().toUtc().isBefore(terbitPada!);
+    final now = DateTime.now().toUtc().add(const Duration(minutes: 1));
+    return now.isBefore(terbitPada!);
   }
 
   /// Sedang tayang: aktif, sudah melewati jadwal terbit, & belum kedaluwarsa.
   bool get sedangTayang {
     if (!aktif || sudahKedaluwarsa) return false;
-    final now = DateTime.now().toUtc();
+    final now = DateTime.now().toUtc().add(const Duration(minutes: 1));
     if (terbitPada != null && now.isBefore(terbitPada!)) return false;
     return true;
   }
 
-  bool untukRole(UserRole role) =>
-      targetRoles.isEmpty || targetRoles.contains(role.name);
+  bool untukRole(UserRole role) {
+    if (targetRoles.isEmpty) return true;
+    final rName = role.name.toLowerCase().trim();
+    final rKode = role.kode.toLowerCase().trim();
+    return targetRoles.any((t) {
+      final clean = t.toLowerCase().replaceAll('"', '').replaceAll("'", '').trim();
+      return clean == rName || clean == rKode || clean == 'semua' || clean == 'all';
+    });
+  }
 
   factory Pengumuman.fromRow(Map<String, dynamic> row) {
     DateTime? parse(dynamic v) =>
         v == null ? null : DateTime.tryParse(v.toString())?.toUtc();
+    List<String> parseRoles(dynamic v) {
+      if (v == null) return const [];
+      if (v is List) {
+        return v.map((e) => e.toString().replaceAll('"', '').replaceAll("'", '').trim()).toList();
+      }
+      if (v is String) {
+        final trimmed = v.replaceAll('{', '').replaceAll('}', '').replaceAll('"', '').replaceAll("'", '').trim();
+        if (trimmed.isEmpty) return const [];
+        return trimmed.split(',').map((e) => e.trim()).toList();
+      }
+      return const [];
+    }
+
     return Pengumuman(
       id: (row['id'] as num).toInt(),
       judul: (row['judul'] ?? '') as String,
@@ -93,9 +114,7 @@ class Pengumuman {
           ? 'penting'
           : 'umum',
       disematkan: (row['disematkan'] ?? false) as bool,
-      targetRoles:
-          (row['target_roles'] as List?)?.map((e) => e.toString()).toList() ??
-              const [],
+      targetRoles: parseRoles(row['target_roles']),
       pembuat: (row['pembuat'] ?? 'SDM') as String,
       pembuatId: row['pembuat_id'] as String?,
       tanggalPublikasi: parse(row['created_at']) ?? DateTime.now().toUtc(),
@@ -144,23 +163,40 @@ class PengumumanService {
     } catch (_) {}
   }
 
-  static Stream<List<Pengumuman>> streamTayang(UserRole role) {
+  static Stream<List<Pengumuman>> streamTayang(UserRole role) async* {
     autoNonaktifkanExpired();
-    return _client
-        .from(_table)
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .map((rows) {
-          final list = rows
-              .map(Pengumuman.fromRow)
-              .where((p) => p.sedangTayang && p.untukRole(role))
-              .toList();
-          list.sort((a, b) {
-            if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
-            return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
-          });
-          return list;
+    // 1. Langsung yield data dari REST API agar UI instan dan tidak blank
+    try {
+      final initial = await tayangSekali(role);
+      yield initial;
+    } catch (_) {}
+
+    // 2. Dengarkan Supabase Realtime stream
+    try {
+      await for (final rows in _client
+          .from(_table)
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: false)) {
+        final list = rows
+            .map(Pengumuman.fromRow)
+            .where((p) => p.sedangTayang && p.untukRole(role))
+            .toList();
+        list.sort((a, b) {
+          if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
+          return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
         });
+        yield list;
+      }
+    } catch (_) {
+      // Fallback polling berkala jika Realtime WebSocket tidak aktif
+      while (true) {
+        await Future.delayed(const Duration(seconds: 5));
+        try {
+          final pollingList = await tayangSekali(role);
+          yield pollingList;
+        } catch (_) {}
+      }
+    }
   }
 
   static Future<List<Pengumuman>> semua() async {
@@ -260,7 +296,7 @@ class PengumumanService {
     final pembuatName =
         pembuat is AppUser ? pembuat.name : pembuat.toString();
     final pembuatId =
-        pembuat is AppUser ? pembuat.id : _client.auth.currentUser?.id;
+        pembuat is AppUser ? pembuat.nik : _client.auth.currentUser?.id;
 
     final res = await _client
         .from(_table)

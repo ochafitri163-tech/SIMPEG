@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
+import 'services/onesignal_service.dart';
 import 'services/theme_controller.dart';
 import 'models/pengumuman_model.dart';
 
@@ -15,7 +16,19 @@ const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi Firebase Cloud Messaging (Push Notification)
+  // 1. Inisialisasi Supabase Database
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
+
+  // 2. Inisialisasi Sistem Notifikasi Lokal (Status Bar & Alarm Jam Terbit)
+  await NotificationService.instance.init();
+
+  // 3. Inisialisasi OneSignal Push Notification Cloud
+  await OneSignalService.instance.init();
+
+  // 4. Inisialisasi Firebase
   try {
     await Firebase.initializeApp();
     await FcmService.instance.init();
@@ -23,15 +36,9 @@ Future<void> main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
-
-  await NotificationService.instance.init();
   await ThemeController.instance.loadSaved();
 
-  // Sinkronkan pengumuman terjadwal agar notifikasi lokal terpasang
+  // 4. Sinkronkan pengumuman terjadwal agar notifikasi lokal terpasang
   try {
     await PengumumanService.sinkronkanJadwalPengumuman();
   } catch (e) {

@@ -170,6 +170,7 @@ class AppUser {
     this.divisiKadiv,
   });
 
+  String get id => nik;
   String get golonganUntukSlip => golonganDetail ?? 'GOL. $golongan';
 
   String get initials {
