@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,11 +25,21 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
   static const Color _accent = Color(0xFF2E86AB);
 
   late Future<List<Pengumuman>> _future;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _future = PengumumanService.semua();
+    _ticker = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   void _refresh() {
@@ -55,6 +66,11 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
   }
 
   Future<void> _togglePublikasi(Pengumuman p) async {
+    if (!p.aktif && p.sudahKedaluwarsa) {
+      _pesan(
+          'Pengumuman sudah melewati batas kedaluwarsa. Silakan edit jadwal kedaluwarsa terlebih dahulu.');
+      return;
+    }
     try {
       await PengumumanService.setAktif(id: p.id, aktif: !p.aktif);
       _refresh();
@@ -370,16 +386,15 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
   }
 
   Widget _statusBadge(Pengumuman p) {
-    final tayang = p.sedangTayang;
-    final terjadwal = p.aktif &&
-        p.terbitPada != null &&
-        DateTime.now().toUtc().isBefore(p.terbitPada!);
     String label;
     Color color;
-    if (terjadwal) {
+    if (p.sudahKedaluwarsa) {
+      label = 'Kedaluwarsa';
+      color = const Color(0xFFE74C3C);
+    } else if (p.sedangTerjadwal) {
       label = 'Terjadwal';
       color = const Color(0xFFE67E22);
-    } else if (tayang) {
+    } else if (p.sedangTayang) {
       label = 'Tayang';
       color = const Color(0xFF27AE60);
     } else {

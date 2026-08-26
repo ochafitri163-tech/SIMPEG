@@ -147,22 +147,47 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
-    final tzDate = tz.TZDateTime.from(scheduledDate, tz.local);
+    final localDt =
+        scheduledDate.isUtc ? scheduledDate.toLocal() : scheduledDate;
+    final tzDate = tz.TZDateTime(
+      tz.local,
+      localDt.year,
+      localDt.month,
+      localDt.day,
+      localDt.hour,
+      localDt.minute,
+      localDt.second,
+    );
     final nowTz = tz.TZDateTime.now(tz.local);
     if (tzDate.isBefore(nowTz)) {
       return;
     }
 
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tzDate,
-      const NotificationDetails(android: _channelPengumuman),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tzDate,
+        const NotificationDetails(android: _channelPengumuman),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (_) {
+      try {
+        await _plugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tzDate,
+          const NotificationDetails(android: _channelPengumuman),
+          androidScheduleMode: AndroidScheduleMode.inexact,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> cancelPengumuman(int id) async {

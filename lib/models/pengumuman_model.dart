@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
-import 'pengaduan_service.dart' as pengaduan_notif;
 import '../services/notification_service.dart';
 import '../services/fcm_service.dart';
 
@@ -10,16 +11,6 @@ import '../services/fcm_service.dart';
 /// Dibuat & dikelola oleh role SDM, dipublikasikan (kolom `aktif`) lalu
 /// otomatis tampil pada dashboard kelima role: Pegawai, Kadiv, KSPI,
 /// TPDPK, Direktur. SATU sumber data (tabel Supabase `pengumuman`).
-///
-/// Fitur tambahan:
-/// - prioritas (penting/umum) + sematkan (pin)
-/// - target role tertentu (default semua 5 role)
-/// - jadwal terbit & tanggal kedaluwarsa (auto nonaktif)
-/// - lampiran (gambar/PDF) via Supabase Storage
-/// - penanda sudah dibaca (tabel `pengumuman_dibaca`) + badge "Baru"
-/// - notifikasi otomatis ke role tujuan saat dipublikaslikan
-///
-/// Skema lihat: supabase/pengumuman.sql
 /// =============================================================
 class Pengumuman {
   final int id;
@@ -28,7 +19,7 @@ class Pengumuman {
   final bool aktif;
   final String prioritas; // 'penting' | 'umum'
   final bool disematkan;
-  final List<String> targetRoles; // kosong = semua 5 role (pakai UserRole.name)
+  final List<String> targetRoles; // kosong = semua role
   final String pembuat;
   final String? pembuatId;
   final DateTime tanggalPublikasi; // created_at
@@ -66,12 +57,24 @@ class Pengumuman {
     return '${bersih.substring(0, 140).trimRight()}…';
   }
 
+  /// Cek apakah pengumuman sudah melewati batas waktu kedaluwarsa.
+  bool get sudahKedaluwarsa {
+    if (kedaluwarsaPada == null) return false;
+    return DateTime.now().toUtc().isAfter(kedaluwarsaPada!);
+  }
+
+  /// Cek apakah pengumuman masih menunggu jam jadwal terbit.
+  bool get sedangTerjadwal {
+    if (!aktif || sudahKedaluwarsa) return false;
+    if (terbitPada == null) return false;
+    return DateTime.now().toUtc().isBefore(terbitPada!);
+  }
+
   /// Sedang tayang: aktif, sudah melewati jadwal terbit, & belum kedaluwarsa.
   bool get sedangTayang {
-    if (!aktif) return false;
+    if (!aktif || sudahKedaluwarsa) return false;
     final now = DateTime.now().toUtc();
     if (terbitPada != null && now.isBefore(terbitPada!)) return false;
-    if (kedaluwarsaPada != null && now.isAfter(kedaluwarsaPada!)) return false;
     return true;
   }
 
@@ -86,9 +89,6 @@ class Pengumuman {
       judul: (row['judul'] ?? '') as String,
       isi: (row['isi'] ?? '') as String,
       aktif: (row['aktif'] ?? true) as bool,
-      // Kolom DB `prioritas` bertipe boolean (true = penting). Tetap
-      // dipetakan ke String internal 'penting'/'umum'. Toleran juga bila
-      // suatu saat kolom berisi teks.
       prioritas: (row['prioritas'] == true || row['prioritas'] == 'penting')
           ? 'penting'
           : 'umum',
@@ -117,10 +117,11 @@ class PengumumanService {
   static final _client = Supabase.instance.client;
   static const _table = 'pengumuman';
   static const _tableDibaca = 'pengumuman_dibaca';
+  static const _bucket = 'pengumuman';
 
-  /// 5 role tujuan default (tanpa SDM, karena SDM adalah pengelola).
-  /// 7 role tujuan pengumuman. SDM ikut dimasukkan supaya pengumuman
-  /// juga tampil di dashboard SDM (bukan hanya sebagai pengelola).
+  static final Map<int, Timer> _activeTimers = {};
+  static final Map<int, Timer> _activeExpiryTimers = {};
+
   static const List<UserRole> roleTujuan = [
     UserRole.pegawai,
     UserRole.kadivKategori,
@@ -131,10 +132,20 @@ class PengumumanService {
     UserRole.keuangan,
   ];
 
-  /// Stream realtime pengumuman yang SEDANG TAYANG untuk [role] tertentu.
-  /// Otomatis ter-update saat SDM menambah / mengubah / menghapus.
-  /// Diurutkan: yang disematkan dulu, lalu terbaru.
+  static Future<void> autoNonaktifkanExpired() async {
+    try {
+      final nowStr = DateTime.now().toUtc().toIso8601String();
+      await _client
+          .from(_table)
+          .update({'aktif': false, 'updated_at': nowStr})
+          .eq('aktif', true)
+          .not('kedaluwarsa_pada', 'is', null)
+          .lte('kedaluwarsa_pada', nowStr);
+    } catch (_) {}
+  }
+
   static Stream<List<Pengumuman>> streamTayang(UserRole role) {
+    autoNonaktifkanExpired();
     return _client
         .from(_table)
         .stream(primaryKey: ['id'])
@@ -152,8 +163,8 @@ class PengumumanService {
         });
   }
 
-  /// Seluruh pengumuman (untuk halaman riwayat / kelola). Terbaru di atas.
   static Future<List<Pengumuman>> semua() async {
+    await autoNonaktifkanExpired();
     final rows = await _client
         .from(_table)
         .select()
@@ -163,10 +174,8 @@ class PengumumanService {
         .toList();
   }
 
-  /// Ambil (sekali/one-shot) daftar pengumuman yang SEDANG TAYANG untuk
-  /// [role]. Dipakai untuk pop-up otomatis saat aplikasi dibuka. Urutan
-  /// sama seperti [streamTayang]: yang disematkan dulu, lalu terbaru.
   static Future<List<Pengumuman>> tayangSekali(UserRole role) async {
+    await autoNonaktifkanExpired();
     final rows = await _client
         .from(_table)
         .select()
@@ -182,118 +191,116 @@ class PengumumanService {
     return list;
   }
 
-  /// Set id pengumuman yang sudah dibaca oleh user yang sedang login.
   static Future<Set<int>> idSudahDibaca() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return {};
     final rows = await _client
         .from(_tableDibaca)
         .select('pengumuman_id')
-        .eq('pegawai_id', uid);
+        .eq('user_id', uid);
     return (rows as List)
         .map((r) => (r['pengumuman_id'] as num).toInt())
         .toSet();
   }
 
-  /// Tandai satu pengumuman sebagai sudah dibaca (idempoten via upsert).
   static Future<void> tandaiDibaca(int pengumumanId) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return;
-    await _client.from(_tableDibaca).upsert({
-      'pengumuman_id': pengumumanId,
-      'pegawai_id': uid,
-    }, onConflict: 'pengumuman_id,pegawai_id');
+    await _client.from(_tableDibaca).upsert(
+      {
+        'pengumuman_id': pengumumanId,
+        'user_id': uid,
+        'dibaca_pada': DateTime.now().toUtc().toIso8601String(),
+      },
+      onConflict: 'pengumuman_id,user_id',
+    );
   }
 
-  /// Jumlah pengumuman tayang yang BELUM dibaca oleh [role] user login.
-  static Future<int> jumlahBelumDibaca(UserRole role) async {
-    final rows = await _client.from(_table).select().eq('aktif', true);
-    final tayang = (rows as List)
-        .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
-        .where((p) => p.sedangTayang && p.untukRole(role))
-        .toList();
-    if (tayang.isEmpty) return 0;
-    final dibaca = await idSudahDibaca();
-    return tayang.where((p) => !dibaca.contains(p.id)).length;
+  static Future<String> uploadLampiran({
+    required List<int> bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final ext = fileName.split('.').last.toLowerCase();
+    final uniqueName =
+        '${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}.$ext';
+    final path = 'lampiran/$uniqueName';
+
+    await _client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: false,
+          ),
+        );
+
+    return _client.storage.from(_bucket).getPublicUrl(path);
   }
 
-  /// SDM — buat pengumuman. Melempar [ArgumentError] jika judul/isi kosong.
-  /// Bila langsung tayang, kirim notifikasi otomatis ke role tujuan.
-  /// Bila dijadwalkan di masa depan, jadwalkan notifikasi lokal tanpa broadcast instan.
-  static Future<void> buat({
+  static Future<Pengumuman> buat({
     required String judul,
     required String isi,
-    required String pembuat,
+    required String prioritas,
+    required bool disematkan,
+    required List<UserRole> target,
     bool aktif = true,
-    String prioritas = 'umum',
-    bool disematkan = false,
-    List<UserRole>? target,
     DateTime? terbitPada,
     DateTime? kedaluwarsaPada,
     String? lampiranUrl,
     String? lampiranNama,
+    required dynamic pembuat,
   }) async {
     final j = judul.trim();
     final i = isi.trim();
     if (j.isEmpty || i.isEmpty) {
       throw ArgumentError('Judul dan isi pengumuman wajib diisi.');
     }
-    final targetNames = (target == null || target.isEmpty)
-        ? roleTujuan.map((e) => e.name).toList()
-        : target.map((e) => e.name).toList();
+    final targetNames = target.map((r) => r.name).toList();
+    final pembuatName =
+        pembuat is AppUser ? pembuat.name : pembuat.toString();
+    final pembuatId =
+        pembuat is AppUser ? pembuat.id : _client.auth.currentUser?.id;
 
-    final inserted = await _client.from(_table).insert({
-      'judul': j,
-      'isi': i,
-      'aktif': aktif,
-      // Kolom DB boolean -> kirim true/false, bukan string.
-      'prioritas': prioritas == 'penting',
-      'disematkan': disematkan,
-      'target_roles': targetNames,
-      'pembuat': pembuat,
-      'pembuat_id': _client.auth.currentUser?.id,
-      if (terbitPada != null)
-        'terbit_pada': terbitPada.toUtc().toIso8601String(),
-      if (kedaluwarsaPada != null)
-        'kedaluwarsa_pada': kedaluwarsaPada.toUtc().toIso8601String(),
-      if (lampiranUrl != null) 'lampiran_url': lampiranUrl,
-      if (lampiranNama != null) 'lampiran_nama': lampiranNama,
-    }).select('id').maybeSingle();
+    final res = await _client
+        .from(_table)
+        .insert({
+          'judul': j,
+          'isi': i,
+          'aktif': aktif,
+          'prioritas': prioritas == 'penting',
+          'disematkan': disematkan,
+          'target_roles': targetNames,
+          'pembuat': pembuatName,
+          'pembuat_id': pembuatId,
+          'terbit_pada': terbitPada?.toUtc().toIso8601String(),
+          'kedaluwarsa_pada': kedaluwarsaPada?.toUtc().toIso8601String(),
+          'lampiran_url': lampiranUrl,
+          'lampiran_nama': lampiranNama,
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .select()
+        .single();
 
-    final id = (inserted?['id'] as num?)?.toInt() ??
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+    final p = Pengumuman.fromRow(res);
+    _jadwalkanTimerPengumuman(p);
 
-    final now = DateTime.now().toUtc();
-    final isTerjadwal =
-        terbitPada != null && terbitPada.toUtc().isAfter(now);
-    final isExpired =
-        kedaluwarsaPada != null && kedaluwarsaPada.toUtc().isBefore(now);
-
-    if (aktif && !isExpired) {
-      if (isTerjadwal) {
-        // Jangan kirim notifikasi broadcast langsung sekarang.
-        // Jadwalkan notifikasi lokal pada waktu terbit yang ditentukan.
-        await NotificationService.instance.schedulePengumuman(
-          id: id,
-          title: '📢 Pengumuman Baru',
-          body: j,
-          scheduledDate: terbitPada!.toLocal(),
-        );
-      } else {
-        // Langsung terbit sekarang -> kirim notifikasi
-        await _kirimNotifikasi(judul: j, target: target ?? roleTujuan);
-      }
+    if (p.sedangTayang) {
+      await _kirimNotifikasi(
+          judul: j, target: target.isEmpty ? roleTujuan : target);
     }
+
+    return p;
   }
 
-  /// SDM — ubah pengumuman.
   static Future<void> ubah({
     required int id,
     required String judul,
     required String isi,
     required String prioritas,
     required bool disematkan,
-    List<UserRole>? target,
+    required List<UserRole> target,
     DateTime? terbitPada,
     DateTime? kedaluwarsaPada,
     String? lampiranUrl,
@@ -301,16 +308,11 @@ class PengumumanService {
   }) async {
     final j = judul.trim();
     final i = isi.trim();
-    if (j.isEmpty || i.isEmpty) {
-      throw ArgumentError('Judul dan isi pengumuman wajib diisi.');
-    }
-    final targetNames = (target == null || target.isEmpty)
-        ? roleTujuan.map((e) => e.name).toList()
-        : target.map((e) => e.name).toList();
+    final targetNames = target.map((r) => r.name).toList();
+
     await _client.from(_table).update({
       'judul': j,
       'isi': i,
-      // Kolom DB boolean -> kirim true/false, bukan string.
       'prioritas': prioritas == 'penting',
       'disematkan': disematkan,
       'target_roles': targetNames,
@@ -321,20 +323,13 @@ class PengumumanService {
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
 
-    final now = DateTime.now().toUtc();
-    if (kedaluwarsaPada != null && kedaluwarsaPada.toUtc().isBefore(now)) {
-      await NotificationService.instance.cancelPengumuman(id);
-    } else if (terbitPada != null && terbitPada.toUtc().isAfter(now)) {
-      await NotificationService.instance.schedulePengumuman(
-        id: id,
-        title: '📢 Pengumuman Baru',
-        body: j,
-        scheduledDate: terbitPada.toLocal(),
-      );
-    }
+    try {
+      final res = await _client.from(_table).select().eq('id', id).single();
+      final p = Pengumuman.fromRow(res);
+      _jadwalkanTimerPengumuman(p);
+    } catch (_) {}
   }
 
-  /// SDM — publikasikan / batalkan publikasi.
   static Future<void> setAktif({required int id, required bool aktif}) async {
     await _client.from(_table).update({
       'aktif': aktif,
@@ -349,56 +344,92 @@ class PengumumanService {
             .eq('id', id)
             .single();
         final p = Pengumuman.fromRow(res);
-        final now = DateTime.now().toUtc();
+        _jadwalkanTimerPengumuman(p);
 
-        if (p.kedaluwarsaPada != null && p.kedaluwarsaPada!.isBefore(now)) {
-          return;
-        }
-
-        if (p.terbitPada != null && p.terbitPada!.isAfter(now)) {
-          await NotificationService.instance.schedulePengumuman(
-            id: p.id,
-            title: '📢 Pengumuman Baru',
-            body: p.judul,
-            scheduledDate: p.terbitPada!.toLocal(),
-          );
-        } else {
+        if (p.sedangTayang) {
           await _kirimNotifikasi(judul: p.judul, target: roleTujuan);
         }
       } catch (_) {}
     } else {
+      _batalkanTimerPengumuman(id);
       await NotificationService.instance.cancelPengumuman(id);
     }
   }
 
-  /// SDM — hapus permanen.
   static Future<void> hapus({required int id}) async {
+    _batalkanTimerPengumuman(id);
     await NotificationService.instance.cancelPengumuman(id);
     await _client.from(_table).delete().eq('id', id);
   }
 
-  /// Sinkronisasi notifikasi terjadwal untuk seluruh pengumuman aktif.
+  static void _jadwalkanTimerPengumuman(Pengumuman p) {
+    _batalkanTimerPengumuman(p.id);
+
+    if (!p.aktif || p.sudahKedaluwarsa) {
+      NotificationService.instance.cancelPengumuman(p.id);
+      return;
+    }
+
+    final nowUtc = DateTime.now().toUtc();
+
+    if (p.terbitPada != null && p.terbitPada!.isAfter(nowUtc)) {
+      NotificationService.instance.schedulePengumuman(
+        id: p.id,
+        title: '📢 Pengumuman Baru',
+        body: p.judul,
+        scheduledDate: p.terbitPada!.toLocal(),
+      );
+
+      final delay = p.terbitPada!.difference(nowUtc);
+      if (delay > Duration.zero) {
+        _activeTimers[p.id] = Timer(delay, () async {
+          _activeTimers.remove(p.id);
+          NotificationService.instance.showPengumuman(
+            title: '📢 Pengumuman Baru',
+            body: p.judul,
+          );
+          await _kirimNotifikasi(judul: p.judul, target: roleTujuan);
+        });
+      }
+    }
+
+    if (p.kedaluwarsaPada != null && p.kedaluwarsaPada!.isAfter(nowUtc)) {
+      final expiryDelay = p.kedaluwarsaPada!.difference(nowUtc);
+      if (expiryDelay > Duration.zero) {
+        _activeExpiryTimers[p.id] = Timer(expiryDelay, () async {
+          _activeExpiryTimers.remove(p.id);
+          NotificationService.instance.cancelPengumuman(p.id);
+          try {
+            await _client
+                .from(_table)
+                .update({
+                  'aktif': false,
+                  'updated_at': DateTime.now().toUtc().toIso8601String(),
+                })
+                .eq('id', p.id);
+          } catch (_) {}
+        });
+      }
+    }
+  }
+
+  static void _batalkanTimerPengumuman(int id) {
+    _activeTimers[id]?.cancel();
+    _activeTimers.remove(id);
+    _activeExpiryTimers[id]?.cancel();
+    _activeExpiryTimers.remove(id);
+  }
+
   static Future<void> sinkronkanJadwalPengumuman() async {
     try {
+      await autoNonaktifkanExpired();
       final rows = await _client
           .from(_table)
           .select()
           .eq('aktif', true);
-      final now = DateTime.now().toUtc();
       for (final r in (rows as List)) {
         final p = Pengumuman.fromRow(r as Map<String, dynamic>);
-        if (p.kedaluwarsaPada != null && p.kedaluwarsaPada!.isBefore(now)) {
-          await NotificationService.instance.cancelPengumuman(p.id);
-          continue;
-        }
-        if (p.terbitPada != null && p.terbitPada!.isAfter(now)) {
-          await NotificationService.instance.schedulePengumuman(
-            id: p.id,
-            title: '📢 Pengumuman Baru',
-            body: p.judul,
-            scheduledDate: p.terbitPada!.toLocal(),
-          );
-        }
+        _jadwalkanTimerPengumuman(p);
       }
     } catch (_) {}
   }
@@ -408,23 +439,10 @@ class PengumumanService {
     required List<UserRole> target,
   }) async {
     try {
-      // 1. Tampilkan notifikasi push broadcast FCM ke seluruh device pegawai
       await FcmService.sendBroadcastNotification(
         title: '📢 Pengumuman Baru',
         body: judul,
       );
     } catch (_) {}
-
-    for (final r in target) {
-      try {
-        await pengaduan_notif.NotificationService.kirimKeRole(
-          role: r,
-          judul: '📢 Pengumuman Baru',
-          pesan: judul,
-        );
-      } catch (_) {
-        // Abaikan kegagalan notifikasi agar tidak membatalkan publikasi.
-      }
-    }
   }
 }
