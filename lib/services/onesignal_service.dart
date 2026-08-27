@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'notification_nav_helper.dart';
 
 class OneSignalService {
   OneSignalService._();
@@ -23,11 +24,12 @@ class OneSignalService {
       // 3. Minta izin notifikasi (Pop-up permission Android 13+ & iOS)
       await OneSignal.Notifications.requestPermission(true);
 
-      // 4. Listener saat notifikasi diklik user
+      // 4. Listener saat notifikasi diklik user (Direct ke fitur Pengumuman)
       OneSignal.Notifications.addClickListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Diklik: ${event.notification.title}');
         }
+        NotificationNavHelper.openPengumuman();
       });
 
       // 5. Listener saat notifikasi masuk di Foreground

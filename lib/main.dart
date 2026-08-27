@@ -5,6 +5,7 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
 import 'services/onesignal_service.dart';
+import 'services/notification_nav_helper.dart';
 import 'services/theme_controller.dart';
 import 'models/pengumuman_model.dart';
 
@@ -60,6 +61,7 @@ class SimpegApp extends StatelessWidget {
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'SIMPEG Mobile',
           debugShowCheckedModeBanner: false,
           themeMode: mode,

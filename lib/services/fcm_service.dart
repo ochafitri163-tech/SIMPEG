@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
+import 'notification_nav_helper.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -73,6 +74,7 @@ class FcmService {
       if (kDebugMode) {
         print('Notifikasi FCM Diklik: ${message.notification?.title}');
       }
+      NotificationNavHelper.openPengumuman();
     });
 
     // 3. Supabase Realtime Listener untuk Pengumuman Baru & Update

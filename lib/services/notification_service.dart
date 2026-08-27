@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+import 'notification_nav_helper.dart';
 
 class NotificationService {
   NotificationService._();
@@ -45,7 +46,12 @@ class NotificationService {
       iOS: iosInit,
     );
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        NotificationNavHelper.openPengumuman();
+      },
+    );
 
     _initialized = true;
   }
