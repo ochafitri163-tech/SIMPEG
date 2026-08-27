@@ -11,7 +11,15 @@ import '../../widgets/pengumuman_card.dart';
 /// terbaru, penanda "Baru" (belum dibaca), status, dan Lihat Detail.
 class PengumumanListScreen extends StatefulWidget {
   final UserRole role;
-  const PengumumanListScreen({super.key, required this.role});
+  final Pengumuman? initialPengumuman;
+  final int? initialPengumumanId;
+
+  const PengumumanListScreen({
+    super.key,
+    required this.role,
+    this.initialPengumuman,
+    this.initialPengumumanId,
+  });
 
   @override
   State<PengumumanListScreen> createState() => _PengumumanListScreenState();
@@ -20,7 +28,6 @@ class PengumumanListScreen extends StatefulWidget {
 class _PengumumanListScreenState extends State<PengumumanListScreen> {
   static const Color _accent = Color(0xFF2E86AB);
   static const Color _accentDark = Color(0xFF1F5F7A);
-  static const Color _warning = Color(0xFFD35400);
   static const Color _danger = Color(0xFFE74C3C);
   static const Color _success = Color(0xFF27AE60);
   static const Color _muted = Color(0xFF95A5A6);
@@ -34,6 +41,21 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
   void initState() {
     super.initState();
     _future = _muat();
+
+    if (widget.initialPengumuman != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          showPengumumanDetail(context, widget.initialPengumuman!);
+        }
+      });
+    } else if (widget.initialPengumumanId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final p = await PengumumanService.ambilById(widget.initialPengumumanId!);
+        if (p != null && mounted) {
+          showPengumumanDetail(context, p);
+        }
+      });
+    }
   }
 
   @override
