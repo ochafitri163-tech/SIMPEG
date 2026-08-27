@@ -227,6 +227,16 @@ class PengumumanService {
     return list;
   }
 
+  static Future<Pengumuman?> ambilById(int id) async {
+    try {
+      final row = await _client.from(_table).select().eq('id', id).maybeSingle();
+      if (row == null) return null;
+      return Pengumuman.fromRow(row);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<Set<int>> idSudahDibaca() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return {};

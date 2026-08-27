@@ -24,12 +24,17 @@ class OneSignalService {
       // 3. Minta izin notifikasi (Pop-up permission Android 13+ & iOS)
       await OneSignal.Notifications.requestPermission(true);
 
-      // 4. Listener saat notifikasi diklik user (Direct ke fitur Pengumuman)
+      // 4. Listener saat notifikasi diklik user (Direct ke DETAIL Pengumuman)
       OneSignal.Notifications.addClickListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Diklik: ${event.notification.title}');
         }
-        NotificationNavHelper.openPengumuman();
+        int? pengumumanId;
+        final data = event.notification.additionalData;
+        if (data != null && data['pengumuman_id'] != null) {
+          pengumumanId = int.tryParse(data['pengumuman_id'].toString());
+        }
+        NotificationNavHelper.openPengumuman(pengumumanId: pengumumanId);
       });
 
       // 5. Listener saat notifikasi masuk di Foreground

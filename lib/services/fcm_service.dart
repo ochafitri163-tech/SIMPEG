@@ -74,7 +74,11 @@ class FcmService {
       if (kDebugMode) {
         print('Notifikasi FCM Diklik: ${message.notification?.title}');
       }
-      NotificationNavHelper.openPengumuman();
+      int? pengumumanId;
+      if (message.data['pengumuman_id'] != null) {
+        pengumumanId = int.tryParse(message.data['pengumuman_id'].toString());
+      }
+      NotificationNavHelper.openPengumuman(pengumumanId: pengumumanId);
     });
 
     // 3. Supabase Realtime Listener untuk Pengumuman Baru & Update
