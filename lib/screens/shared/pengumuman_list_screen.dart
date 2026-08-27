@@ -11,7 +11,15 @@ import '../../widgets/pengumuman_card.dart';
 /// terbaru, penanda "Baru" (belum dibaca), status, dan Lihat Detail.
 class PengumumanListScreen extends StatefulWidget {
   final UserRole role;
-  const PengumumanListScreen({super.key, required this.role});
+  final Pengumuman? initialPengumuman;
+  final int? initialPengumumanId;
+
+  const PengumumanListScreen({
+    super.key,
+    required this.role,
+    this.initialPengumuman,
+    this.initialPengumumanId,
+  });
 
   @override
   State<PengumumanListScreen> createState() => _PengumumanListScreenState();
@@ -34,6 +42,22 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
   void initState() {
     super.initState();
     _future = _muat();
+
+    // Jika dipanggil dari Notifikasi, langsung tampilkan dialog Detail Pengumuman
+    if (widget.initialPengumuman != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          showPengumumanDetail(context, widget.initialPengumuman!);
+        }
+      });
+    } else if (widget.initialPengumumanId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final p = await PengumumanService.ambilById(widget.initialPengumumanId!);
+        if (p != null && mounted) {
+          showPengumumanDetail(context, p);
+        }
+      });
+    }
   }
 
   @override
