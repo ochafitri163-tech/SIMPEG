@@ -84,8 +84,21 @@ class Pengumuman {
     final rName = role.name.toLowerCase().trim();
     final rKode = role.kode.toLowerCase().trim();
     return targetRoles.any((t) {
-      final clean = t.toLowerCase().replaceAll('"', '').replaceAll("'", '').trim();
-      return clean == rName || clean == rKode || clean == 'semua' || clean == 'all';
+      final clean = t
+          .toLowerCase()
+          .replaceAll('"', '')
+          .replaceAll("'", '')
+          .replaceAll('{', '')
+          .replaceAll('}', '')
+          .replaceAll('[', '')
+          .replaceAll(']', '')
+          .trim();
+      return clean == rName ||
+          clean == rKode ||
+          clean == 'semua' ||
+          clean == 'all' ||
+          clean.contains(rName) ||
+          clean.contains(rKode);
     });
   }
 
