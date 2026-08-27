@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/pengumuman_model.dart';
 import '../models/user_role.dart';
-import '../screens/shared/pengumuman_detail_screen.dart';
 import '../screens/shared/pengumuman_list_screen.dart';
+import '../widgets/pengumuman_card.dart';
 import 'api_service.dart';
 
 /// Global navigator key agar notifikasi bisa membuka halaman dari mana saja
@@ -11,10 +11,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class NotificationNavHelper {
   NotificationNavHelper._();
 
-  /// Langsung navigasikan aplikasi dan buka HALAMAN DETAIL PENGUMUMAN saat notifikasi diklik
+  /// Langsung navigasikan aplikasi dan buka DETAIL PENGUMUMAN saat notifikasi diklik
   static Future<void> openPengumuman({int? pengumumanId}) async {
-    // Beri jeda singkat agar root navigator siap
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Beri jeda singkat agar root widget / context navigator siap
+    await Future.delayed(const Duration(milliseconds: 350));
 
     final navState = navigatorKey.currentState;
     if (navState == null) return;
@@ -50,20 +50,17 @@ class NotificationNavHelper {
       } catch (_) {}
     }
 
-    // 3. Masuk LANGSUNG ke Halaman Detail Pengumuman (Full Screen)
-    if (targetPengumuman != null) {
-      navState.push(
-        MaterialPageRoute(
-          builder: (_) => PengumumanDetailScreen(pengumuman: targetPengumuman!),
-        ),
-      );
-    } else {
-      // Fallback jika data pengumuman tidak dapat diambil
-      navState.push(
-        MaterialPageRoute(
-          builder: (_) => PengumumanListScreen(role: role),
-        ),
-      );
+    // 3. Masuk ke halaman daftar pengumuman sebagai background page
+    await navState.push(
+      MaterialPageRoute(
+        builder: (_) => PengumumanListScreen(role: role),
+      ),
+    );
+
+    // 4. Langsung buka modal POPUP DETAIL PENGUMUMAN
+    final context = navigatorKey.currentContext;
+    if (targetPengumuman != null && context != null && context.mounted) {
+      showPengumumanDetail(context, targetPengumuman);
     }
   }
 }
