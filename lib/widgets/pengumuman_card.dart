@@ -143,485 +143,285 @@ Future<void> _bukaGambarPenuh(BuildContext context, String url) {
 /// kartu isi pengumuman, lampiran (bila ada), dan tombol Tutup. Membuka
 /// detail sekaligus menandai pengumuman sebagai sudah dibaca.
 Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
-  // Tandai sudah dibaca, tidak blocking bila gagal.
+  // Berlaku untuk seluruh role karena semua dashboard memakai fungsi bersama ini.
   PengumumanService.tandaiDibaca(p.id).catchError((_) {});
 
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
   final bool adaGambar = _lampiranAdalahGambar(p);
-  final bool penting = p.isPenting;
-
-  final Color topBarColor = _navy;
-  final Color surface = isDark ? const Color(0xFF172033) : Colors.white;
-  final Color softSurface =
-      isDark ? const Color(0xFF202A3D) : const Color(0xFFF4F7FB);
-  final Color textColor = isDark ? Colors.white : const Color(0xFF14213D);
-  final Color subColor =
-      isDark ? const Color(0xFFAAB4C3) : const Color(0xFF6C7A90);
-  final Color borderColor =
-      isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0);
-
   final String isiTampil = p.isi.trim().isNotEmpty ? p.isi : p.ringkasan;
 
-  await showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (ctx) {
-      final Size screen = MediaQuery.of(ctx).size;
-      final double dialogWidth = screen.width < 420 ? screen.width - 32 : 390;
+  final Color surface = isDark ? const Color(0xFF172033) : Colors.white;
+  final Color textColor = isDark ? Colors.white : const Color(0xFF171A21);
+  final Color subColor =
+      isDark ? const Color(0xFFB3BBC8) : const Color(0xFF7B818C);
+  final Color dividerColor =
+      isDark ? Colors.white.withValues(alpha: 0.10) : const Color(0xFFE9EBEF);
+  final Color chipColor =
+      isDark ? Colors.white.withValues(alpha: 0.07) : const Color(0xFFEDF8FC);
 
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 24,
-        ),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: value.clamp(0, 1),
-              child: Transform.scale(
-                scale: 0.94 + (0.06 * value),
-                child: child,
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: false,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.48),
+    builder: (sheetContext) {
+      return DraggableScrollableSheet(
+        // Saat dibuka hanya tampil sekitar setengah layar seperti referensi.
+        initialChildSize: 0.62,
+        minChildSize: 0.48,
+        maxChildSize: 0.94,
+        expand: false,
+        snap: true,
+        snapSizes: const [0.62, 0.94],
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
               ),
-            );
-          },
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: dialogWidth,
-              maxHeight: screen.height * 0.82,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, -8),
+                ),
+              ],
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: BorderRadius.circular(26),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.28),
-                    blurRadius: 30,
-                    offset: const Offset(0, 14),
+            clipBehavior: Clip.antiAlias,
+            child: CustomScrollView(
+              controller: scrollController,
+              physics: const ClampingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      margin: const EdgeInsets.only(top: 12, bottom: 18),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : const Color(0xFFD8DADF),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(26),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // =====================================================
-                    // TOPBAR BIRU SOLID
-                    // =====================================================
-                    Container(
-                      width: double.infinity,
-                      color: topBarColor,
-                      padding: const EdgeInsets.fromLTRB(18, 15, 12, 15),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.18),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    0,
+                    24,
+                    24 + MediaQuery.paddingOf(sheetContext).bottom,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate.fixed([
+                      if (adaGambar) ...[
+                        Hero(
+                          tag: 'pengumuman-image-${p.id}',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _bukaGambarPenuh(
+                                context,
+                                p.lampiranUrl!,
                               ),
-                            ),
-                            child: const Icon(
-                              Icons.campaign_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Flexible(
-                                      child: Text(
-                                        'Detail Pengumuman',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                    if (penting) ...[
-                                      const SizedBox(width: 7),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF4F4A),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: const Text(
-                                          'PENTING',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.3,
+                              borderRadius: BorderRadius.circular(22),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 10,
+                                  child: Image.network(
+                                    p.lampiranUrl!,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return ColoredBox(
+                                        color: chipColor,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: _accent,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ],
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stack) {
+                                      return ColoredBox(
+                                        color: chipColor,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.broken_image_outlined,
+                                            color: _accent,
+                                            size: 42,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Informasi ringkas tanpa label "Dipublikasikan",
+                      // "Pembuat", atau "Berlaku s/d".
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 10,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: chipColor,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  color: _accent,
+                                  size: 17,
+                                ),
+                                const SizedBox(width: 8),
                                 Text(
-                                  p.judul,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  formatTanggalJam(p.tanggalTayang),
                                   style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.1,
+                                    color: _accent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          _TapScale(
-                            onTap: () => Navigator.of(ctx).pop(),
-                            child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.14),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 210),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  color: subColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    p.pembuat,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: subColor,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 26),
 
-                    // =====================================================
-                    // CONTENT
-                    // =====================================================
-                    Flexible(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Gambar dibuat card rounded lebih kecil.
-                            if (adaGambar) ...[
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(18),
-                                child: Stack(
-                                  children: [
-                                    InkWell(
-                                      onTap: () => _bukaGambarPenuh(
-                                        context,
-                                        p.lampiranUrl!,
-                                      ),
-                                      child: Image.network(
-                                        p.lampiranUrl!,
-                                        width: double.infinity,
-                                        height: 170,
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, progress) {
-                                          if (progress == null) return child;
-                                          return Container(
-                                            height: 170,
-                                            color: softSurface,
-                                            child: const Center(
-                                              child: SizedBox(
-                                                width: 24,
-                                                height: 24,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2.2,
-                                                  color: _accent,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        errorBuilder:
-                                            (context, error, stack) {
-                                          return Container(
-                                            height: 170,
-                                            color: softSurface,
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.broken_image_rounded,
-                                                color: subColor,
-                                                size: 30,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    Positioned(
-                                      right: 10,
-                                      bottom: 10,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 9,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.46),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.zoom_in_rounded,
-                                              color: Colors.white,
-                                              size: 14,
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Lihat penuh',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
+                      // Judul utama besar dan tebal seperti referensi.
+                      Text(
+                        p.judul,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 30,
+                          height: 1.18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Divider(height: 1, thickness: 1, color: dividerColor),
+                      const SizedBox(height: 28),
 
-                            // Judul utama
-                            Text(
-                              p.judul.toUpperCase(),
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                height: 1.13,
-                                letterSpacing: -0.35,
-                              ),
-                            ),
+                      // Isi langsung ditampilkan tanpa heading "Isi Pengumuman".
+                      // Font normal/tipis agar nyaman dibaca.
+                      SelectableText(
+                        isiTampil,
+                        style: TextStyle(
+                          color: subColor,
+                          fontSize: 17,
+                          height: 1.72,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.05,
+                        ),
+                      ),
 
-                            const SizedBox(height: 12),
-
-                            // Info mini tanggal / pembuat
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: softSurface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Column(
+                      if (p.adaLampiran && !adaGambar) ...[
+                        const SizedBox(height: 28),
+                        Material(
+                          color: chipColor,
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () async {
+                              final uri = Uri.tryParse(p.lampiranUrl!);
+                              if (uri != null && await canLaunchUrl(uri)) {
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
                                 children: [
-                                  _detailMiniInfo(
-                                    icon: Icons.event_rounded,
-                                    label: 'Dipublikasikan',
-                                    value: formatTanggalJam(
-                                      p.tanggalTayang,
-                                    ),
-                                    subColor: subColor,
-                                    textColor: textColor,
+                                  const Icon(
+                                    Icons.attach_file_rounded,
+                                    color: _accent,
                                   ),
-                                  const SizedBox(height: 9),
-                                  _detailMiniInfo(
-                                    icon: Icons.person_rounded,
-                                    label: 'Pembuat',
-                                    value: '${p.pembuat} (SDM)',
-                                    subColor: subColor,
-                                    textColor: textColor,
-                                  ),
-                                  if (p.kedaluwarsaPada != null) ...[
-                                    const SizedBox(height: 9),
-                                    _detailMiniInfo(
-                                      icon: Icons.timer_off_rounded,
-                                      label: 'Berlaku s/d',
-                                      value: formatTanggalJam(
-                                        p.kedaluwarsaPada!,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      p.lampiranNama ?? 'Buka lampiran',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      subColor: subColor,
-                                      textColor: textColor,
                                     ),
-                                  ],
+                                  ),
+                                  const Icon(
+                                    Icons.open_in_new_rounded,
+                                    color: _accent,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(height: 15),
-
-                            // Header isi
-                            Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  height: 17,
-                                  decoration: BoxDecoration(
-                                    color: topBarColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Isi Pengumuman',
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // Box isi pengumuman
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.035)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Text(
-                                isiTampil,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  height: 1.55,
-                                  color: textColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-
-                            if (!adaGambar && p.adaLampiran) ...[
-                              const SizedBox(height: 15),
-                              _LampiranTile(
-                                nama: p.lampiranNama ?? 'Lampiran',
-                                url: p.lampiranUrl!,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // =====================================================
-                    // BOTTOM BUTTON
-                    // =====================================================
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                      decoration: BoxDecoration(
-                        color: surface,
-                        border: Border(
-                          top: BorderSide(
-                            color: borderColor,
-                            width: 1,
                           ),
                         ),
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: _TapScale(
-                          onTap: () => Navigator.of(ctx).pop(),
-                          child: Container(
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: topBarColor,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: topBarColor.withValues(alpha: 0.22),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: const Text(
-                              'Tutup',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                      ],
+                      const SizedBox(height: 18),
+                    ]),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ),
+          );
+        },
       );
     },
-  );
-}
-
-/// Baris info kecil (icon + label + value) dipakai di kartu info mini pada
-/// showPengumumanDetail (mis. tanggal publikasi, pembuat, kedaluwarsa).
-Widget _detailMiniInfo({
-  required IconData icon,
-  required String label,
-  required String value,
-  required Color subColor,
-  required Color textColor,
-}) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 16, color: _accent),
-      const SizedBox(width: 8),
-      SizedBox(
-        width: 96,
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 12.5, color: subColor),
-        ),
-      ),
-      Expanded(
-        child: Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
-        ),
-      ),
-    ],
   );
 }
 

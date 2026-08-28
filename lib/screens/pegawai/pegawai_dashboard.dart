@@ -205,7 +205,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   // ==================== TAB: BERANDA ====================
   Widget _buildBerandaTab() {
-    final firstName = widget.user.name.split(' ').first;
+    final fullName = widget.user.name.trim().isEmpty
+        ? 'Pengguna'
+        : widget.user.name.trim();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
     const crossAxisCount = 3;
@@ -257,7 +259,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(firstName, isSmallScreen),
+              _buildHeader(fullName, isSmallScreen),
               Transform.translate(
                 offset: const Offset(0, -28),
                 child: Padding(
@@ -387,21 +389,56 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     );
   }
 
-  Widget _buildHeader(String firstName, bool isSmallScreen) {
+  Widget _buildHeader(String fullName, bool isSmallScreen) {
+    final String initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
+
+    Widget headerAction({
+      required Widget child,
+      String? tooltip,
+      VoidCallback? onTap,
+    }) {
+      final action = Container(
+        width: isSmallScreen ? 36 : 40,
+        height: isSmallScreen ? 36 : 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+        child: child,
+      );
+
+      if (onTap == null) return action;
+      return Tooltip(
+        message: tooltip ?? '',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(13),
+            child: action,
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         20,
         MediaQuery.of(context).padding.top + (isSmallScreen ? 8.0 : 16.0),
         20,
-        isSmallScreen ? 40.0 : 56.0,
+        isSmallScreen ? 42.0 : 58.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             _navy,
             _navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85)
+            const Color(0xFF123A85),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -421,103 +458,208 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.water_drop_rounded,
-                    size: 11, color: Colors.white70),
-                const SizedBox(width: 5),
-                Text(
-                  'PERUMDAM TIRTA DARMA AYU',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 7 : 9,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.75),
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
+          // Baris atas: identitas instansi dan tombol aksi. Tombol dipindah
+          // dari samping nama agar area nama menjadi lebih luas.
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProfileScreen(user: widget.user),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 8 : 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
                       ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: isSmallScreen ? 40.0 : 48.0,
-                            height: isSmallScreen ? 40.0 : 48.0,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.3),
-                                  Colors.white.withValues(alpha: 0.1)
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  width: 2),
-                            ),
-                            child: Text(
-                              firstName.isNotEmpty
-                                  ? firstName[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isSmallScreen ? 16.0 : 20.0,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.water_drop_rounded,
+                          size: 12,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'PERUMDAM TIRTA DARMA AYU',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 8 : 9,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white.withValues(alpha: 0.78),
+                              letterSpacing: 0.65,
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: ThemeController.instance.themeMode,
+                builder: (context, mode, _) {
+                  final isDark = mode == ThemeMode.dark;
+                  return headerAction(
+                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    onTap: () => ThemeController.instance.setDark(!isDark),
+                    child: Icon(
+                      isDark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      size: isSmallScreen ? 19 : 21,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 7),
+              headerAction(
+                tooltip: 'Muat ulang',
+                onTap: _refresh,
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: isSmallScreen ? 20 : 22,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 7),
+              headerAction(
+                child: const IconTheme(
+                  data: IconThemeData(color: Colors.white),
+                  child: NotificationBell(role: UserRole.pegawai),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: isSmallScreen ? 14 : 18),
+
+          // Kartu profil memakai lebar penuh sehingga nama lengkap dapat
+          // membungkus ke baris berikutnya tanpa terpotong menjadi "...".
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(22),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProfileScreen(user: widget.user),
+                ),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(isSmallScreen ? 11 : 13),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.13),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: isSmallScreen ? 48 : 54,
+                      height: isSmallScreen ? 48 : 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.30),
+                            Colors.white.withValues(alpha: 0.12),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.42),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.10),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 19 : 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selamat datang,',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.70),
+                              fontSize: isSmallScreen ? 10.5 : 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            fullName,
+                            softWrap: true,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 17 : 20,
+                              height: 1.16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.25,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  'Hai, $firstName! 👋',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isSmallScreen ? 15.0 : 18.0,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Icon(
+                                  Icons.badge_outlined,
+                                  size: isSmallScreen ? 13 : 14,
+                                  color: Colors.white.withValues(alpha: 0.72),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'NIK ${widget.user.nik}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    fontSize: isSmallScreen ? 10.0 : 12.0,
-                                    fontWeight: FontWeight.w500,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    'NIK ${widget.user.nik}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.76),
+                                      fontSize: isSmallScreen ? 10 : 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.15,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -526,36 +668,16 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: Colors.white.withValues(alpha: 0.62),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              ValueListenableBuilder<ThemeMode>(
-                valueListenable: ThemeController.instance.themeMode,
-                builder: (context, mode, _) {
-                  final isDark = mode == ThemeMode.dark;
-                  return IconButton(
-                    icon: Icon(
-                      isDark
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      color: Colors.white,
-                    ),
-                    tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
-                    onPressed: () => ThemeController.instance.setDark(!isDark),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                tooltip: 'Muat ulang',
-                onPressed: _refresh,
-              ),
-              const IconTheme(
-                data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.pegawai),
-              ),
-            ],
+            ),
           ),
         ],
       ),
