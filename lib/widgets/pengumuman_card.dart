@@ -445,7 +445,7 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
                                     icon: Icons.event_rounded,
                                     label: 'Dipublikasikan',
                                     value: formatTanggalJam(
-                                      p.tanggalPublikasi,
+                                      p.tanggalTayang,
                                     ),
                                     subColor: subColor,
                                     textColor: textColor,
@@ -761,7 +761,7 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                           Flexible(
                                             child: Text(
                                               formatTanggalJam(
-                                                p.tanggalPublikasi,
+                                                p.tanggalTayang,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -1519,7 +1519,7 @@ class _PengumumanCardState extends State<PengumumanCard> {
                               size: 13, color: Colors.white),
                           const SizedBox(width: 5),
                           Text(
-                            formatTanggalJam(p.tanggalPublikasi),
+                            formatTanggalJam(p.tanggalTayang),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,

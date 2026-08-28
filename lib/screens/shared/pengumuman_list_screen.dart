@@ -498,7 +498,7 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                formatTanggalJam(p.tanggalPublikasi),
+                                formatTanggalJam(p.tanggalTayang),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

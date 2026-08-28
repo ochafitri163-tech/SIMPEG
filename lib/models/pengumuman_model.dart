@@ -57,6 +57,9 @@ class Pengumuman {
     return '${bersih.substring(0, 140).trimRight()}…';
   }
 
+  /// Tanggal / jam efektif tayang pengumuman (jika dijadwalkan, gunakan jadwal terbit).
+  DateTime get tanggalTayang => terbitPada ?? tanggalPublikasi;
+
   /// Cek apakah pengumuman sudah melewati batas waktu kedaluwarsa.
   bool get sudahKedaluwarsa {
     if (kedaluwarsaPada == null) return false;
@@ -67,15 +70,17 @@ class Pengumuman {
   bool get sedangTerjadwal {
     if (!aktif || sudahKedaluwarsa) return false;
     if (terbitPada == null) return false;
-    final now = DateTime.now().toUtc().add(const Duration(minutes: 1));
+    final now = DateTime.now().toUtc();
     return now.isBefore(terbitPada!);
   }
 
-  /// Sedang tayang: aktif, sudah melewati jadwal terbit, & belum kedaluwarsa.
+  /// Sedang tayang: aktif, sudah memasuki/melewati jadwal terbit, & belum kedaluwarsa.
   bool get sedangTayang {
     if (!aktif || sudahKedaluwarsa) return false;
-    final now = DateTime.now().toUtc().add(const Duration(minutes: 1));
-    if (terbitPada != null && now.isBefore(terbitPada!)) return false;
+    if (terbitPada != null) {
+      final now = DateTime.now().toUtc();
+      if (now.isBefore(terbitPada!)) return false;
+    }
     return true;
   }
 
@@ -196,7 +201,7 @@ class PengumumanService {
             .toList();
         list.sort((a, b) {
           if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
-          return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
+          return b.tanggalTayang.compareTo(a.tanggalTayang);
         });
         yield list;
       }
@@ -235,7 +240,7 @@ class PengumumanService {
         .toList();
     list.sort((a, b) {
       if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
-      return b.tanggalPublikasi.compareTo(a.tanggalPublikasi);
+      return b.tanggalTayang.compareTo(a.tanggalTayang);
     });
     return list;
   }

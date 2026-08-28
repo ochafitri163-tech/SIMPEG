@@ -262,7 +262,7 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
                   children: [
                     _metaChip(
                       icon: Icons.event_rounded,
-                      label: formatTanggalJam(p.tanggalPublikasi),
+                      label: formatTanggalJam(p.tanggalTayang),
                       isDark: isDark,
                     ),
                     if (p.adaLampiran)
