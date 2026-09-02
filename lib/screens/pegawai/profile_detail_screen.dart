@@ -387,7 +387,7 @@ class ProfileDetailScreen extends StatelessWidget {
                   ),
                   _QuickAction(
                     icon: Icons.description_rounded,
-                    label: 'Dokumen',
+                    label: 'Dokumen Surat',
                     isSmallScreen: isSmallScreen,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -465,6 +465,15 @@ class ProfileDetailScreen extends StatelessWidget {
       child: Row(
         children: [
           const _TabChip(label: 'Profile', selected: true, onTap: null),
+          const SizedBox(width: 8),
+          _TabChip(
+            label: 'Dokumen Surat',
+            selected: false,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => DokumenResmiScreen(user: user)),
+            ),
+            isSmallScreen: isSmallScreen,
+          ),
           const SizedBox(width: 8),
           _TabChip(
             label: 'Pendidikan',

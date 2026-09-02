@@ -6,6 +6,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
+import '../pegawai/dokumen_resmi_screen.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 import 'kelola_pengumuman_screen.dart';
@@ -442,6 +443,14 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   ),
                 );
                 break;
+              case 'dokumen':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DokumenResmiScreen(user: widget.user),
+                  ),
+                );
+                break;
               case 'riwayat':
                 Navigator.push(
                   context,
@@ -462,6 +471,8 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             }
           },
           itemBuilder: (context) => [
+            _itemMenu('dokumen', Icons.description_rounded,
+                'Dokumen Surat Pegawai'),
             _itemMenu('pengumuman', Icons.campaign_rounded,
                 'Kelola Pengumuman'),
             _itemMenu('riwayat', Icons.history_rounded, 'Riwayat Pengaduan'),
