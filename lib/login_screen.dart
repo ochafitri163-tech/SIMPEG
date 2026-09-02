@@ -6,6 +6,12 @@ import 'screens/pegawai/pegawai_dashboard.dart';
 import 'services/api_service.dart';
 import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/dirut/dashboard_dirut_screen.dart';
+import 'screens/kadiv/dashboard_kadiv_screen.dart';
+import 'screens/kspi/dashboard_kspi_screen.dart';
+import 'screens/sdm/dashboard_sdm_screen.dart';
+import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -152,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _login() async {
+    Future<void> _login() async {
     if (_nikController.text.isEmpty || _passwordController.text.isEmpty) {
       _showSnackBar('NIK dan Kata Sandi wajib diisi', Colors.red);
       return;
@@ -166,81 +172,98 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final nik = _nikController.text.trim();
+    final sb = Supabase.instance.client;
 
     try {
-      final apiResult = await ApiService.login(nik, _passwordController.text);
-
-      if (apiResult['success'] == true) {
-        final userData = apiResult['data']['user'];
-        final roleStr = userData['role'] ?? 'PEGAWAI';
-        final userRole = UserRoleX.fromKode(roleStr);
-
-        final user = AppUser(
-          nik: userData['nik'] ?? nik,
-          name: userData['nama'] ?? 'Pegawai',
-          gelar: '',
-          jabatan: userData['jabatan'] ?? 'Pegawai',
-          unitKerja: 'Tirta Darma Ayu',
-          unitKerjaSingkat: 'TDA',
-          golongan: 'III/a',
-          status: 'Pegawai Tetap',
-          role: userRole,
-        );
-
-        // Simpan session user agar tidak perlu login ulang
-        await ApiService.saveUserSession(user.toJson());
-
-        if (!mounted) return;
-        await _selesaikanLogin(user);
-      } else {
-        final demoAcc = findDemoAccount(nik, _passwordController.text);
-        if (demoAcc != null) {
-          final user = AppUser(
-            nik: demoAcc.nik,
-            name: demoAcc.name,
-            gelar: '',
-            jabatan: demoAcc.jabatan,
-            unitKerja: demoAcc.unitKerja,
-            unitKerjaSingkat: demoAcc.unitKerjaSingkat,
-            golongan: demoAcc.golongan,
-            status: 'Pegawai Tetap',
-            role: demoAcc.role,
-            divisiKadiv: demoAcc.divisiKadiv,
-          );
-          // Simpan session user
-          await ApiService.saveUserSession(user.toJson());
-          if (!mounted) return;
-          await _selesaikanLogin(user);
-          return;
-        }
-
-        final errorMsg = apiResult['message'] ?? 'NIK atau Kata Sandi salah';
-        _showSnackBar(errorMsg, Colors.red);
-        _refreshCaptcha();
+      // 1. Cari email terdaftar berdasarkan NIK — jangan ditebak.
+      //    Email bisa berubah, NIK tidak.
+      String? emailLogin;
+      try {
+        final hasil = await sb.rpc('cari_email_by_nik', params: {'p_nik': nik});
+        emailLogin = hasil as String?;
+      } catch (_) {
+        emailLogin = null;
       }
-    } catch (e) {
-      final demoAcc = findDemoAccount(nik, _passwordController.text);
-      if (demoAcc != null) {
-        final user = AppUser(
-          nik: demoAcc.nik,
-          name: demoAcc.name,
-          gelar: '',
-          jabatan: demoAcc.jabatan,
-          unitKerja: demoAcc.unitKerja,
-          unitKerjaSingkat: demoAcc.unitKerjaSingkat,
-          golongan: demoAcc.golongan,
-          status: 'Pegawai Tetap',
-          role: demoAcc.role,
-          divisiKadiv: demoAcc.divisiKadiv,
-        );
-        // Simpan session user
-        await ApiService.saveUserSession(user.toJson());
-        if (mounted) {
-          await _selesaikanLogin(user);
-        }
+
+      // Cadangan: pola lama, untuk akun yang belum punya kolom email.
+      emailLogin ??= '${nik.toLowerCase()}@tirtadarmaayu.local';
+
+      if (emailLogin.isEmpty) {
+        _showSnackBar('NIK tidak terdaftar. Hubungi SDM.', Colors.red);
+        _refreshCaptcha();
         return;
       }
 
+      // 2. Login ke Supabase Auth — WAJIB, karena 30+ layar memakai
+      //    auth.currentUser?.id untuk mengambil data.
+      final res = await sb.auth.signInWithPassword(
+        email: emailLogin,
+        password: _passwordController.text,
+      );
+
+      if (res.user == null) {
+        _showSnackBar('NIK atau Kata Sandi salah', Colors.red);
+        _refreshCaptcha();
+        return;
+      }
+
+      // 3. Ambil profil ASLI dari tabel pegawai.
+      final profil = await sb
+          .from('pegawai')
+          .select()
+          .eq('id', res.user!.id)
+          .maybeSingle();
+
+      if (profil == null) {
+        await sb.auth.signOut();
+        _showSnackBar('Data pegawai tidak ditemukan. Hubungi SDM.', Colors.red);
+        _refreshCaptcha();
+        return;
+      }
+
+      // 4. Parse divisi kadiv
+      final divisiStr = (profil['divisi_kadiv'] ?? '').toString();
+      final divisi = divisiStr == 'administrasi'
+          ? DivisiKadiv.administrasi
+          : divisiStr == 'teknik'
+              ? DivisiKadiv.teknik
+              : null;
+
+      final user = AppUser(
+        nik: profil['nik']?.toString() ?? nik,
+        name: profil['name']?.toString() ?? 'Pegawai',
+        gelar: profil['gelar']?.toString() ?? '',
+        jabatan: profil['jabatan']?.toString() ?? '-',
+        unitKerja: profil['unit_kerja']?.toString() ?? '-',
+        unitKerjaSingkat: profil['unit_kerja_singkat']?.toString() ?? '-',
+        golongan: profil['golongan']?.toString() ?? '-',
+        status: profil['status']?.toString() ?? 'Pegawai Tetap',
+        role: UserRoleX.fromKode(profil['role']?.toString() ?? 'pegawai'),
+        divisiKadiv: divisi,
+      );
+
+      await ApiService.saveUserSession(user.toJson());
+
+      // 5. Password awal masih = NIK -> ingatkan untuk ganti.
+      if (profil['must_change_password'] == true) {
+        if (!mounted) return;
+        _showSnackBar(
+          'Silakan ganti kata sandi Anda terlebih dahulu',
+          Colors.orange,
+        );
+      }
+
+      if (!mounted) return;
+      await _selesaikanLogin(user);
+    } on AuthException catch (e) {
+      _showSnackBar(
+        e.message.toLowerCase().contains('invalid login')
+            ? 'NIK atau Kata Sandi salah'
+            : 'Gagal masuk: ${e.message}',
+        Colors.red,
+      );
+      _refreshCaptcha();
+    } catch (e) {
       _showSnackBar('Terjadi kesalahan koneksi: $e', Colors.red);
       _refreshCaptcha();
     } finally {
@@ -249,7 +272,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    return PegawaiDashboard(user: user);
+    switch (user.role) {
+      case UserRole.direktur:
+        return DashboardDirutScreen(user: user);
+      case UserRole.kadivKategori:
+        return DashboardKadivScreen(user: user);
+      case UserRole.kspi:
+        return DashboardKspiScreen(user: user);
+      case UserRole.tpdpk:
+        return DashboardTpdpkScreen(user: user);
+      case UserRole.sdm:
+        return DashboardSdmScreen(user: user);
+      case UserRole.pegawai:
+      case UserRole.keuangan:
+        return PegawaiDashboard(user: user);
+    }
   }
 
   void _showSnackBar(String message, Color color) {
