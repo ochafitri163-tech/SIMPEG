@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/feature_scaffold.dart';
+import '../../services/audit_log_service.dart';
 
 /// B10 — GANTI PASSWORD (untuk user yang sedang login).
 /// Memakai Supabase Auth updateUser.
@@ -40,8 +41,19 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
     }
     setState(() => _simpan = true);
     try {
-      await Supabase.instance.client.auth
-          .updateUser(UserAttributes(password: baru));
+      final sb = Supabase.instance.client;
+      await sb.auth.updateUser(UserAttributes(password: baru));
+
+      // Catat log ganti password secara silent
+      AuditLogService.logAction(
+        userNik: sb.auth.currentUser?.id ?? 'UNKNOWN',
+        userName: sb.auth.currentUser?.email ?? 'Pegawai',
+        role: 'PEGAWAI',
+        action: 'UPDATE',
+        module: 'Autentikasi',
+        description: 'Mengganti kata sandi akun (user ID: ${sb.auth.currentUser?.id ?? '-'})',
+      );
+
       if (!mounted) return;
       _pesan('Password berhasil diperbarui.');
       Navigator.pop(context);

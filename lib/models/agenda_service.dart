@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B11 — KALENDER AGENDA / KEGIATAN
@@ -120,9 +121,26 @@ class AgendaService {
       'lokasi': lokasi,
       'dibuat_oleh': dibuatOleh,
     });
+
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? dibuatOleh,
+      userName: dibuatOleh,
+      role: 'SDM',
+      action: 'CREATE',
+      module: 'Agenda',
+      description: 'Menambah agenda "${judul.trim()}" pada ${_tgl(tanggal)}',
+    );
   }
 
   static Future<void> hapus({required int id}) async {
     await _client.from(_table).delete().eq('id', id);
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userName: 'Pengelola',
+      role: 'SDM',
+      action: 'DELETE',
+      module: 'Agenda',
+      description: 'Menghapus agenda ID #$id',
+    );
   }
 }

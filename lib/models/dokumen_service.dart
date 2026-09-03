@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B9 — MANAJEMEN DOKUMEN KEPEGAWAIAN
@@ -229,6 +230,15 @@ class DokumenService {
         'nomor': (nomor == null || nomor.trim().isEmpty) ? null : nomor.trim(),
         if (tglTerbit != null) 'created_at': tglTerbit.toIso8601String(),
       });
+
+      AuditLogService.logAction(
+        userNik: _client.auth.currentUser?.id ?? diunggahOleh,
+        userName: diunggahOleh,
+        role: 'SDM',
+        action: 'CREATE',
+        module: 'Dokumen',
+        description: 'Mengunggah dokumen "${judul.trim()}" (kategori: $kategori, file: $fileNama)',
+      );
     } catch (_) {
       // Data tetap aman di memory local cache
     }
@@ -238,6 +248,14 @@ class DokumenService {
     _localCache.removeWhere((d) => d.id == id);
     try {
       await _client.from(_table).delete().eq('id', id);
+      AuditLogService.logAction(
+        userNik: _client.auth.currentUser?.id ?? 'SDM',
+        userName: 'Pengelola SDM',
+        role: 'SDM',
+        action: 'DELETE',
+        module: 'Dokumen',
+        description: 'Menghapus dokumen kepegawaian ID #$id',
+      );
     } catch (_) {}
   }
 }

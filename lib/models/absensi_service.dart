@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pegawai_data.dart';
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B7 — ABSENSI ASLI (check-in / check-out harian)
@@ -105,6 +106,15 @@ class AbsensiService {
       if (lng != null) 'lng': lng,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
     });
+
+    AuditLogService.logAction(
+      userNik: uid,
+      userName: 'Pegawai',
+      role: 'PEGAWAI',
+      action: 'CREATE',
+      module: 'Absensi',
+      description: 'Check-in absensi hari ini (status: $status)',
+    );
   }
 
   /// Check-out (isi jam pulang) untuk record hari ini.
@@ -112,6 +122,16 @@ class AbsensiService {
     await _client.from(_table).update({
       'jam_pulang': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
+
+    final uid = _client.auth.currentUser?.id ?? 'PEGAWAI';
+    AuditLogService.logAction(
+      userNik: uid,
+      userName: 'Pegawai',
+      role: 'PEGAWAI',
+      action: 'UPDATE',
+      module: 'Absensi',
+      description: 'Check-out absensi hari ini (ID absensi: $id)',
+    );
   }
 
   /// Ajukan izin cepat untuk hari ini (status 'izin').
@@ -125,6 +145,15 @@ class AbsensiService {
       'status': 'izin',
       'keterangan': keterangan,
     });
+
+    AuditLogService.logAction(
+      userNik: uid,
+      userName: 'Pegawai',
+      role: 'PEGAWAI',
+      action: 'CREATE',
+      module: 'Absensi',
+      description: 'Mengajukan izin hari ini: "$keterangan"',
+    );
   }
 
   /// Riwayat absensi terbaru milik user login.

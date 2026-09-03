@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
+import '../services/audit_log_service.dart';
 
 /// Mengubah satu baris hasil query Supabase (Map) menjadi object
 /// [Pengaduan], supaya UI yang sudah ada (getter status.label/.color/.icon,
@@ -425,6 +426,15 @@ class PengaduanService {
 
     final pengaduanId = inserted['id'] as int;
 
+    AuditLogService.logAction(
+      userNik: user.nik,
+      userName: user.name,
+      role: 'PEGAWAI',
+      action: 'CREATE',
+      module: 'Pengaduan',
+      description: 'Mengajukan pengaduan baru $nomor: "$judul" terhadap ${pihakTerlapor.trim()}',
+    );
+
     await _client.from('riwayat_status_pengaduan').insert({
       'pengaduan_id': pengaduanId,
       'status': PengaduanStatus.menungguKadiv.name,
@@ -683,6 +693,15 @@ class PengaduanService {
       'aksi': aksi,
       'keterangan': catatan,
     });
+
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? oleh,
+      userName: oleh,
+      role: role.label,
+      action: 'UPDATE',
+      module: 'Pengaduan',
+      description: '$aksi pada Pengaduan ID #$pengaduanId (status: $statusLama -> $statusBaru)',
+    );
   }
 
   /// KADIV — terima/tolak. Tolak -> arsip. Terima -> otomatis diteruskan

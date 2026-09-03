@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'pengaduan_model.dart';
 import 'pengaduan_service.dart';
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B10 — SK SANKSI (Surat Keputusan)
@@ -467,6 +468,15 @@ class SkSanksiService {
     }
     final sk = SkSanksi.fromRow(inserted);
 
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? diterbitkanOleh,
+      userName: diterbitkanOleh,
+      role: 'SDM',
+      action: 'CREATE',
+      module: 'SK Sanksi',
+      description: 'Menerbitkan SK Sanksi ${sk.nomorSk} untuk $namaPegawai (NIK: $nik) — $jenisSanksi $tingkat',
+    );
+
     // 3. Perbarui jabatan/golongan pegawai (turun jabatan).
     if (idPegawai != null &&
         ((jabatanBaru ?? '').isNotEmpty || (golonganBaru ?? '').isNotEmpty)) {
@@ -592,5 +602,13 @@ class SkSanksiService {
 
   static Future<void> hapus(int id) async {
     await _client.from(_table).delete().eq('id', id);
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userName: 'Pengelola SDM',
+      role: 'SDM',
+      action: 'DELETE',
+      module: 'SK Sanksi',
+      description: 'Menghapus SK Sanksi ID #$id',
+    );
   }
 }
