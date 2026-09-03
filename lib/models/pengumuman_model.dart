@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import '../services/notification_service.dart';
 import '../services/fcm_service.dart';
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// FITUR PENGUMUMAN (versi lengkap)
@@ -355,6 +356,15 @@ class PengumumanService {
           judul: j, target: target.isEmpty ? roleTujuan : target);
     }
 
+    AuditLogService.logAction(
+      userNik: pembuatId?.toString() ?? 'SDM',
+      userName: pembuatName,
+      role: 'SDM',
+      action: 'CREATE',
+      module: 'Pengumuman',
+      description: 'Membuat pengumuman baru ID #${p.id}: "$j"',
+    );
+
     return p;
   }
 
@@ -387,6 +397,15 @@ class PengumumanService {
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
 
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userName: 'Pengelola SDM',
+      role: 'SDM',
+      action: 'UPDATE',
+      module: 'Pengumuman',
+      description: 'Mengubah pengumuman ID #$id: "$j"',
+    );
+
     try {
       final res = await _client.from(_table).select().eq('id', id).single();
       final p = Pengumuman.fromRow(res);
@@ -399,6 +418,15 @@ class PengumumanService {
       'aktif': aktif,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', id);
+
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userName: 'Pengelola SDM',
+      role: 'SDM',
+      action: 'UPDATE',
+      module: 'Pengumuman',
+      description: '${aktif ? 'Mengaktifkan' : 'Menonaktifkan'} pengumuman ID #$id',
+    );
 
     if (aktif) {
       try {
@@ -423,7 +451,24 @@ class PengumumanService {
   static Future<void> hapus({required int id}) async {
     _batalkanTimerPengumuman(id);
     await NotificationService.instance.cancelPengumuman(id);
+
+    // Ambil info judul sebelum dihapus untuk detail log
+    String detailJudul = '';
+    try {
+      final res = await _client.from(_table).select('judul').eq('id', id).maybeSingle();
+      if (res != null) detailJudul = ' ("${res['judul']}")';
+    } catch (_) {}
+
     await _client.from(_table).delete().eq('id', id);
+
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userName: 'Pengelola SDM',
+      role: 'SDM',
+      action: 'DELETE',
+      module: 'Pengumuman',
+      description: 'Menghapus pengumuman ID #$id$detailJudul',
+    );
   }
 
   static void _jadwalkanTimerPengumuman(Pengumuman p) {

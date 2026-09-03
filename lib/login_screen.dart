@@ -6,6 +6,7 @@ import 'screens/pegawai/pegawai_dashboard.dart';
 import 'services/api_service.dart';
 import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
+import 'services/audit_log_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -132,6 +133,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Registrasi User NIK & Role ke OneSignal untuk Target Push Notification
     await OneSignalService.instance.loginUser(user.nik, role: user.role.name);
+
+    // Catat log aktivitas login secara silent ke Supabase
+    AuditLogService.logAction(
+      userNik: user.nik,
+      userName: user.name,
+      role: user.role.label,
+      action: 'LOGIN',
+      module: 'Autentikasi',
+      description: 'Pengguna berhasil login ke sistem',
+    );
 
     if (!mounted) return;
     Navigator.pushReplacement(

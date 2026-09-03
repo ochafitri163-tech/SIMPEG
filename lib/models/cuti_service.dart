@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import 'pengaduan_service.dart' as notif;
+import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B8 — PENGAJUAN CUTI / IZIN + ALUR PERSETUJUAN
@@ -132,6 +133,16 @@ class CutiService {
       'alasan': alasan.trim(),
       'status': StatusCuti.menunggu.name,
     });
+
+    AuditLogService.logAction(
+      userNik: uid,
+      userName: namaPegawai,
+      role: 'PEGAWAI',
+      action: 'CREATE',
+      module: 'Cuti',
+      description: 'Mengajukan ${jenis.label} (${_tgl(mulai)} s/d ${_tgl(selesai)}): "${alasan.trim()}"',
+    );
+
     for (final r in roleApprover) {
       try {
         await notif.NotificationService.kirimKeRole(
@@ -181,6 +192,16 @@ class CutiService {
       'catatan_approver': catatan,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }).eq('id', pengajuan.id);
+
+    AuditLogService.logAction(
+      userNik: _client.auth.currentUser?.id ?? 'APPROVER',
+      userName: namaApprover,
+      role: 'SDM/DIREKTUR',
+      action: 'UPDATE',
+      module: 'Cuti',
+      description: 'Memutuskan pengajuan ${pengajuan.jenis.label} #${pengajuan.id} milik ${pengajuan.namaPegawai} menjadi ${keputusan.label}',
+    );
+
     try {
       await notif.NotificationService.kirimKePegawai(
         pegawaiId: pengajuan.pegawaiId,
