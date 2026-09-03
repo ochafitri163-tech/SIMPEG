@@ -52,21 +52,32 @@ extension UserRoleX on UserRole {
     }
   }
 
-  static UserRole fromKode(String kode) {
-    switch (kode.toUpperCase()) {
-      case 'KADIV':
+    static UserRole fromKode(String kode) {
+    switch (kode.trim().toLowerCase()) {
+      // Kadiv: DB menyimpan 'kadivKategori', kode lama mencari 'KADIV'
+      case 'kadiv':
+      case 'kadivkategori':
         return UserRole.kadivKategori;
-      case 'KSPI':
-        return UserRole.kspi;
-      case 'TPDPK':
-        return UserRole.tpdpk;
-      case 'DIRUT':
+
+      // Direktur: DB menyimpan 'direktur', kode lama mencari 'DIRUT'
+      case 'dirut':
+      case 'direktur':
         return UserRole.direktur;
-      case 'SDM':
+
+      case 'kspi':
+        return UserRole.kspi;
+      case 'tpdpk':
+        return UserRole.tpdpk;
+      case 'sdm':
         return UserRole.sdm;
-      case 'KEUANGAN':
+      case 'keuangan':
         return UserRole.keuangan;
-      case 'PEGAWAI':
+
+      // 18 'kasir' di DB diperlakukan sebagai pegawai biasa.
+      // JANGAN tambahkan kasir ke enum UserRole: ada 4 file dengan
+      // switch exhaustive yang akan gagal compile.
+      case 'kasir':
+      case 'pegawai':
       default:
         return UserRole.pegawai;
     }
