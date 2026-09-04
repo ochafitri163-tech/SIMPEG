@@ -145,7 +145,40 @@ class ApiService {
     }
   }
 
-  /// 8. Logout
+  /// 8. Get Dokumen Resmi Pegawai (SK & Diklat)
+  static Future<Map<String, dynamic>> getDokumenResmi() async {
+    final url = Uri.parse('$baseUrl/dokumen');
+    try {
+      final response = await http.get(url, headers: await _getHeaders()).timeout(const Duration(seconds: 3));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 9. Get Pengumuman Perusahaan
+  static Future<Map<String, dynamic>> getPengumuman() async {
+    final url = Uri.parse('$baseUrl/pengumuman');
+    try {
+      final response = await http.get(url, headers: await _getHeaders()).timeout(const Duration(seconds: 3));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 10. Tandai Pengumuman Dibaca
+  static Future<Map<String, dynamic>> markPengumumanRead(int id) async {
+    final url = Uri.parse('$baseUrl/pengumuman/$id/baca');
+    try {
+      final response = await http.post(url, headers: await _getHeaders());
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 11. Logout
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

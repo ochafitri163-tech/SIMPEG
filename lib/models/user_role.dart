@@ -52,18 +52,14 @@ extension UserRoleX on UserRole {
     }
   }
 
-    static UserRole fromKode(String kode) {
+  static UserRole fromKode(String kode) {
     switch (kode.trim().toLowerCase()) {
-      // Kadiv: DB menyimpan 'kadivKategori', kode lama mencari 'KADIV'
       case 'kadiv':
       case 'kadivkategori':
         return UserRole.kadivKategori;
-
-      // Direktur: DB menyimpan 'direktur', kode lama mencari 'DIRUT'
       case 'dirut':
       case 'direktur':
         return UserRole.direktur;
-
       case 'kspi':
         return UserRole.kspi;
       case 'tpdpk':
@@ -72,10 +68,6 @@ extension UserRoleX on UserRole {
         return UserRole.sdm;
       case 'keuangan':
         return UserRole.keuangan;
-
-      // 18 'kasir' di DB diperlakukan sebagai pegawai biasa.
-      // JANGAN tambahkan kasir ke enum UserRole: ada 4 file dengan
-      // switch exhaustive yang akan gagal compile.
       case 'kasir':
       case 'pegawai':
       default:
@@ -153,9 +145,7 @@ class AppUser {
   final String statusPernikahan;
   final String alamat;
   final String noTelp;
-
   final String? fotoUrl;
-
   final UserRole role;
 
   /// Hanya relevan kalau role == UserRole.kadivKategori. Menentukan
@@ -237,169 +227,4 @@ class AppUser {
       divisiKadiv: divisi,
     );
   }
-}
-
-class DemoAccount {
-  final String nik;
-  final String password;
-  final String name;
-  final String email;
-  final String jabatan;
-  final String unitKerja;
-  final String unitKerjaSingkat;
-  final String golongan;
-  final String golonganDetail;
-  final UserRole role;
-  final DivisiKadiv? divisiKadiv;
-
-  const DemoAccount({
-    required this.nik,
-    required this.password,
-    required this.name,
-    required this.email,
-    this.jabatan = 'Staf Unit Produksi Indramayu',
-    this.unitKerja = 'Cabang Indramayu',
-    this.unitKerjaSingkat = 'Cab. Indramayu',
-    this.golongan = 'B.3 / Pelaksana',
-    this.golonganDetail = '',
-    this.role = UserRole.pegawai,
-    this.divisiKadiv,
-  });
-}
-
-/// TODO: hapus/nonaktifkan setelah autentikasi API sungguhan siap.
-final List<DemoAccount> demoAccounts = [
-  const DemoAccount(
-    nik: '2000000001',
-    password: 'password',
-    name: 'Mukti Kurniawan',
-    email: 'mukti.kurniawan@pdam.co.id',
-    jabatan: 'Staf SDM',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'III/a',
-    role: UserRole.sdm,
-  ),
-  const DemoAccount(
-    nik: '2000000002',
-    password: 'password',
-    name: 'Dewi Anggraini',
-    email: 'dewi.anggraini@pdam.co.id',
-    jabatan: 'Staf Keuangan',
-    unitKerja: 'Divisi Keuangan',
-    unitKerjaSingkat: 'Div. Keuangan',
-    golongan: 'II/d',
-    role: UserRole.pegawai,
-  ),
-  const DemoAccount(
-    nik: '3000000003',
-    password: 'pegawai123',
-    name: 'Budi Santoso',
-    email: 'budi.santoso@pdam.co.id',
-    jabatan: 'Staf Unit Produksi Indramayu',
-    unitKerja: 'Cabang Indramayu',
-    unitKerjaSingkat: 'Cab. Indramayu',
-    golongan: 'B.3 / Pelaksana',
-    role: UserRole.pegawai,
-  ),
-  const DemoAccount(
-    nik: '4000000001',
-    password: 'kadiv123',
-    name: 'Siti Rahmawati',
-    email: 'siti.rahmawati@pdam.co.id',
-    jabatan: 'Kepala Divisi Administrasi',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.2 / Struktural',
-    role: UserRole.kadivKategori,
-    divisiKadiv: DivisiKadiv.administrasi,
-  ),
-  const DemoAccount(
-    nik: '4000000006',
-    password: 'kadivteknik2025',
-    name: 'Agus Setiawan',
-    email: 'agus.setiawan@pdam.co.id',
-    jabatan: 'Kepala Divisi Teknik',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.2 / Struktural',
-    role: UserRole.kadivKategori,
-    divisiKadiv: DivisiKadiv.teknik,
-  ),
-  const DemoAccount(
-    nik: '4000000002',
-    password: 'kspi123',
-    name: 'Ahmad Fauzi',
-    email: 'ahmad.fauzi@pdam.co.id',
-    jabatan: 'Kepala Satuan Pengawas Internal',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.1 / Struktural',
-    role: UserRole.kspi,
-  ),
-  const DemoAccount(
-    nik: '4000000003',
-    password: 'tpdpk123',
-    name: 'Dedi Kurniawan',
-    email: 'dedi.kurniawan@pdam.co.id',
-    jabatan: 'Tim Penegak Disiplin Pegawai dan Kode Etik',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.2 / Struktural',
-    role: UserRole.tpdpk,
-  ),
-  const DemoAccount(
-    nik: '5000000001',
-    password: 'dirut123',
-    name: 'H. Dedi Supriadi',
-    email: 'direktur@pdam.co.id',
-    jabatan: 'Direktur Utama',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.1 / Struktural',
-    role: UserRole.direktur,
-  ),
-  const DemoAccount(
-    nik: '5000000002',
-    password: 'sdm123',
-    name: 'Victoria Usang',
-    email: 'victoria.usang@pdam.co.id',
-    jabatan: 'Staf SDM',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'PT',
-    role: UserRole.sdm,
-  ),
-  const DemoAccount(
-    nik: '6000000001',
-    password: 'keuangan123',
-    name: 'Antony Loyal',
-    email: 'antony.loyal@pdam.co.id',
-    jabatan: 'Staf Unit Produksi Indramayu',
-    unitKerja: 'Cabang Indramayu',
-    unitKerjaSingkat: 'Cabang Indramayu',
-    golongan: 'B.1 / Pelaksana',
-    role: UserRole.keuangan,
-  ),
-  const DemoAccount(
-    nik: '4000000005',
-    password: 'kadivadmin2025',
-    name: 'Nur Aisyah Lestari',
-    email: 'nur.aisyah@pdam.co.id',
-    jabatan: 'Kepala Divisi Administrasi',
-    unitKerja: 'Kantor Pusat',
-    unitKerjaSingkat: 'Kantor Pusat',
-    golongan: 'A.2 / Struktural',
-    role: UserRole.kadivKategori,
-    divisiKadiv: DivisiKadiv.administrasi,
-  ),
-];
-
-DemoAccount? findDemoAccount(String nik, String password) {
-  for (final acc in demoAccounts) {
-    if (acc.nik == nik && acc.password == password) {
-      return acc;
-    }
-  }
-  return null;
 }

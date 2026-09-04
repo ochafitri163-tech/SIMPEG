@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'notification_nav_helper.dart';
@@ -9,8 +10,13 @@ class OneSignalService {
   static const String appId = 'b7556b90-2f97-44f2-93e2-bd94abe8229e';
   bool _initialized = false;
 
+  bool get _isSupportedPlatform {
+    if (kIsWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
+
   Future<void> init() async {
-    if (_initialized) return;
+    if (!_isSupportedPlatform || _initialized) return;
 
     try {
       // 1. Set Level Log (hanya aktif saat debug)
@@ -59,6 +65,7 @@ class OneSignalService {
 
   /// Pasang Tag Role pengguna saat login agar bisa menerima notifikasi sesuai target role
   Future<void> setUserRoleTag(String role) async {
+    if (!_isSupportedPlatform) return;
     try {
       await OneSignal.User.addTagWithKey('role', role.toLowerCase().trim());
     } catch (e) {
@@ -70,6 +77,7 @@ class OneSignalService {
 
   /// Login user NIK ke OneSignal
   Future<void> loginUser(String nik, {String? role}) async {
+    if (!_isSupportedPlatform) return;
     try {
       await OneSignal.login(nik);
       if (role != null) {
@@ -84,6 +92,7 @@ class OneSignalService {
 
   /// Logout user dari OneSignal
   Future<void> logoutUser() async {
+    if (!_isSupportedPlatform) return;
     try {
       await OneSignal.logout();
     } catch (_) {}

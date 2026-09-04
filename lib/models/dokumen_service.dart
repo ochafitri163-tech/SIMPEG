@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
 
 /// =============================================================
@@ -40,7 +41,7 @@ class DokumenKepegawaian {
 
   factory DokumenKepegawaian.fromRow(Map<String, dynamic> row) {
     return DokumenKepegawaian(
-      id: (row['id'] as num).toInt(),
+      id: (row['id'] as num?)?.toInt() ?? 0,
       pegawaiId: row['pegawai_id'] as String?,
       judul: (row['judul'] ?? '') as String,
       kategori: (row['kategori'] ?? 'Umum') as String,
@@ -106,27 +107,30 @@ class DokumenService {
   /// Dokumen yang bisa diakses user login: miliknya + dokumen umum.
   static Future<List<DokumenKepegawaian>> untukSaya() async {
     try {
-      final uid = _client.auth.currentUser?.id;
-      if (uid == null) {
-        return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
-      }
-      final rows = await _client
-          .from(_table)
-          .select()
-          .or('pegawai_id.eq.$uid,pegawai_id.is.null')
-          .order('created_at', ascending: false);
-      final list = (rows as List)
-          .map((r) => DokumenKepegawaian.fromRow(r as Map<String, dynamic>))
-          .toList();
-      
-      // Gabungkan dengan cache lokal yang mungkin belum tersinkron
-      for (final loc in _localCache) {
-        if (!list.any((d) => d.id == loc.id || (d.kategori == loc.kategori && d.nomor == loc.nomor))) {
-          list.insert(0, loc);
+      // 1. Coba ambil dari API backend SIMPEG Laravel (yang terhubung langsung ke DB PostgreSQL)
+      final apiRes = await ApiService.getDokumenResmi();
+      if (apiRes['success'] == true && apiRes['data'] is List) {
+        final rawList = apiRes['data'] as List;
+        if (rawList.isNotEmpty) {
+          return rawList.map((r) => DokumenKepegawaian.fromRow(r as Map<String, dynamic>)).toList();
         }
       }
 
-      return list.isNotEmpty ? list : _defaultDokumen();
+      // 2. Fallback ke Supabase query
+      final uid = _client.auth.currentUser?.id;
+      if (uid != null) {
+        final rows = await _client
+            .from(_table)
+            .select()
+            .or('pegawai_id.eq.$uid,pegawai_id.is.null')
+            .order('created_at', ascending: false);
+        final list = (rows as List)
+            .map((r) => DokumenKepegawaian.fromRow(r as Map<String, dynamic>))
+            .toList();
+        if (list.isNotEmpty) return list;
+      }
+
+      return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
     } catch (_) {
       return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
     }

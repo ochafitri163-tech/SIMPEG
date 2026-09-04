@@ -8,11 +8,6 @@ import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
 import 'services/audit_log_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/dirut/dashboard_dirut_screen.dart';
-import 'screens/kadiv/dashboard_kadiv_screen.dart';
-import 'screens/kspi/dashboard_kspi_screen.dart';
-import 'screens/sdm/dashboard_sdm_screen.dart';
-import 'screens/tpdpk/dashboard_tpdpk_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -205,12 +200,27 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // 2. Login ke Supabase Auth — WAJIB, karena 30+ layar memakai
-      //    auth.currentUser?.id untuk mengambil data.
-      final res = await sb.auth.signInWithPassword(
-        email: emailLogin,
-        password: _passwordController.text,
-      );
+      // 2. Login ke Supabase Auth — coba emailLogin atau @gmail.com
+      AuthResponse? res;
+      try {
+        res = await sb.auth.signInWithPassword(
+          email: emailLogin,
+          password: _passwordController.text,
+        );
+      } catch (e) {
+        if (emailLogin != '${nik.toLowerCase()}@gmail.com') {
+          try {
+            res = await sb.auth.signInWithPassword(
+              email: '${nik.toLowerCase()}@gmail.com',
+              password: _passwordController.text,
+            );
+          } catch (_) {
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
+      }
 
       if (res.user == null) {
         _showSnackBar('NIK atau Kata Sandi salah', Colors.red);
@@ -283,21 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _dashboardForRole(AppUser user) {
-    switch (user.role) {
-      case UserRole.direktur:
-        return DashboardDirutScreen(user: user);
-      case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: user);
-      case UserRole.kspi:
-        return DashboardKspiScreen(user: user);
-      case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: user);
-      case UserRole.sdm:
-        return DashboardSdmScreen(user: user);
-      case UserRole.pegawai:
-      case UserRole.keuangan:
-        return PegawaiDashboard(user: user);
-    }
+    return PegawaiDashboard(user: user);
   }
 
   void _showSnackBar(String message, Color color) {
