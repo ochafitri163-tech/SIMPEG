@@ -13,6 +13,7 @@ import '../sdm/dashboard_sdm_screen.dart';
 import '../sdm/kelola_pengumuman_screen.dart';
 import '../shared/pengumuman_list_screen.dart';
 import '../../widgets/pengumuman_card.dart';
+import '../../widgets/floating_nav_bar.dart';
 import 'tunjangan_pendidikan_screen.dart';
 import 'insentif_screen.dart';
 import 'lembur_screen.dart';
@@ -24,7 +25,6 @@ import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
-
 import '../../services/theme_controller.dart';
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
@@ -434,22 +434,26 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         isSmallScreen ? 42.0 : 58.0,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _navy,
-            _navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: ThemeController.instance.isV2
+            ? AppColors.v2HeroGradient
+            : LinearGradient(
+                colors: [
+                  _navy,
+                  _navy.withValues(alpha: 0.85),
+                  const Color(0xFF123A85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
-            color: _navy.withValues(alpha: 0.2),
+            color: ThemeController.instance.isV2
+                ? const Color(0xFF0284C7).withValues(alpha: 0.35)
+                : _navy.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -801,6 +805,121 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   Widget _buildAttendanceSection(
       AttendanceSummary summary, bool isSmallScreen) {
+    if (ThemeController.instance.isV2) {
+      // ==================== BENTO GRID LAYOUT V2 ====================
+      final totalHari = summary.hadir + summary.telat + summary.izin;
+      final persentaseHadir = totalHari > 0 ? (summary.hadir / totalHari * 100).round() : 100;
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+          boxShadow: AppColors.v2FloatingShadow(context),
+        ),
+        child: Row(
+          children: [
+            // Left Bento Hero Card (Big Gauge Stat)
+            Expanded(
+              flex: 5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0284C7), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: isSmallScreen ? 54 : 64,
+                          height: isSmallScreen ? 54 : 64,
+                          child: CircularProgressIndicator(
+                            value: totalHari > 0 ? summary.hadir / totalHari : 1.0,
+                            strokeWidth: 6,
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        Text(
+                          '$persentaseHadir%',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isSmallScreen ? 14 : 17,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Tingkat Kehadiran',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: isSmallScreen ? 9.5 : 11.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Right Column Stacked Bento Cards
+            Expanded(
+              flex: 6,
+              child: Column(
+                children: [
+                  _buildV2BentoItem(
+                    label: 'Hadir',
+                    count: summary.hadir,
+                    color: const Color(0xFF10B981),
+                    icon: Icons.check_circle_rounded,
+                    isSmallScreen: isSmallScreen,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildV2BentoItem(
+                    label: 'Telat',
+                    count: summary.telat,
+                    color: const Color(0xFFF59E0B),
+                    icon: Icons.warning_amber_rounded,
+                    isSmallScreen: isSmallScreen,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildV2BentoItem(
+                    label: 'Izin',
+                    count: summary.izin,
+                    color: const Color(0xFFEF4444),
+                    icon: Icons.cancel_rounded,
+                    isSmallScreen: isSmallScreen,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (isSmallScreen) {
       return Column(
         children: [
@@ -827,6 +946,56 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         ),
       );
     }
+  }
+
+  Widget _buildV2BentoItem({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+    required bool isSmallScreen,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: isSmallScreen ? 16 : 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 11 : 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary(context),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count Hari',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isSmallScreen ? 9.5 : 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildBars(AttendanceSummary summary) {
@@ -1061,56 +1230,89 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   // ==================== BOTTOM NAVIGATION BAR ====================
   Widget _buildBottomNav(BuildContext context) {
-    final items = [
-      (icon: Icons.home_rounded, index: 0),
-      (
-        icon: _hasRoleFeature
-            ? Icons.admin_panel_settings_rounded
-            : Icons.fact_check_rounded,
-        index: 1
-      ),
-      (icon: Icons.person_rounded, index: 2),
-    ];
+    return ValueListenableBuilder<UiVersion>(
+      valueListenable: ThemeController.instance.uiVersion,
+      builder: (context, version, _) {
+        if (version == UiVersion.v2) {
+          return FloatingNavBar(
+            currentIndex: _bottomNavIndex,
+            onTap: _onBottomNavTap,
+            items: [
+              const FloatingNavItem(
+                icon: Icons.grid_view_rounded,
+                selectedIcon: Icons.grid_view_rounded,
+                label: 'Beranda',
+              ),
+              FloatingNavItem(
+                icon: _hasRoleFeature
+                    ? Icons.shield_outlined
+                    : Icons.fact_check_outlined,
+                selectedIcon: _hasRoleFeature
+                    ? Icons.shield_rounded
+                    : Icons.fact_check_rounded,
+                label: _hasRoleFeature ? 'Kelola' : 'Status',
+              ),
+              const FloatingNavItem(
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+                label: 'Profil',
+              ),
+            ],
+          );
+        }
 
-    return SizedBox(
-      height: 78,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          // Bar putih flat di bawah
-          Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.card(context),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: items
-                    .map((it) => Expanded(
-                          child: _buildNavItem(
-                            icon: it.icon,
-                            index: it.index,
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
+        final items = [
+          (icon: Icons.home_rounded, index: 0),
+          (
+            icon: _hasRoleFeature
+                ? Icons.admin_panel_settings_rounded
+                : Icons.fact_check_rounded,
+            index: 1
           ),
-        ],
-      ),
+          (icon: Icons.person_rounded, index: 2),
+        ];
+
+        return SizedBox(
+          height: 78,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+              // Bar putih flat di bawah
+              Container(
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    children: items
+                        .map((it) => Expanded(
+                              child: _buildNavItem(
+                                icon: it.icon,
+                                index: it.index,
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1251,23 +1453,27 @@ class _QuickMenuCircleState extends State<_QuickMenuCircle>
               padding: EdgeInsets.all(widget.isSmallScreen ? 8 : 12),
               decoration: BoxDecoration(
                 color: AppColors.card(context),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black.withValues(alpha: _pressed ? 0.03 : 0.06),
-                    blurRadius: _pressed ? 8 : 16,
-                    offset: const Offset(0, 6),
-                  ),
-                  BoxShadow(
-                    color: _accent.withValues(alpha: 0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(ThemeController.instance.isV2 ? 22 : 16),
+                boxShadow: ThemeController.instance.isV2
+                    ? AppColors.v2FloatingShadow(context)
+                    : [
+                        BoxShadow(
+                          color:
+                              Colors.black.withValues(alpha: _pressed ? 0.03 : 0.06),
+                          blurRadius: _pressed ? 8 : 16,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: _accent.withValues(alpha: 0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                 border: Border.all(
-                  color: AppColors.divider(context),
-                  width: 1,
+                  color: ThemeController.instance.isV2
+                      ? const Color(0xFF0284C7).withValues(alpha: 0.2)
+                      : AppColors.divider(context),
+                  width: ThemeController.instance.isV2 ? 1.5 : 1,
                 ),
               ),
               child: Column(

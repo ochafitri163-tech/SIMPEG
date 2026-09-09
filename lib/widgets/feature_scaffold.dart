@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/theme_controller.dart';
+import '../theme/app_colors.dart';
 
-/// Scaffold seragam untuk seluruh halaman fitur (Pendidikan, Keluarga,
-/// Golongan, Jabatan, Payroll, THR, Sanksi, Pengaduan Warga) —
-/// header gradasi navy->teal dengan tombol kembali & judul, isi berupa
-/// daftar kartu putih di atas latar abu muda.
-///
-/// Semua warna sekarang mengikuti `Theme.of(context).brightness`, jadi
-/// otomatis berubah saat Mode Gelap diaktifkan lewat ThemeController.
 class FeatureScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -17,10 +12,7 @@ class FeatureScaffold extends StatelessWidget {
   static const Color navy = Color(0xFF0D2C6E);
   static const Color accent = Color(0xFF2E86AB);
 
-  // Warna latar & permukaan khusus mode gelap, selaras dengan
-  // `darkTheme` di main.dart (scaffoldBackgroundColor: 0xFF10151C,
-  // cardColor: 0xFF1B2230).
-  static const Color _darkBackground = Color(0xFF10151C);
+  static const Color _darkBackground = Color(0xFF090D16);
 
   const FeatureScaffold({
     super.key,
@@ -33,85 +25,136 @@ class FeatureScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ValueListenableBuilder<UiVersion>(
+      valueListenable: ThemeController.instance.uiVersion,
+      builder: (context, version, _) {
+        final isV2 = version == UiVersion.v2;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? _darkBackground : const Color(0xFFF3F6F9),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 14,
-              left: 20,
-              right: 20,
-              bottom: 22,
-            ),
-            decoration: const BoxDecoration(
-              // Header biru solid (bukan gradasi) supaya brand PDAM
-              // tetap konsisten dan terlihat clean di kedua mode.
-              color: navy,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        return Scaffold(
+          backgroundColor: isDark
+              ? (isV2 ? const Color(0xFF090D16) : _darkBackground)
+              : (isV2 ? const Color(0xFFF1F5F9) : const Color(0xFFF3F6F9)),
+          body: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + (isV2 ? 16 : 14),
+                  left: 20,
+                  right: 20,
+                  bottom: isV2 ? 26 : 22,
+                ),
+                decoration: BoxDecoration(
+                  gradient: isV2
+                      ? (isDark
+                          ? const LinearGradient(
+                              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF1E3A8A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : const LinearGradient(
+                              colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1D4ED8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ))
+                      : null,
+                  color: isV2 ? null : navy,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(isV2 ? 32 : 28),
+                    bottomRight: Radius.circular(isV2 ? 32 : 28),
+                  ),
+                  boxShadow: isV2 ? AppColors.cardShadow(context) : [],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: isV2
+                                ? BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                    ),
+                                  )
+                                : null,
+                            child: const Icon(
+                              Icons.arrow_back_rounded,
                               color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
+                              size: 20,
                             ),
                           ),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 11.5,
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: isV2 ? 42 : 38,
+                          height: isV2 ? 42 : 38,
+                          decoration: BoxDecoration(
+                            gradient: isV2
+                                ? const LinearGradient(
+                                    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
+                                  )
+                                : null,
+                            color: isV2 ? null : Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(isV2 ? 14 : 12),
+                            boxShadow: isV2
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF06B6D4).withValues(alpha: 0.4),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ]
+                                : [],
                           ),
-                        ],
-                      ),
+                          child: Icon(icon, color: Colors.white, size: isV2 ? 22 : 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isV2 ? 18 : 17,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: isV2 ? 0.3 : 0,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 11.5,
+                                  fontWeight: isV2 ? FontWeight.w400 : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (trailing != null) trailing!,
+                      ],
                     ),
-                    if (trailing != null) trailing!,
                   ],
                 ),
-              ],
-            ),
+              ),
+              Expanded(
+                child: child,
+              ),
+            ],
           ),
-          Expanded(
-            child: child,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

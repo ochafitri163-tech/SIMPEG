@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
+import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
 import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
@@ -209,253 +210,463 @@ class ProfileDetailScreen extends StatelessWidget {
   }
 
   Widget _buildSummaryCard(BuildContext context, bool isSmallScreen) {
-    final avatarSize = isSmallScreen ? 68.0 : 78.0;
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        Container(
-          width: double.infinity,
-          margin: EdgeInsets.only(top: avatarSize / 2),
-          padding: EdgeInsets.fromLTRB(
-            isSmallScreen ? 14.0 : 18.0,
-            avatarSize / 2 + (isSmallScreen ? 10.0 : 14.0),
-            isSmallScreen ? 14.0 : 18.0,
-            isSmallScreen ? 14.0 : 18.0,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-          child: Column(
-            children: [
-              Text(
-                '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 14.5 : 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary(context),
-                ),
+    return ValueListenableBuilder<UiVersion>(
+      valueListenable: ThemeController.instance.uiVersion,
+      builder: (context, version, _) {
+        if (version == UiVersion.v2) {
+          // ==================== LAYOUT V2: HORIZONTAL SIDE-BY-SIDE ====================
+          final avatarSize = isSmallScreen ? 72.0 : 84.0;
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(isSmallScreen ? 16.0 : 20.0),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                width: 1.5,
               ),
-              const SizedBox(height: 3),
-              Text(
-                user.jabatan,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 11.0 : 12.0,
-                  color: AppColors.textSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'NIK ${user.nik}',
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: isSmallScreen ? 10.0 : 11.0,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              SizedBox(height: isSmallScreen ? 14.0 : 18.0),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              boxShadow: AppColors.v2FloatingShadow(context),
+            ),
+            child: Column(
+              children: [
+                // Baris Atas: Foto Profil di KIRI, Info Pegawai di KANAN (Side-by-Side Layout)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: _SummaryColumn(
-                        label: 'GOLONGAN',
-                        isSmallScreen: isSmallScreen,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: isSmallScreen ? 6.0 : 8.0,
-                              vertical: 3),
+                    // Foto profil Kiri dengan ring gradasi bercahaya
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: avatarSize,
+                          height: avatarSize,
                           decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF06B6D4), Color(0xFF2563EB)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            user.golongan,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: isSmallScreen ? 9.5 : 11.0,
-                              fontWeight: FontWeight.bold,
-                              height: 1.15,
+                          alignment: Alignment.center,
+                          child: user.fotoUrl != null
+                              ? ClipOval(
+                                  child: Image.network(
+                                    user.fotoUrl!,
+                                    width: avatarSize - 6,
+                                    height: avatarSize - 6,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Text(
+                                  user.initials,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: isSmallScreen ? 22.0 : 26.0,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                        ),
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            width: isSmallScreen ? 14.0 : 16.0,
+                            height: isSmallScreen ? 14.0 : 16.0,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                    Container(
-                        width: 1,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        color: AppColors.divider(context)),
+                    const SizedBox(width: 16),
+                    // Informasi Pegawai di Kanan
                     Expanded(
-                      child: _SummaryColumn(
-                        label: 'UNIT KERJA',
-                        isSmallScreen: isSmallScreen,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Text(
-                            user.unitKerjaSingkat,
-                            textAlign: TextAlign.center,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: isSmallScreen ? 10.0 : 11.5,
-                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallScreen ? 15.5 : 17.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
                               color: AppColors.textPrimary(context),
-                              height: 1.15,
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                        width: 1,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        color: AppColors.divider(context)),
-                    Expanded(
-                      child: _SummaryColumn(
-                        label: 'STATUS',
-                        isSmallScreen: isSmallScreen,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Text(
-                            user.status,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
+                          const SizedBox(height: 4),
+                          Text(
+                            user.jabatan,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: isSmallScreen ? 10.0 : 11.5,
-                              fontWeight: FontWeight.bold,
-                              color: green,
-                              height: 1.15,
+                              fontSize: isSmallScreen ? 11.5 : 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary(context),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          // Horizontal Badges Row: NIK & Golongan
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Text(
+                                  'NIK ${user.nik}',
+                                  style: TextStyle(
+                                    color: const Color(0xFF0284C7),
+                                    fontSize: isSmallScreen ? 10.0 : 11.0,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Gol. ${user.golongan}',
+                                  style: TextStyle(
+                                    color: const Color(0xFF10B981),
+                                    fontSize: isSmallScreen ? 10.0 : 11.0,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              SizedBox(height: isSmallScreen ? 16.0 : 20.0),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _QuickAction(
-                    icon: Icons.workspace_premium_rounded,
-                    label: 'Golongan',
-                    isSmallScreen: isSmallScreen,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const GolonganScreen()),
+                const SizedBox(height: 18),
+                Divider(height: 1, color: AppColors.divider(context)),
+                const SizedBox(height: 14),
+
+                // Quick Action Bar V2
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _QuickAction(
+                      icon: Icons.workspace_premium_rounded,
+                      label: 'Golongan',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GolonganScreen()),
+                      ),
                     ),
-                  ),
-                  _QuickAction(
-                    icon: Icons.school_rounded,
-                    label: 'Pendidikan',
-                    isSmallScreen: isSmallScreen,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const PendidikanScreen()),
+                    _QuickAction(
+                      icon: Icons.school_rounded,
+                      label: 'Pendidikan',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PendidikanScreen()),
+                      ),
                     ),
-                  ),
-                  _QuickAction(
-                    icon: Icons.diversity_3_rounded,
-                    label: 'Keluarga',
-                    isSmallScreen: isSmallScreen,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const KeluargaScreen()),
+                    _QuickAction(
+                      icon: Icons.diversity_3_rounded,
+                      label: 'Keluarga',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+                      ),
                     ),
-                  ),
-                  _QuickAction(
-                    icon: Icons.description_rounded,
-                    label: 'Dokumen Surat',
-                    isSmallScreen: isSmallScreen,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => DokumenResmiScreen(user: user)),
+                    _QuickAction(
+                      icon: Icons.description_rounded,
+                      label: 'Dokumen Surat',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => DokumenResmiScreen(user: user)),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Stack(
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+
+        // ==================== LAYOUT V1 KLASIK ====================
+        final avatarSize = isSmallScreen ? 68.0 : 78.0;
+        return Stack(
           clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
           children: [
             Container(
-              width: avatarSize,
-              height: avatarSize,
+              width: double.infinity,
+              margin: EdgeInsets.only(top: avatarSize / 2),
+              padding: EdgeInsets.fromLTRB(
+                isSmallScreen ? 14.0 : 18.0,
+                avatarSize / 2 + (isSmallScreen ? 10.0 : 14.0),
+                isSmallScreen ? 14.0 : 18.0,
+                isSmallScreen ? 14.0 : 18.0,
+              ),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                color: AppColors.card(context),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppColors.cardShadow(context),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '${user.name}${user.gelar.isNotEmpty ? ', ${user.gelar}' : ''}',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14.5 : 16.0,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    user.jabatan,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 11.0 : 12.0,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'NIK ${user.nik}',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: isSmallScreen ? 10.0 : 11.0,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 14.0 : 18.0),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _SummaryColumn(
+                            label: 'GOLONGAN',
+                            isSmallScreen: isSmallScreen,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 6.0 : 8.0,
+                                  vertical: 3),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                user.golongan,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: accent,
+                                  fontSize: isSmallScreen ? 9.5 : 11.0,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            color: AppColors.divider(context)),
+                        Expanded(
+                          child: _SummaryColumn(
+                            label: 'UNIT KERJA',
+                            isSmallScreen: isSmallScreen,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Text(
+                                user.unitKerjaSingkat,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10.0 : 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary(context),
+                                  height: 1.15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            color: AppColors.divider(context)),
+                        Expanded(
+                          child: _SummaryColumn(
+                            label: 'STATUS',
+                            isSmallScreen: isSmallScreen,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Text(
+                                user.status,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10.0 : 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: green,
+                                  height: 1.15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 16.0 : 20.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _QuickAction(
+                        icon: Icons.workspace_premium_rounded,
+                        label: 'Golongan',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const GolonganScreen()),
+                        ),
+                      ),
+                      _QuickAction(
+                        icon: Icons.school_rounded,
+                        label: 'Pendidikan',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const PendidikanScreen()),
+                        ),
+                      ),
+                      _QuickAction(
+                        icon: Icons.diversity_3_rounded,
+                        label: 'Keluarga',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const KeluargaScreen()),
+                        ),
+                      ),
+                      _QuickAction(
+                        icon: Icons.description_rounded,
+                        label: 'Dokumen Surat',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => DokumenResmiScreen(user: user)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              alignment: Alignment.center,
-              child: user.fotoUrl != null
-                  ? ClipOval(
-                      child: Image.network(
-                        user.fotoUrl!,
-                        width: avatarSize - 6,
-                        height: avatarSize - 6,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Text(
-                      user.initials,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isSmallScreen ? 19.0 : 22.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
             ),
-            Positioned(
-              right: 2,
-              bottom: 2,
-              child: Container(
-                width: isSmallScreen ? 12.0 : 14.0,
-                height: isSmallScreen ? 12.0 : 14.0,
-                decoration: BoxDecoration(
-                  color: green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.4),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5B9BD5), Color(0xFF3873B8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: user.fotoUrl != null
+                      ? ClipOval(
+                          child: Image.network(
+                            user.fotoUrl!,
+                            width: avatarSize - 6,
+                            height: avatarSize - 6,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Text(
+                          user.initials,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isSmallScreen ? 19.0 : 22.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
-              ),
+                Positioned(
+                  right: 2,
+                  bottom: 2,
+                  child: Container(
+                    width: isSmallScreen ? 12.0 : 14.0,
+                    height: isSmallScreen ? 12.0 : 14.0,
+                    decoration: BoxDecoration(
+                      color: green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2.4),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 

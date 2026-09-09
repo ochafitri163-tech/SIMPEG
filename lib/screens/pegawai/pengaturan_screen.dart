@@ -149,16 +149,170 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                 ValueListenableBuilder<ThemeMode>(
                   valueListenable: ThemeController.instance.themeMode,
                   builder: (context, mode, _) {
-                    return InfoCard(
-                      padding: EdgeInsets.zero,
-                      child: _SwitchRow(
-                        icon: Icons.dark_mode_rounded,
-                        title: 'Mode Gelap',
-                        subtitle: mode == ThemeMode.dark ? 'Aktif' : 'Nonaktif',
-                        value: mode == ThemeMode.dark,
-                        onChanged: (v) => ThemeController.instance.setDark(v),
-                        isLast: true,
-                      ),
+                    return ValueListenableBuilder<UiVersion>(
+                      valueListenable: ThemeController.instance.uiVersion,
+                      builder: (context, version, _) {
+                        final isV2 = version == UiVersion.v2;
+                        return InfoCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            children: [
+                              _SwitchRow(
+                                icon: Icons.dark_mode_rounded,
+                                title: 'Mode Gelap',
+                                subtitle: mode == ThemeMode.dark ? 'Aktif' : 'Nonaktif',
+                                value: mode == ThemeMode.dark,
+                                onChanged: (v) => ThemeController.instance.setDark(v),
+                              ),
+                              _ThemedDivider(),
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.style_rounded,
+                                          color: Color(0xFF2563EB),
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Gaya Desain Aplikasi',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                isV2
+                                                    ? 'V2 Modern Luxury (Gradasi & Glassmorphism)'
+                                                    : 'V1 Klasik (Desain Standar SIMPEG)',
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => ThemeController.instance
+                                                .setUiVersion(UiVersion.v1),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  vertical: 10, horizontal: 8),
+                                              decoration: BoxDecoration(
+                                                color: !isV2
+                                                    ? const Color(0xFF0D2C6E)
+                                                        .withValues(alpha: 0.12)
+                                                    : Colors.transparent,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: !isV2
+                                                      ? const Color(0xFF0D2C6E)
+                                                      : Colors.grey.withValues(alpha: 0.3),
+                                                  width: !isV2 ? 1.8 : 1.0,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Icon(
+                                                    Icons.grid_view_rounded,
+                                                    color: !isV2
+                                                        ? const Color(0xFF0D2C6E)
+                                                        : Colors.grey,
+                                                    size: 22,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'V1 Klasik',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: !isV2
+                                                          ? FontWeight.bold
+                                                          : FontWeight.w500,
+                                                      color: !isV2
+                                                          ? const Color(0xFF0D2C6E)
+                                                          : Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => ThemeController.instance
+                                                .setUiVersion(UiVersion.v2),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  vertical: 10, horizontal: 8),
+                                              decoration: BoxDecoration(
+                                                color: isV2
+                                                    ? const Color(0xFF0284C7)
+                                                        .withValues(alpha: 0.14)
+                                                    : Colors.transparent,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: isV2
+                                                      ? const Color(0xFF0284C7)
+                                                      : Colors.grey.withValues(alpha: 0.3),
+                                                  width: isV2 ? 1.8 : 1.0,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Icon(
+                                                    Icons.auto_awesome_rounded,
+                                                    color: isV2
+                                                        ? const Color(0xFF0284C7)
+                                                        : Colors.grey,
+                                                    size: 22,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'V2 Luxury',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: isV2
+                                                          ? FontWeight.bold
+                                                          : FontWeight.w500,
+                                                      color: isV2
+                                                          ? const Color(0xFF0284C7)
+                                                          : Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
