@@ -320,101 +320,74 @@ class _LoginScreenState extends State<LoginScreen> {
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 400;
     final isVerySmallScreen = size.height < 600;
+    const bool isV2 = false;
 
-    return ValueListenableBuilder<UiVersion>(
-      valueListenable: ThemeController.instance.uiVersion,
-      builder: (context, version, _) {
-        final isV2 = version == UiVersion.v2;
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background air (TIDAK diubah)
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/bg_air.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
 
-        return Scaffold(
-          body: Stack(
-            children: [
-              // Background air (TIDAK diubah)
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/bg_air.jpg',
-                  fit: BoxFit.cover,
+          // ==== PONI BIRU V1: dari atas sampai hampir tengah ====
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: size.height * (isVerySmallScreen ? 0.42 : 0.46),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    _navy,
+                    _navy.withValues(alpha: 0.94),
+                    _navyLight.withValues(alpha: 0.82),
+                  ],
                 ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(46),
+                  bottomRight: Radius.circular(46),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _navy.withValues(alpha: 0.30),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
+            ),
+          ),
 
-              if (isV2) ...[
-                // Dark glass overlay for luxury contrast
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFF0F172A).withValues(alpha: 0.88),
-                          const Color(0xFF1E1B4B).withValues(alpha: 0.82),
-                          const Color(0xFF0F172A).withValues(alpha: 0.94),
-                        ],
-                      ),
-                    ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 20 : 28,
+                    vertical: isVerySmallScreen ? 12 : 20,
                   ),
-                ),
-              ] else ...[
-                // ==== PONI BIRU V1: dari atas sampai hampir tengah ====
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: size.height * (isVerySmallScreen ? 0.42 : 0.46),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          _navy,
-                          _navy.withValues(alpha: 0.94),
-                          _navyLight.withValues(alpha: 0.82),
-                        ],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(46),
-                        bottomRight: Radius.circular(46),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _navy.withValues(alpha: 0.30),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
-                ),
-              ],
-
-              SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isSmallScreen ? 20 : 28,
-                        vertical: isVerySmallScreen ? 12 : 20,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Logo & Header
+                        _buildHeader(
+                          isSmallScreen: isSmallScreen,
+                          isVerySmallScreen: isVerySmallScreen,
+                          isV2: isV2,
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Versi Switcher Bar Banner
-                            _buildVersionBar(isV2),
-                            const SizedBox(height: 12),
-
-                            // Logo & Header
-                            _buildHeader(
-                              isSmallScreen: isSmallScreen,
-                              isVerySmallScreen: isVerySmallScreen,
-                              isV2: isV2,
-                            ),
                             SizedBox(height: isVerySmallScreen ? 18 : 26),
 
                             // KARTU LOGIN
@@ -426,25 +399,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 vertical: isSmallScreen ? 22 : 26,
                               ),
                               decoration: BoxDecoration(
-                                color: isV2
-                                    ? Colors.white.withValues(alpha: 0.96)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(isV2 ? 28 : 22),
-                                border: isV2
-                                    ? Border.all(
-                                        color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
-                                        width: 1.5,
-                                      )
-                                    : null,
-                                boxShadow: isV2
-                                    ? AppColors.v2FloatingShadow(context)
-                                    : [
-                                        BoxShadow(
-                                          color: _navy.withValues(alpha: 0.18),
-                                          blurRadius: 30,
-                                          offset: const Offset(0, 14),
-                                        ),
-                                      ],
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _navy.withValues(alpha: 0.18),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 14),
+                                  ),
+                                ],
                               ),
                               child: AutofillGroup(
                                 child: Column(
@@ -481,9 +444,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           _obscurePassword
                                               ? Icons.visibility_off_rounded
                                               : Icons.visibility_rounded,
-                                          color: isV2
-                                              ? const Color(0xFF2563EB)
-                                              : _navy.withValues(alpha: 0.55),
+                                          color: _navy.withValues(alpha: 0.55),
                                           size: 18,
                                         ),
                                         onPressed: () {
@@ -542,7 +503,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               '\u00A9 IT PERUMDAM Tirta Darma Ayu 2026',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: isV2 ? Colors.white.withValues(alpha: 0.85) : _navy.withValues(alpha: 0.75),
+                                color: _navy.withValues(alpha: 0.75),
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.2,
@@ -558,65 +519,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         );
-      },
-    );
   }
 
-  Widget _buildVersionBar(bool isV2) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: isV2
-            ? Colors.white.withValues(alpha: 0.15)
-            : Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isV2 ? const Color(0xFF38BDF8) : Colors.white30,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isV2 ? Icons.auto_awesome_rounded : Icons.dashboard_outlined,
-            size: 15,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            isV2 ? 'Tema: V2 Modern Luxury' : 'Tema: V1 Klasik',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () {
-              final newVer = isV2 ? UiVersion.v1 : UiVersion.v2;
-              ThemeController.instance.setUiVersion(newVer);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                isV2 ? 'Ke V1' : 'Ubah Ke V2',
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   /// Header tanpa kotak: logo, Selamat Datang, SIMPEG Mobile, lalu subjudul.
   Widget _buildHeader({

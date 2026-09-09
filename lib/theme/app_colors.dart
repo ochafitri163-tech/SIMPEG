@@ -28,7 +28,7 @@ class AppColors {
   );
 
   static const LinearGradient heroGradientV2 = LinearGradient(
-    colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF312E81)],
+    colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1E3A8A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
