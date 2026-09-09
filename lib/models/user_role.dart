@@ -172,6 +172,7 @@ class AppUser {
   });
 
   String get id => nik;
+  String get nama => name;
   String get golonganUntukSlip => golonganDetail ?? 'GOL. $golongan';
 
   String get initials {
