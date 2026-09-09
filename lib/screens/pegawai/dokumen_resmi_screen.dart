@@ -64,133 +64,393 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
 
   void _showPreviewModal(DokumenKepegawaian d) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSk = d.kategori == 'SK' || d.judul.toLowerCase().contains('sk') || d.judul.toLowerCase().contains('pengangkatan');
+    final tglFormat = '${d.dibuatPada.day} ${_getNamaBulan(d.dibuatPada.month)} ${d.dibuatPada.year}';
+    final namaPegawai = widget.user.nama.isNotEmpty ? widget.user.nama : 'Pegawai Perumda';
+    final nikPegawai = widget.user.nik.isNotEmpty ? widget.user.nik : '0000000000000000';
+    final jabatanPegawai = widget.user.jabatan.isNotEmpty ? widget.user.jabatan : 'Staf Pegawai';
+    final unitKerjaPegawai = widget.user.unitKerja.isNotEmpty ? widget.user.unitKerja : 'Kantor Pusat Indramayu';
+
     showDialog(
       context: context,
       builder: (ctx) {
         return Dialog(
           backgroundColor: isDark ? const Color(0xFF1E2638) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+              maxWidth: 520,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Preview: ${d.judul}',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 22),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      color: AppColors.textSecondary(context),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF141A29) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF2E3A52) : const Color(0xFFCBD5E1),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
+                // Header Bar Modal
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
+                  child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: docBlue.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(
-                          Icons.picture_as_pdf_rounded,
-                          size: 42,
+                        child: Icon(
+                          isSk ? Icons.description_rounded : Icons.school_rounded,
+                          size: 20,
                           color: docBlue,
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary(context),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Lembar Dokumen Resmi SDM',
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary(context),
+                              ),
+                            ),
+                            Text(
+                              isSk ? 'Surat Keputusan (SK) Direksi' : 'Sertifikat Diklat & Pelatihan',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.textSecondary(context),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'File PDF / Gambar telah diverifikasi oleh Admin SDM',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary(context),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 22),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        color: AppColors.textSecondary(context),
+                        onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: AppColors.divider(context)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                const Divider(height: 1),
+
+                // Scrollable Paper Document View
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        child: Text(
-                          'Tutup Preview',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary(context),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Kop Surat
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.water_drop_rounded,
+                                  color: Color(0xFF0284C7),
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: const [
+                                    Text(
+                                      'PERUSAHAAN UMUM DAERAH AIR MINUM',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E293B),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'TIRTA DARMA AYU',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF0284C7),
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Jl. Ki Hajar Dewantara No. 15, Kotakulon, Indramayu\nTelp: (0234) 272027 | Email: info@tirtadarmaayu.co.id',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: Color(0xFF64748B),
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Garis Ganda Kop Surat
+                          Container(height: 2.2, color: const Color(0xFF0F172A)),
+                          const SizedBox(height: 1.5),
+                          Container(height: 0.8, color: const Color(0xFF0F172A)),
+                          const SizedBox(height: 14),
+
+                          // Judul Surat & Nomor
+                          Text(
+                            isSk ? 'SURAT KEPUTUSAN DIREKSI' : 'SERTIFIKAT KELULUSAN & KOMPETENSI',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: 0.5,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Nomor: ${d.nomor ?? (isSk ? "SK/SDM/2024/001" : "STP/SDM/2024/088")}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Isi Surat
+                          if (isSk) ...[
+                            const Text(
+                              'TENTANG',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                            ),
+                            Text(
+                              d.judul.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'DIREKTUR UTAMA PERUMDA AIR MINUM TIRTA DARMA AYU',
+                                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Menimbang: Bahwa demi kelancaran tugas kepegawaian dan peningkatan mutu pelayanan, dipandang perlu menetapkan keputusan ini.\n\nMemutuskan dan Menetapkan kepada:',
+                                style: TextStyle(fontSize: 9.5, color: Color(0xFF334155), height: 1.4),
+                              ),
+                            ),
+                          ] else ...[
+                            const Text(
+                              'Diberikan dengan bangga kepada:',
+                              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xFF475569)),
+                            ),
+                          ],
+
+                          const SizedBox(height: 10),
+
+                          // Box Biodata Pegawai
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Column(
+                              children: [
+                                _previewRow('Nama Pegawai', namaPegawai, isBold: true),
+                                const SizedBox(height: 4),
+                                _previewRow('NIK / No. Induk', nikPegawai),
+                                const SizedBox(height: 4),
+                                _previewRow('Jabatan', jabatanPegawai),
+                                const SizedBox(height: 4),
+                                _previewRow('Unit Kerja', unitKerjaPegawai),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Diktum Akhir
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              isSk
+                                  ? 'Keputusan ini berlaku sejak tanggal ditetapkan, dengan ketentuan apabila di kemudian hari terdapat kekeliruan akan diperbaiki sebagaimana mestinya.'
+                                  : 'Telah mengikuti dan menyelesaikan kegiatan Pelatihan serta dinyatakan LULUS dan Memenuhi Standar Kompetensi Kepegawaian Perumda Air Minum Tirta Darma Ayu.',
+                              style: const TextStyle(fontSize: 9.5, color: Color(0xFF334155), height: 1.4),
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Tanda Tangan & QR
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              // QR Code Verifikasi
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                                ),
+                                child: Column(
+                                  children: const [
+                                    Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF0F172A)),
+                                    SizedBox(height: 2),
+                                    Text('TERVERIFIKASI', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
+                                  ],
+                                ),
+                              ),
+
+                              // TTD & Stempel
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Ditetapkan di Indramayu\nPada tanggal $tglFormat',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 9, color: Color(0xFF475569)),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Direktur Utama,',
+                                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  // Stempel + Paraf
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.6), width: 1.5),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: const Text(
+                                          '★ PERUMDA TIRTA DARMA AYU ★',
+                                          style: TextStyle(
+                                            fontSize: 6.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFFDC2626),
+                                          ),
+                                        ),
+                                      ),
+                                      const Icon(Icons.gesture_rounded, size: 28, color: Color(0xFF1E293B)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Ir. H. Ady Setiawan, S.H., M.H., M.M.',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // Footer Buttons Modal
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: AppColors.divider(context)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text(
+                            'Tutup',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary(context),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _bukaFileLangsung(d);
-                        },
-                        icon: const Icon(Icons.download_rounded, size: 16),
-                        label: const Text('Buka / Unduh'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: docBlue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _bukaFileLangsung(d);
+                          },
+                          icon: const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('Unduh Berkas', style: TextStyle(fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: docBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -198,6 +458,40 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
         );
       },
     );
+  }
+
+  Widget _previewRow(String label, String value, {bool isBold = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 95,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
+          ),
+        ),
+        const Text(': ', style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getNamaBulan(int bulan) {
+    const namaBulan = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return (bulan >= 1 && bulan <= 12) ? namaBulan[bulan - 1] : '';
   }
 
   @override
