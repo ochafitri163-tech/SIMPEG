@@ -667,9 +667,9 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 tooltip: 'Muat ulang',
                 onPressed: _refresh,
               ),
-              const IconTheme(
+              IconTheme(
                 data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.tpdpk),
+                child: NotificationBell(role: UserRole.tpdpk, user: widget.user),
               ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),

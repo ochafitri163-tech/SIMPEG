@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/pengaduan_model.dart';
 import '../models/pengaduan_service.dart';
+import '../models/pengumuman_model.dart';
 import '../models/user_role.dart';
+import '../screens/shared/detail_pengaduan_screen.dart';
+import 'pengumuman_card.dart' show showPengumumanDetail;
 
 /// Ikon lonceng notifikasi yang dipasang di AppBar tiap dashboard.
 /// Menampilkan badge jumlah notifikasi belum dibaca milik user yang
@@ -17,7 +20,8 @@ import '../models/user_role.dart';
 /// apapun role-nya.
 class NotificationBell extends StatefulWidget {
   final UserRole role;
-  const NotificationBell({super.key, required this.role});
+  final AppUser user;
+  const NotificationBell({super.key, required this.role, required this.user});
 
   @override
   State<NotificationBell> createState() => _NotificationBellState();
@@ -40,6 +44,67 @@ class _NotificationBellState extends State<NotificationBell> {
       if (mounted) setState(() => _belumDibaca = jumlah);
     } catch (_) {
       // Diamkan -- badge tetap 0 kalau gagal fetch, tidak mengganggu UI.
+    }
+  }
+
+  /// Dipanggil saat satu item notifikasi ditekan/di-tap.
+  /// 1. Tandai notifikasi itu sudah dibaca.
+  /// 2. Tutup bottom sheet daftar notifikasi.
+  /// 3. Arahkan ke tujuan sesuai jenis notifikasinya:
+  ///    - punya `pengumuman_id` ATAU judulnya "Pengumuman Baru" -> langsung
+  ///      munculkan POPUP detail pengumuman DI ATAS layar yang sedang
+  ///      dibuka (mis. Beranda) -- TIDAK pindah halaman, sama seperti saat
+  ///      kartu "Berita & Pengumuman" di dashboard ditekan. Kalau
+  ///      `pengumuman_id` belum ada (mis. notifikasi lama / migrasi kolom
+  ///      belum dijalankan), fallback ke pengumuman TERBARU yang tayang
+  ///      untuk role user ini.
+  ///    - punya `pengaduan_id`   -> buka halaman detail Pengaduan.
+  ///    - selain itu             -> tidak ada tujuan, cukup ditandai dibaca.
+  Future<void> _bukaNotifikasi(Map<String, dynamic> n) async {
+    final notifId = (n['id'] as num?)?.toInt();
+    if (notifId != null) {
+      await NotificationService.tandaiDibaca(notifId);
+      await _muatJumlahBelumDibaca();
+    }
+
+    final pengumumanId = (n['pengumuman_id'] as num?)?.toInt();
+    final pengaduanId = (n['pengaduan_id'] as num?)?.toInt();
+    final judul = (n['judul'] as String?) ?? '';
+    final adalahNotifPengumuman =
+        pengumumanId != null || judul.toLowerCase().contains('pengumuman');
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // tutup bottom sheet daftar notifikasi
+
+    if (adalahNotifPengumuman) {
+      Pengumuman? p;
+      try {
+        if (pengumumanId != null) {
+          p = await PengumumanService.ambilById(pengumumanId);
+        }
+        if (p == null) {
+          // Fallback: pengumuman TERBARU yang tayang untuk role user ini.
+          final list = await PengumumanService.tayangSekali(widget.role);
+          if (list.isNotEmpty) p = list.first;
+        }
+      } catch (_) {}
+
+      if (p != null && mounted) {
+        // Popup langsung di atas layar saat ini, tanpa berpindah halaman.
+        showPengumumanDetail(context, p);
+      }
+      return;
+    }
+
+    if (pengaduanId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PengaduanDetailScreen(
+            user: widget.user,
+            pengaduanId: pengaduanId,
+          ),
+        ),
+      );
     }
   }
 
@@ -129,46 +194,73 @@ class _NotificationBellState extends State<NotificationBell> {
                                           (n['dibaca'] ?? false) as bool;
                                       final waktu =
                                           DateTime.parse(n['waktu'] as String);
-                                      return Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            margin: const EdgeInsets.only(
-                                                top: 4, right: 10),
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: dibaca
-                                                  ? Colors.transparent
-                                                  : _navy,
-                                              shape: BoxShape.circle,
-                                            ),
+                                      final adaTujuan =
+                                          n['pengumuman_id'] != null ||
+                                              n['pengaduan_id'] != null ||
+                                              (n['judul'] as String? ?? '')
+                                                  .toLowerCase()
+                                                  .contains('pengumuman');
+                                      return InkWell(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        onTap: () => _bukaNotifikasi(n),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 4),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    top: 4, right: 10),
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: dibaca
+                                                      ? Colors.transparent
+                                                      : _navy,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(n['judul'] as String,
+                                                        style: const TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w700)),
+                                                    const SizedBox(height: 2),
+                                                    Text(n['pesan'] as String,
+                                                        style: const TextStyle(
+                                                            fontSize: 12,
+                                                            color: Colors.grey)),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                        formatTanggalJam(waktu),
+                                                        style: const TextStyle(
+                                                            fontSize: 10.5,
+                                                            color: Colors.grey)),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (adaTujuan)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          top: 4, left: 4),
+                                                  child: Icon(
+                                                      Icons
+                                                          .chevron_right_rounded,
+                                                      size: 18,
+                                                      color: Colors.grey[400]),
+                                                ),
+                                            ],
                                           ),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(n['judul'] as String,
-                                                    style: const TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w700)),
-                                                const SizedBox(height: 2),
-                                                Text(n['pesan'] as String,
-                                                    style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.grey)),
-                                                const SizedBox(height: 2),
-                                                Text(formatTanggalJam(waktu),
-                                                    style: const TextStyle(
-                                                        fontSize: 10.5,
-                                                        color: Colors.grey)),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       );
                                     },
                                   ),

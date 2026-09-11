@@ -1295,12 +1295,66 @@ class NotificationService {
     required String judul,
     required String pesan,
     int? pengaduanId,
+    int? pengumumanId,
   }) async {
     await _client.from('notifikasi').insert({
       'untuk_pegawai_id': pegawaiId,
       'judul': judul,
       'pesan': pesan,
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      if (pengumumanId != null) 'pengumuman_id': pengumumanId,
     });
+  }
+
+  /// Mengirim notifikasi in-app ke SEMUA pegawai pada satu atau lebih role
+  /// sekaligus dalam satu panggilan -- dipakai fitur yang bisa menarget
+  /// banyak role sekaligus (mis. Pengumuman SDM dengan beberapa "Role
+  /// Tujuan"). Kalau [roles] kosong, notifikasi dikirim ke SEMUA pegawai
+  /// tanpa memandang role (dipakai saat pengumuman tanpa target spesifik /
+  /// "semua role").
+  ///
+  /// [pengumumanId] diisi supaya notifikasi bisa DIPENCET (di-tap) dan
+  /// langsung membuka pengumuman terkait -- lihat NotificationBell &
+  /// NotificationNavHelper.
+  ///
+  /// Insert dilakukan secara batch (satu request insert banyak baris)
+  /// supaya tidak lambat ketika jumlah pegawai/role banyak.
+  static Future<void> kirimKeBanyakRole({
+    required List<UserRole> roles,
+    required String judul,
+    required String pesan,
+    int? pengaduanId,
+    int? pengumumanId,
+  }) async {
+    final query = _client.from('pegawai').select('id');
+    final daftarPegawai = roles.isEmpty
+        ? await query
+        : await query.inFilter('role', roles.map((r) => r.name).toList());
+
+    final list = daftarPegawai as List;
+    if (list.isEmpty) return;
+
+    final rows = list
+        .map((pegawai) => {
+              'untuk_pegawai_id': pegawai['id'],
+              'judul': judul,
+              'pesan': pesan,
+              if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+              if (pengumumanId != null) 'pengumuman_id': pengumumanId,
+            })
+        .toList();
+
+    await _client.from('notifikasi').insert(rows);
+  }
+
+  /// Menandai SATU notifikasi sebagai sudah dibaca -- dipakai saat user
+  /// menekan/tap salah satu item notifikasi di NotificationBell.
+  static Future<void> tandaiDibaca(int notifikasiId) async {
+    try {
+      await _client
+          .from('notifikasi')
+          .update({'dibaca': true})
+          .eq('id', notifikasiId);
+    } catch (_) {}
   }
 }

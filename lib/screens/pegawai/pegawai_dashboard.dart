@@ -434,15 +434,17 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         isSmallScreen ? 42.0 : 58.0,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _navy,
-            _navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: ThemeController.instance.isV2
+            ? AppColors.v2HeroGradient
+            : LinearGradient(
+                colors: [
+                  _navy,
+                  _navy.withValues(alpha: 0.85),
+                  const Color(0xFF123A85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
@@ -536,9 +538,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               ),
               const SizedBox(width: 7),
               headerAction(
-                child: const IconTheme(
+                child: IconTheme(
                   data: IconThemeData(color: Colors.white),
-                  child: NotificationBell(role: UserRole.pegawai),
+                  child: NotificationBell(role: UserRole.pegawai, user: widget.user),
                 ),
               ),
             ],

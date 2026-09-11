@@ -719,9 +719,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 tooltip: 'Muat ulang',
                 onPressed: _refreshSemua,
               ),
-              const IconTheme(
+              IconTheme(
                 data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.direktur),
+                child: NotificationBell(role: UserRole.direktur, user: widget.user),
               ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),

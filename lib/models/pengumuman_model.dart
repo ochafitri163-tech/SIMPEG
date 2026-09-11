@@ -5,6 +5,13 @@ import 'user_role.dart';
 import '../services/notification_service.dart';
 import '../services/fcm_service.dart';
 import '../services/audit_log_service.dart';
+// Diberi prefix karena file ini juga mengimpor `services/notification_service.dart`
+// yang KEBETULAN punya nama kelas sama (NotificationService) tapi untuk hal
+// berbeda (local push notification, dipakai sbg `NotificationService.instance`).
+// NotificationService di pengaduan_service.dart adalah yang menyimpan
+// notifikasi in-app ke tabel Supabase `notifikasi` -- inilah yang dibaca oleh
+// tombol lonceng (NotificationBell) di semua dashboard.
+import 'pengaduan_service.dart' as db_notif;
 
 /// =============================================================
 /// FITUR PENGUMUMAN (versi lengkap)
@@ -262,7 +269,7 @@ class PengumumanService {
     final rows = await _client
         .from(_tableDibaca)
         .select('pengumuman_id')
-        .eq('user_id', uid);
+        .eq('pegawai_id', uid);
     return (rows as List)
         .map((r) => (r['pengumuman_id'] as num).toInt())
         .toSet();
@@ -274,10 +281,10 @@ class PengumumanService {
     await _client.from(_tableDibaca).upsert(
       {
         'pengumuman_id': pengumumanId,
-        'user_id': uid,
+        'pegawai_id': uid,
         'dibaca_pada': DateTime.now().toUtc().toIso8601String(),
       },
-      onConflict: 'pengumuman_id,user_id',
+      onConflict: 'pengumuman_id,pegawai_id',
     );
   }
 
@@ -353,7 +360,9 @@ class PengumumanService {
 
     if (p.sedangTayang) {
       await _kirimNotifikasi(
-          judul: j, target: target.isEmpty ? roleTujuan : target);
+          pengumumanId: p.id,
+          judul: j,
+          target: target.isEmpty ? roleTujuan : target);
     }
 
     AuditLogService.logAction(
@@ -439,7 +448,8 @@ class PengumumanService {
         _jadwalkanTimerPengumuman(p);
 
         if (p.sedangTayang) {
-          await _kirimNotifikasi(judul: p.judul, target: roleTujuan);
+          await _kirimNotifikasi(
+              pengumumanId: p.id, judul: p.judul, target: roleTujuan);
         }
       } catch (_) {}
     } else {
@@ -497,7 +507,8 @@ class PengumumanService {
             title: '📢 Pengumuman Baru',
             body: p.judul,
           );
-          await _kirimNotifikasi(judul: p.judul, target: roleTujuan);
+          await _kirimNotifikasi(
+              pengumumanId: p.id, judul: p.judul, target: roleTujuan);
         });
       }
     }
@@ -543,15 +554,41 @@ class PengumumanService {
     } catch (_) {}
   }
 
+  /// Mengirim notifikasi pengumuman baru ke SEMUA channel:
+  /// 1) Push notification (FCM) -- notifikasi sistem/OS saat app di-background.
+  /// 2) Notifikasi in-app ke tabel Supabase `notifikasi` -- INI yang tampil
+  ///    di tombol lonceng (NotificationBell) pada semua dashboard. Sebelumnya
+  ///    langkah ini TIDAK ADA, sehingga pengumuman yang dibuat/dipublikasikan
+  ///    SDM tidak pernah muncul di daftar notifikasi walau push FCM terkirim.
   static Future<void> _kirimNotifikasi({
+    required int pengumumanId,
     required String judul,
     required List<UserRole> target,
   }) async {
+    // 1) Push notification (best-effort, tidak boleh menggagalkan alur utama).
     try {
       await FcmService.sendBroadcastNotification(
         title: '📢 Pengumuman Baru',
         body: judul,
       );
     } catch (_) {}
+
+    // 2) Simpan ke tabel `notifikasi` supaya masuk ke NotificationBell
+    //    (in-app notification center) setiap pegawai pada role target.
+    //    target kosong / == roleTujuan berarti "semua role". pengumumanId
+    //    disertakan supaya notifikasi bisa DIPENCET dan langsung membuka
+    //    pengumuman terkait (lihat NotificationBell & NotificationNavHelper).
+    try {
+      final semuaRole = target.isEmpty || target.length == roleTujuan.length;
+      await db_notif.NotificationService.kirimKeBanyakRole(
+        roles: semuaRole ? const [] : target,
+        judul: '📢 Pengumuman Baru',
+        pesan: judul,
+        pengumumanId: pengumumanId,
+      );
+    } catch (_) {
+      // Diamkan -- kegagalan simpan notifikasi in-app tidak boleh
+      // menggagalkan proses publikasi pengumuman itu sendiri.
+    }
   }
 }

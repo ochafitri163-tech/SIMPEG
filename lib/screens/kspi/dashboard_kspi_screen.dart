@@ -1079,9 +1079,9 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 tooltip: 'Muat ulang',
                 onPressed: _refresh,
               ),
-              const IconTheme(
+              IconTheme(
                 data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.kspi),
+                child: NotificationBell(role: UserRole.kspi, user: widget.user),
               ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),

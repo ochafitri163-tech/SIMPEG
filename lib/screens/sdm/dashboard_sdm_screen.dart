@@ -400,9 +400,9 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               // Header dibuat ringkas: hanya notifikasi + satu tombol menu.
               // Aksi lain (pengumuman, SK, riwayat, tema, muat ulang, keluar)
               // dipindah ke menu tiga titik supaya tidak terlihat penuh.
-              const IconTheme(
+              IconTheme(
                 data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.sdm),
+                child: NotificationBell(role: UserRole.sdm, user: widget.user),
               ),
               _buildMenuAksi(),
             ],

@@ -610,9 +610,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 tooltip: 'Muat ulang',
                 onPressed: _refresh,
               ),
-              const IconTheme(
+              IconTheme(
                 data: IconThemeData(color: Colors.white),
-                child: NotificationBell(role: UserRole.kadivKategori),
+                child: NotificationBell(role: UserRole.kadivKategori, user: widget.user),
               ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
