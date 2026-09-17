@@ -724,23 +724,11 @@ class _DocCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final adaDokumen = dokumen != null;
 
-    final judul = dokumen?.judul.trim().isNotEmpty == true ? dokumen!.judul : defaultTitle;
-    final nomor = dokumen?.nomor?.trim().isNotEmpty == true ? dokumen!.nomor! : defaultNomor;
-    final fileNama = dokumen?.fileNama.trim().isNotEmpty == true ? dokumen!.fileNama : defaultFileName;
-    final tglStr = dokumen != null ? _formatTgl(dokumen!.dibuatPada) : defaultDate;
-
-    // Objek aktif untuk action
-    final activeDoc = dokumen ??
-        DokumenKepegawaian(
-          id: 0,
-          judul: judul,
-          kategori: badgeLabel,
-          fileUrl: '',
-          fileNama: fileNama,
-          nomor: nomor,
-          dibuatPada: DateTime.tryParse(tglStr) ?? DateTime.now(),
-        );
+    final judul = adaDokumen ? dokumen!.judul : 'Belum Ada Dokumen';
+    final nomor = adaDokumen ? (dokumen!.nomor ?? '-') : 'Belum diterbitkan atau diunggah oleh SDM.';
+    final tglStr = adaDokumen ? _formatTgl(dokumen!.dibuatPada) : 'Belum Terbit';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -748,7 +736,8 @@ class _DocCard extends StatelessWidget {
         color: isDark ? const Color(0xFF192132) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF28344C) : const Color(0xFFE2E8F0),
+          color: isDark ? const Color(0xFF28344C) : (adaDokumen ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+          style: adaDokumen ? BorderStyle.solid : BorderStyle.solid,
         ),
         boxShadow: [
           BoxShadow(
@@ -820,7 +809,7 @@ class _DocCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary(context),
+              color: adaDokumen ? AppColors.textPrimary(context) : AppColors.textSecondary(context),
               height: 1.35,
             ),
           ),
@@ -829,7 +818,7 @@ class _DocCard extends StatelessWidget {
 
           // Subtitle / No Surat
           Text(
-            'No: $nomor',
+            adaDokumen ? 'No: $nomor' : nomor,
             style: TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary(context),
@@ -839,42 +828,57 @@ class _DocCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => onView(activeDoc),
-                  icon: const Icon(Icons.visibility_outlined, size: 16),
-                  label: const Text('View File', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary(context),
-                    side: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          if (adaDokumen)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onView(dokumen!),
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('View File', style: TextStyle(fontSize: 12.5)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary(context),
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                      ),
+                      backgroundColor: isDark ? const Color(0xFF141A29) : const Color(0xFFF8FAFC),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    backgroundColor: isDark ? const Color(0xFF141A29) : const Color(0xFFF8FAFC),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => onDownload(activeDoc),
-                  icon: const Icon(Icons.download_rounded, size: 16),
-                  label: const Text('Download', style: TextStyle(fontSize: 12.5)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: docBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 1,
-                    shadowColor: docBlue.withValues(alpha: 0.3),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => onDownload(dokumen!),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Download', style: TextStyle(fontSize: 12.5)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: docBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 1,
+                      shadowColor: docBlue.withValues(alpha: 0.3),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                   ),
                 ),
+              ],
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              alignment: Alignment.center,
+              child: Text(
+                'Belum Tersedia',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondary(context),
+                ),
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );

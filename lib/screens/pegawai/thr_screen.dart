@@ -15,7 +15,22 @@ import '../../theme/app_colors.dart';
 /// diurutkan dari tahun terbaru ke terlama, lalu dipetakan ke model
 /// [ThrItem] + [ThrSlipDetail] yang sama persis dipakai UI/PDF di bawah.
 Future<List<ThrItem>> _fetchThr(AppUser user) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+
+  // Fallback jika login via session tersimpan / auto-login
+  if (userId == null) {
+    try {
+      final peg = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', user.nik)
+          .maybeSingle();
+      if (peg != null && peg['id'] != null) {
+        userId = peg['id'].toString();
+      }
+    } catch (_) {}
+  }
+
   if (userId == null) return [];
 
   final rows = await Supabase.instance.client

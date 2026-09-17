@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'payroll_screen.dart' show formatRupiah;
@@ -20,7 +21,7 @@ class _Gaji13Row {
 
   factory _Gaji13Row.fromMap(Map<String, dynamic> row) {
     return _Gaji13Row(
-      tahun: row['tahun'] as String,
+      tahun: row['tahun'].toString(),
       jumlah: (row['jumlah'] ?? 0) as int,
       tanggalCair: (row['tanggal_cair'] ?? '-') as String,
       status: (row['status'] ?? '-') as String,
@@ -29,7 +30,25 @@ class _Gaji13Row {
 }
 
 Future<List<_Gaji13Row>> _fetchData() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+
+  if (userId == null) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final nik = prefs.getString('user_nik');
+      if (nik != null && nik.isNotEmpty) {
+        final peg = await Supabase.instance.client
+            .from('pegawai')
+            .select('id')
+            .eq('nik', nik)
+            .maybeSingle();
+        if (peg != null && peg['id'] != null) {
+          userId = peg['id'].toString();
+        }
+      }
+    } catch (_) {}
+  }
+
   if (userId == null) return [];
 
   final rows = await Supabase.instance.client

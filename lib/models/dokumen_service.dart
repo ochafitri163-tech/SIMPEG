@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
@@ -81,28 +82,7 @@ class DokumenService {
   /// muncul dan tersimpan bahkan saat offline atau tabel DB belum siap.
   static final List<DokumenKepegawaian> _localCache = [];
 
-  static List<DokumenKepegawaian> _defaultDokumen() => [
-        DokumenKepegawaian(
-          id: 1,
-          judul: 'Surat Keputusan Pengangkatan Pegawai Tetap',
-          kategori: 'SK',
-          fileUrl: '',
-          fileNama: 'SK_Pengangkatan_Pegawai.pdf',
-          nomor: 'SK/SDM/2024/001',
-          diunggahOleh: 'Admin SDM',
-          dibuatPada: DateTime(2024, 1, 15),
-        ),
-        DokumenKepegawaian(
-          id: 2,
-          judul: 'Sertifikat Diklat & Pelatihan Manajemen Kepegawaian',
-          kategori: 'Diklat',
-          fileUrl: '',
-          fileNama: 'Sertifikat_Diklat_SDM.pdf',
-          nomor: 'STP/SDM/2024/088',
-          diunggahOleh: 'Admin SDM',
-          dibuatPada: DateTime(2024, 5, 20),
-        ),
-      ];
+  static List<DokumenKepegawaian> _defaultDokumen() => [];
 
   /// Dokumen yang bisa diakses user login: miliknya + dokumen umum.
   static Future<List<DokumenKepegawaian>> untukSaya() async {
@@ -117,7 +97,18 @@ class DokumenService {
       }
 
       // 2. Fallback ke Supabase query
-      final uid = _client.auth.currentUser?.id;
+      String? uid = _client.auth.currentUser?.id;
+      if (uid == null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final nik = prefs.getString('user_nik');
+          if (nik != null && nik.isNotEmpty) {
+            final peg = await _client.from('pegawai').select('id').eq('nik', nik).maybeSingle();
+            uid = peg?['id'] as String?;
+          }
+        } catch (_) {}
+      }
+
       if (uid != null) {
         final rows = await _client
             .from(_table)
@@ -130,9 +121,9 @@ class DokumenService {
         if (list.isNotEmpty) return list;
       }
 
-      return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
+      return _localCache;
     } catch (_) {
-      return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
+      return _localCache;
     }
   }
 
@@ -141,21 +132,7 @@ class DokumenService {
   /// halaman Profil.
   static Future<List<DokumenKepegawaian>> dokumenResmiSaya() async {
     final semua = await untukSaya();
-    final resmi = semua.where((d) => kategoriResmi.contains(d.kategori)).toList();
-
-    // Pastikan kedua kategori (SK & Diklat) selalu ada agar kartu tetap utuh seperti di web
-    final defaults = _defaultDokumen();
-    final hasSk = resmi.any((d) => d.kategori == 'SK');
-    final hasDiklat = resmi.any((d) => d.kategori == 'Diklat');
-
-    if (!hasSk) {
-      resmi.insert(0, defaults.firstWhere((d) => d.kategori == 'SK'));
-    }
-    if (!hasDiklat) {
-      resmi.add(defaults.firstWhere((d) => d.kategori == 'Diklat'));
-    }
-
-    return resmi;
+    return semua.where((d) => kategoriResmi.contains(d.kategori)).toList();
   }
 
   /// SDM — seluruh dokumen.
@@ -171,9 +148,9 @@ class DokumenService {
           list.insert(0, loc);
         }
       }
-      return list.isNotEmpty ? list : _defaultDokumen();
+      return list;
     } catch (_) {
-      return _localCache.isNotEmpty ? _localCache : _defaultDokumen();
+      return _localCache;
     }
   }
 
