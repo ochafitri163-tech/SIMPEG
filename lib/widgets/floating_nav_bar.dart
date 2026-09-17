@@ -62,13 +62,15 @@ class FloatingNavBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(26),
                   gradient: isSelected
                       ? const LinearGradient(
-                          colors: [Color(0xFF0284C7), Color(0xFF2563EB)],
+                          colors: [Color(0xFF2E86AB), Color(0xFF0D2C6E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         )
                       : null,
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                            color: const Color(0xFF0D2C6E).withValues(alpha: 0.35),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           )

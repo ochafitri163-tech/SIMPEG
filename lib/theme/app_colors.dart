@@ -22,15 +22,11 @@ class AppColors {
   static const Color v2AccentGold = Color(0xFFF59E0B);
 
   static const LinearGradient primaryGradientV2 = LinearGradient(
-    colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1E3A8A)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    colors: [Color(0xFF0D2C6E), Color(0xFF0D2C6E)],
   );
 
   static const LinearGradient heroGradientV2 = LinearGradient(
-    colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1E3A8A)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    colors: [Color(0xFF0D2C6E), Color(0xFF0D2C6E)],
   );
 
   static const LinearGradient accentGradientV2 = LinearGradient(

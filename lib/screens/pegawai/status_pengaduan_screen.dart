@@ -22,7 +22,6 @@ class StatusPengaduanScreen extends StatefulWidget {
 
 class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   static const Color navy = Color(0xFF0D2C6E);
-  static const Color navyDark = Color(0xFF0A2257);
   static const Color accent = Color(0xFF2E86AB);
   Color get labelDark => AppColors.textPrimary(context);
   Color get hintGrey => AppColors.textSecondary(context);
@@ -637,16 +636,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(13),
             child: Container(
-              width: isSmallScreen ? 40 : 44,
-              height: isSmallScreen ? 40 : 44,
+              width: isSmallScreen ? 38 : 42,
+              height: isSmallScreen ? 38 : 42,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: active
                     ? accent
                     : Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(13),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.16),
                 ),
@@ -654,7 +653,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               child: Icon(
                 icon,
                 color: Colors.white,
-                size: isSmallScreen ? 19 : 21,
+                size: isSmallScreen ? 18 : 20,
               ),
             ),
           ),
@@ -671,24 +670,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         isSmallScreen ? 18 : 22,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            navy,
-            navy.withValues(alpha: 0.88),
-            const Color(0xFF123A85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: navy,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
             color: navy.withValues(alpha: 0.22),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -706,45 +697,48 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 const SizedBox(width: 10),
               ],
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 8 : 10,
+                      vertical: 6,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.water_drop_rounded,
-                        size: 12,
-                        color: Colors.white70,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.16),
                       ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'PERUMDAM TIRTA DARMA AYU',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.78),
-                            fontSize: isSmallScreen ? 8 : 9,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.water_drop_rounded,
+                          size: 12,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'PERUMDAM TIRTA DARMA AYU',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontSize: isSmallScreen ? 8 : 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               actionButton(
                 icon: Icons.history_rounded,
                 tooltip: 'Riwayat Pengaduan',
@@ -757,34 +751,88 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ),
             ],
           ),
-          SizedBox(height: isSmallScreen ? 20 : 24),
-          Text(
-            'Status Pengaduan',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: isSmallScreen ? 25 : 29,
-              height: 1.08,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+          SizedBox(height: isSmallScreen ? 14 : 16),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.14),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: isSmallScreen ? 44 : 48,
+                  height: isSmallScreen ? 44 : 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.assignment_outlined,
+                    color: Colors.white,
+                    size: isSmallScreen ? 22 : 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Status Pengaduan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 17 : 19,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Pantau perkembangan dan riwayat pengaduanmu',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: isSmallScreen ? 10.5 : 11.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 7),
-          Text(
-            'Pantau perkembangan dan riwayat pengaduanmu',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.70),
-              fontSize: isSmallScreen ? 11.5 : 13,
-              height: 1.4,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          SizedBox(height: isSmallScreen ? 18 : 22),
+          SizedBox(height: isSmallScreen ? 14 : 16),
           Row(
             children: [
               Expanded(
                 child: Container(
-                  height: isSmallScreen ? 46 : 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  height: isSmallScreen ? 44 : 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(16),
@@ -793,16 +841,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.09),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.search_rounded, color: hintGrey, size: 21),
-                      const SizedBox(width: 10),
+                      Icon(Icons.search_rounded, color: hintGrey, size: 20),
+                      const SizedBox(width: 9),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
@@ -810,13 +858,13 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                               setState(() => _query = value),
                           style: TextStyle(
                             color: labelDark,
-                            fontSize: isSmallScreen ? 12.5 : 13.5,
+                            fontSize: isSmallScreen ? 12 : 13,
                           ),
                           decoration: InputDecoration(
                             hintText: 'Cari nomor, judul, atau kategori',
                             hintStyle: TextStyle(
                               color: hintGrey,
-                              fontSize: isSmallScreen ? 11.5 : 12.5,
+                              fontSize: isSmallScreen ? 11 : 12,
                             ),
                             border: InputBorder.none,
                             isCollapsed: true,
@@ -834,7 +882,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             padding: const EdgeInsets.all(4),
                             child: Icon(
                               Icons.close_rounded,
-                              size: 18,
+                              size: 17,
                               color: hintGrey,
                             ),
                           ),
@@ -843,7 +891,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 8),
               actionButton(
                 icon: Icons.refresh_rounded,
                 tooltip: 'Muat ulang',
@@ -865,16 +913,36 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   }
                 },
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 8),
               FutureBuilder<List<Pengaduan>>(
                 future: _pengaduanFuture,
                 builder: (context, snapshot) {
-                  return actionButton(
-                    icon: Icons.tune_rounded,
-                    tooltip: 'Filter pengaduan',
-                    active: _adaFilterAktif,
-                    onTap: () =>
-                        _openFilterSheet(snapshot.data ?? const <Pengaduan>[]),
+                  final active = _adaFilterAktif;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      actionButton(
+                        icon: Icons.tune_rounded,
+                        tooltip: 'Filter pengaduan',
+                        active: active,
+                        onTap: () => _openFilterSheet(
+                            snapshot.data ?? const <Pengaduan>[]),
+                      ),
+                      if (active)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: navy, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),

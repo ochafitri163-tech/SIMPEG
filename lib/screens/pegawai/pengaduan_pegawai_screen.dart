@@ -23,7 +23,6 @@ class PengaduanPegawaiScreen extends StatefulWidget {
 
 class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   static const Color navy = Color(0xFF0D2C6E);
-  static const Color navyDark = Color(0xFF0A2257);
   static const Color accent = Color(0xFF2E86AB);
   static const Color red = Color(0xFFE74C3C);
   Color get labelDark => AppColors.textPrimary(context);
@@ -421,11 +420,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
         22,
       ),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [navyDark, navy],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: navy,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),

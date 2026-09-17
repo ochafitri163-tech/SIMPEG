@@ -434,26 +434,14 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         isSmallScreen ? 42.0 : 58.0,
       ),
       decoration: BoxDecoration(
-        gradient: ThemeController.instance.isV2
-            ? AppColors.v2HeroGradient
-            : LinearGradient(
-                colors: [
-                  _navy,
-                  _navy.withValues(alpha: 0.85),
-                  const Color(0xFF123A85),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+        color: _navy,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),
         boxShadow: [
           BoxShadow(
-            color: ThemeController.instance.isV2
-                ? const Color(0xFF0284C7).withValues(alpha: 0.35)
-                : _navy.withValues(alpha: 0.2),
+            color: _navy.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -539,7 +527,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
               const SizedBox(width: 7),
               headerAction(
                 child: IconTheme(
-                  data: IconThemeData(color: Colors.white),
+                  data: const IconThemeData(color: Colors.white),
                   child: NotificationBell(role: UserRole.pegawai, user: widget.user),
                 ),
               ),
@@ -808,7 +796,11 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     if (ThemeController.instance.isV2) {
       // ==================== BENTO GRID LAYOUT V2 ====================
       final totalHari = summary.hadir + summary.telat + summary.izin;
-      final persentaseHadir = totalHari > 0 ? (summary.hadir / totalHari * 100).round() : 100;
+      final totalHadir = summary.hadir + summary.telat;
+      final persentaseHadir =
+          totalHari > 0 ? ((totalHadir / totalHari) * 100).round() : 0;
+      final progressValue =
+          totalHari > 0 ? (totalHadir / totalHari) : 0.0;
 
       return Container(
         padding: const EdgeInsets.all(16),
@@ -853,7 +845,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                           width: isSmallScreen ? 54 : 64,
                           height: isSmallScreen ? 54 : 64,
                           child: CircularProgressIndicator(
-                            value: totalHari > 0 ? summary.hadir / totalHari : 1.0,
+                            value: progressValue,
                             strokeWidth: 6,
                             backgroundColor: Colors.white.withValues(alpha: 0.2),
                             valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
@@ -1471,7 +1463,7 @@ class _QuickMenuCircleState extends State<_QuickMenuCircle>
                       ],
                 border: Border.all(
                   color: ThemeController.instance.isV2
-                      ? const Color(0xFF0284C7).withValues(alpha: 0.2)
+                      ? _accent.withValues(alpha: 0.2)
                       : AppColors.divider(context),
                   width: ThemeController.instance.isV2 ? 1.5 : 1,
                 ),

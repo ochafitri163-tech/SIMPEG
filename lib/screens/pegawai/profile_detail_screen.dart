@@ -138,13 +138,9 @@ class ProfileDetailScreen extends StatelessWidget {
         20,
         isSmallScreen ? 44.0 : 50.0,
       ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [navy, navy.withValues(alpha: 0.85), const Color(0xFF123A85)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
+      decoration: const BoxDecoration(
+        color: navy,
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),

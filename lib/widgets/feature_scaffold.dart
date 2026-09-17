@@ -37,115 +37,109 @@ class FeatureScaffold extends StatelessWidget {
               : (isV2 ? const Color(0xFFF1F5F9) : const Color(0xFFF3F6F9)),
           body: Column(
             children: [
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + (isV2 ? 16 : 14),
-                  left: 20,
-                  right: 20,
-                  bottom: isV2 ? 26 : 22,
+              ClipRRect(
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(isV2 ? 32 : 28),
+                  bottomRight: Radius.circular(isV2 ? 32 : 28),
                 ),
-                decoration: BoxDecoration(
-                  gradient: isV2
-                      ? (isDark
-                          ? const LinearGradient(
-                              colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1E3A8A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : const LinearGradient(
-                              colors: [Color(0xFF0A192F), Color(0xFF0D2C6E), Color(0xFF1D4ED8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ))
-                      : null,
-                  color: isV2 ? null : navy,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(isV2 ? 32 : 28),
-                    bottomRight: Radius.circular(isV2 ? 32 : 28),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: navy,
+                    boxShadow: isV2 ? AppColors.cardShadow(context) : [],
                   ),
-                  boxShadow: isV2 ? AppColors.cardShadow(context) : [],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: isV2
-                                ? BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                    ),
-                                  )
-                                : null,
-                            child: const Icon(
-                              Icons.arrow_back_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          width: isV2 ? 42 : 38,
-                          height: isV2 ? 42 : 38,
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Positioned(
+                        right: -40,
+                        top: -30,
+                        child: Container(
+                          width: 140,
+                          height: 140,
                           decoration: BoxDecoration(
-                            gradient: isV2
-                                ? const LinearGradient(
-                                    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
-                                  )
-                                : null,
-                            color: isV2 ? null : Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(isV2 ? 14 : 12),
-                            boxShadow: isV2
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF06B6D4).withValues(alpha: 0.4),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    )
-                                  ]
-                                : [],
-                          ),
-                          child: Icon(icon, color: Colors.white, size: isV2 ? 22 : 20),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isV2 ? 18 : 17,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: isV2 ? 0.3 : 0,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                subtitle,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 11.5,
-                                  fontWeight: isV2 ? FontWeight.w400 : FontWeight.normal,
-                                ),
-                              ),
-                            ],
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.06),
                           ),
                         ),
-                        if (trailing != null) trailing!,
-                      ],
-                    ),
-                  ],
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top + (isV2 ? 16 : 14),
+                          left: 20,
+                          right: 20,
+                          bottom: isV2 ? 26 : 22,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () => Navigator.pop(context),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: isV2
+                                        ? BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: Colors.white.withValues(alpha: 0.2),
+                                            ),
+                                          )
+                                        : null,
+                                    child: const Icon(
+                                      Icons.arrow_back_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  width: isV2 ? 42 : 38,
+                                  height: isV2 ? 42 : 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.16),
+                                    borderRadius: BorderRadius.circular(isV2 ? 14 : 12),
+                                  ),
+                                  child: Icon(icon, color: Colors.white, size: isV2 ? 22 : 20),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        title,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: isV2 ? 18 : 17,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: isV2 ? 0.3 : 0,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        subtitle,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.85),
+                                          fontSize: 11.5,
+                                          fontWeight: isV2 ? FontWeight.w400 : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (trailing != null) trailing!,
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Expanded(

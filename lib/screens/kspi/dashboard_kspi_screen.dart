@@ -1013,15 +1013,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         isSmallScreen ? 40.0 : 56.0,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _navy,
-            _navy.withValues(alpha: 0.85),
-            const Color(0xFF123A85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: _navy,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),

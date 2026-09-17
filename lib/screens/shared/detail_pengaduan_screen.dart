@@ -26,7 +26,6 @@ class PengaduanDetailScreen extends StatefulWidget {
 
 class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   static const Color navy = Color(0xFF0D2C6E);
-  static const Color navyDark = Color(0xFF0A2257);
   static const Color accent = Color(0xFF2E86AB);
   static const Color red = Color(0xFFE74C3C);
   static const Color green = Color(0xFF27AE60);
@@ -320,11 +319,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         20,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [navyDark, navy, Color(0xFF123A85)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: navy,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
