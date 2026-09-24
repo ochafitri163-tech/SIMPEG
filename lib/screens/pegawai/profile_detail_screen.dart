@@ -380,7 +380,7 @@ class ProfileDetailScreen extends StatelessWidget {
                       label: 'Golongan',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const GolonganScreen()),
+                        MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
                       ),
                     ),
                     _QuickAction(
@@ -388,7 +388,7 @@ class ProfileDetailScreen extends StatelessWidget {
                       label: 'Pendidikan',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PendidikanScreen()),
+                        MaterialPageRoute(builder: (_) => PendidikanScreen(user: user)),
                       ),
                     ),
                     _QuickAction(
@@ -578,7 +578,7 @@ class ProfileDetailScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const GolonganScreen()),
+                              builder: (_) => GolonganScreen(user: user)),
                         ),
                       ),
                       _QuickAction(
@@ -587,7 +587,7 @@ class ProfileDetailScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const PendidikanScreen()),
+                              builder: (_) => PendidikanScreen(user: user)),
                         ),
                       ),
                       _QuickAction(
@@ -731,7 +731,7 @@ class ProfileDetailScreen extends StatelessWidget {
             label: 'Golongan',
             selected: false,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const GolonganScreen()),
+              MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
             ),
             isSmallScreen: isSmallScreen,
           ),

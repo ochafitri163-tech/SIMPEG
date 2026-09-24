@@ -63,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
                         subtitle: user.golongan,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const GolonganScreen()),
+                              builder: (_) => GolonganScreen(user: user)),
                         ),
                         isSmallScreen: isSmallScreen,
                       ),
@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
                         subtitle: 'Jenjang & sertifikasi',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const PendidikanScreen()),
+                              builder: (_) => PendidikanScreen(user: user)),
                         ),
                         isSmallScreen: isSmallScreen,
                       ),
@@ -446,7 +446,7 @@ class ProfileScreen extends StatelessWidget {
                       label: 'Golongan',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const GolonganScreen()),
+                        MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
                       ),
                     ),
                     _QuickAction(
@@ -454,7 +454,7 @@ class ProfileScreen extends StatelessWidget {
                       label: 'Pendidikan',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PendidikanScreen()),
+                        MaterialPageRoute(builder: (_) => PendidikanScreen(user: user)),
                       ),
                     ),
                     _QuickAction(
@@ -569,7 +569,7 @@ class ProfileScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const GolonganScreen()),
+                              builder: (_) => GolonganScreen(user: user)),
                         ),
                       ),
                       _QuickAction(
@@ -578,7 +578,7 @@ class ProfileScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const PendidikanScreen()),
+                              builder: (_) => PendidikanScreen(user: user)),
                         ),
                       ),
                       _QuickAction(

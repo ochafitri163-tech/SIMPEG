@@ -261,6 +261,11 @@ class _LoginScreenState extends State<LoginScreen> {
         unitKerjaSingkat: profil['unit_kerja_singkat']?.toString() ?? '-',
         golongan: profil['golongan']?.toString() ?? '-',
         status: profil['status']?.toString() ?? 'Pegawai Tetap',
+        tempatTanggalLahir: (profil['tempat_tanggal_lahir'] ?? '').toString().isNotEmpty ? profil['tempat_tanggal_lahir'].toString() : '-',
+        statusPernikahan: (profil['status_pernikahan'] ?? '').toString().isNotEmpty ? profil['status_pernikahan'].toString() : '-',
+        alamat: (profil['alamat'] ?? '').toString().isNotEmpty ? profil['alamat'].toString() : '-',
+        noTelp: (profil['no_telp'] ?? '').toString().isNotEmpty ? profil['no_telp'].toString() : '-',
+        fotoUrl: profil['foto_url']?.toString(),
         role: UserRoleX.fromKode(profil['role']?.toString() ?? 'pegawai'),
         divisiKadiv: divisi,
       );

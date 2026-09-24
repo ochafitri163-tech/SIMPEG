@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// Model ringan untuk satu baris riwayat golongan, dipetakan langsung
@@ -20,33 +22,64 @@ class _GolonganRow {
 
   factory _GolonganRow.fromMap(Map<String, dynamic> row) {
     return _GolonganRow(
-      golongan: row['golongan'] as String,
-      pangkat: row['pangkat'] as String,
-      tmt: row['tmt'] as String,
-      noSk: row['no_sk'] as String,
+      golongan: (row['golongan'] ?? row['pangkat'] ?? '-').toString(),
+      pangkat: (row['pangkat'] ?? row['golongan'] ?? '-').toString(),
+      tmt: (row['tmt'] ?? '-').toString(),
+      noSk: (row['no_sk'] ?? row['nomor_sk'] ?? '-').toString(),
     );
   }
 }
 
-Future<List<_GolonganRow>> _fetchRiwayatGolongan() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return [];
+Future<String?> _resolvePegawaiId(AppUser? user) async {
+  final authId = Supabase.instance.client.auth.currentUser?.id;
+  if (authId != null && authId.isNotEmpty) return authId;
 
-  final rows = await Supabase.instance.client
-      .from('riwayat_golongan')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('tmt', ascending: false);
+  String nik = user?.nik ?? '';
+  if (nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik') ?? '';
+    } catch (_) {}
+  }
+  if (nik.isNotEmpty) {
+    try {
+      final res = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', nik)
+          .maybeSingle();
+      if (res != null && res['id'] != null) {
+        return res['id'].toString();
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 
-  return (rows as List)
-      .map((r) => _GolonganRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+Future<List<_GolonganRow>> _fetchRiwayatGolongan(AppUser? user) async {
+  final targetId = await _resolvePegawaiId(user);
+  if (targetId == null) return [];
+
+  try {
+    final rows = await Supabase.instance.client
+        .from('riwayat_golongan')
+        .select()
+        .eq('pegawai_id', targetId)
+        .order('tmt', ascending: false);
+
+    return (rows as List)
+        .map((r) => _GolonganRow.fromMap(r as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    return [];
+  }
 }
 
 /// Halaman "Riwayat Golongan" — menampilkan riwayat kenaikan
 /// golongan/pangkat pegawai yang sedang login, diambil dari Supabase.
 class GolonganScreen extends StatefulWidget {
-  const GolonganScreen({super.key});
+  final AppUser? user;
+  const GolonganScreen({super.key, this.user});
 
   @override
   State<GolonganScreen> createState() => _GolonganScreenState();
@@ -58,11 +91,13 @@ class _GolonganScreenState extends State<GolonganScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _fetchRiwayatGolongan();
+    _future = _fetchRiwayatGolongan(widget.user);
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _fetchRiwayatGolongan());
+    setState(() => _future = _fetchRiwayatGolongan(widget.user));
+    await _future;
+  }
     await _future;
   }
 

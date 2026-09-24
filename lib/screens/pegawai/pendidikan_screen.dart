@@ -4,80 +4,117 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
+import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
 import '../../theme/app_colors.dart';
 
+Future<String?> _resolvePegawaiId(AppUser? user) async {
+  final authId = Supabase.instance.client.auth.currentUser?.id;
+  if (authId != null && authId.isNotEmpty) return authId;
+
+  String nik = user?.nik ?? '';
+  if (nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik') ?? '';
+    } catch (_) {}
+  }
+  if (nik.isNotEmpty) {
+    try {
+      final res = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', nik)
+          .maybeSingle();
+      if (res != null && res['id'] != null) {
+        return res['id'].toString();
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 /// Ambil riwayat pendidikan pegawai yang sedang login, urut sesuai kolom
-/// `urutan` (0 = jenjang terakhir/tertinggi).
-Future<List<PendidikanItem>> _fetchPendidikan() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return [];
+/// `urutan` (0 = jenjang terakhir/tertinggi) atau tahun_lulus.
+Future<List<PendidikanItem>> _fetchPendidikan(AppUser? user) async {
+  final targetId = await _resolvePegawaiId(user);
+  if (targetId == null) return [];
 
-  final rows = await Supabase.instance.client
-      .from('pendidikan')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('urutan', ascending: true);
+  try {
+    final rows = await Supabase.instance.client
+        .from('pendidikan')
+        .select()
+        .eq('pegawai_id', targetId)
+        .order('tahun_lulus', ascending: false);
 
-  return (rows as List).map((row) {
-    return PendidikanItem(
-      jenjang: row['jenjang'] as String,
-      jurusan: row['jurusan'] as String?,
-      namaSekolah: row['nama_sekolah'] as String?,
-      kotaLulus: row['kota_lulus'] as String?,
-      tahunLulus: row['tahun_lulus'] as String,
-      noIjazah: row['no_ijazah'] as String?,
-    );
-  }).toList();
+    return (rows as List).map((row) {
+      return PendidikanItem(
+        jenjang: (row['jenjang'] ?? '-').toString(),
+        jurusan: row['jurusan']?.toString(),
+        namaSekolah: (row['nama_sekolah'] ?? row['institusi'])?.toString(),
+        kotaLulus: row['kota_lulus']?.toString(),
+        tahunLulus: (row['tahun_lulus'] ?? '-').toString(),
+        noIjazah: row['no_ijazah']?.toString(),
+      );
+    }).toList();
+  } catch (e) {
+    return [];
+  }
 }
 
 /// Ambil slip Tunjangan Pendidikan terbaru milik pegawai yang sedang
 /// login, digabung dengan identitas dari tabel `pegawai` untuk kop PDF.
 /// Return null kalau belum ada data slip untuk pegawai ini.
-Future<PendidikanTunjanganDetail?> _fetchTunjanganSlip() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return null;
+Future<PendidikanTunjanganDetail?> _fetchTunjanganSlip(AppUser? user) async {
+  final targetId = await _resolvePegawaiId(user);
+  if (targetId == null) return null;
 
-  final pegawai = await Supabase.instance.client
-      .from('pegawai')
-      .select()
-      .eq('id', userId)
-      .maybeSingle();
-  if (pegawai == null) return null;
+  try {
+    final pegawai = await Supabase.instance.client
+        .from('pegawai')
+        .select()
+        .eq('id', targetId)
+        .maybeSingle();
+    if (pegawai == null) return null;
 
-  final slipRow = await Supabase.instance.client
-      .from('tunjangan_pendidikan')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false)
-      .limit(1)
-      .maybeSingle();
-  if (slipRow == null) return null;
+    final slipRow = await Supabase.instance.client
+        .from('tunjangan_pendidikan')
+        .select()
+        .eq('pegawai_id', targetId)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (slipRow == null) return null;
 
-  return PendidikanTunjanganDetail(
-    bulanLabel: (slipRow['bulan_label'] as String).toUpperCase(),
-    nik: pegawai['nik'] as String,
-    nama: (pegawai['name'] as String).toUpperCase(),
-    golongan:
-        (pegawai['golongan_detail'] ?? pegawai['golongan'] ?? '') as String,
-    unitKerja: (pegawai['unit_kerja'] as String).toUpperCase(),
-    jabatan: (pegawai['jabatan'] as String).toUpperCase(),
-    gapok: (slipRow['gapok'] ?? 0) as int,
-    tunjanganIstri: (slipRow['tunjangan_istri'] ?? 0) as int,
-    tunjanganAnak: (slipRow['tunjangan_anak'] ?? 0) as int,
-    potonganKoperasi: (slipRow['potongan_koperasi'] ?? 0) as int,
-    potonganKas: (slipRow['potongan_kas'] ?? 0) as int,
-  );
+    return PendidikanTunjanganDetail(
+      bulanLabel: (slipRow['bulan_label'] as String).toUpperCase(),
+      nik: pegawai['nik'] as String,
+      nama: (pegawai['name'] as String).toUpperCase(),
+      golongan:
+          (pegawai['golongan_detail'] ?? pegawai['golongan'] ?? '') as String,
+      unitKerja: (pegawai['unit_kerja'] as String).toUpperCase(),
+      jabatan: (pegawai['jabatan'] as String).toUpperCase(),
+      gapok: (slipRow['gapok'] ?? 0) as int,
+      tunjanganIstri: (slipRow['tunjangan_istri'] ?? 0) as int,
+      tunjanganAnak: (slipRow['tunjangan_anak'] ?? 0) as int,
+      potonganKoperasi: (slipRow['potongan_koperasi'] ?? 0) as int,
+      potonganKas: (slipRow['potongan_kas'] ?? 0) as int,
+    );
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Halaman Pendidikan — riwayat jenjang pendidikan pegawai, ditutup dengan
 /// tombol "Cek Detail" yang mengunduh slip Tunjangan Pendidikan & Potongan
 /// dalam bentuk PDF.
 class PendidikanScreen extends StatefulWidget {
-  const PendidikanScreen({super.key});
+  final AppUser? user;
+  const PendidikanScreen({super.key, this.user});
 
   @override
   State<PendidikanScreen> createState() => _PendidikanScreenState();
@@ -93,11 +130,11 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   @override
   void initState() {
     super.initState();
-    _pendidikanFuture = _fetchPendidikan();
+    _pendidikanFuture = _fetchPendidikan(widget.user);
   }
 
   Future<void> _refresh() async {
-    setState(() => _pendidikanFuture = _fetchPendidikan());
+    setState(() => _pendidikanFuture = _fetchPendidikan(widget.user));
     await _pendidikanFuture;
   }
 
@@ -384,7 +421,7 @@ class _PendidikanScreenState extends State<PendidikanScreen> {
   Future<void> _downloadPendidikanPdf() async {
     setState(() => _isGenerating = true);
     try {
-      final slip = await _fetchTunjanganSlip();
+      final slip = await _fetchTunjanganSlip(widget.user);
       if (slip == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
