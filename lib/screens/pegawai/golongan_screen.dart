@@ -98,8 +98,6 @@ class _GolonganScreenState extends State<GolonganScreen> {
     setState(() => _future = _fetchRiwayatGolongan(widget.user));
     await _future;
   }
-    await _future;
-  }
 
   @override
   Widget build(BuildContext context) {
