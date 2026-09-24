@@ -1,0 +1,2 @@
+C:/Users/MUKTI/projek simpeg/APLIKASI SIMPEG/android/app/.cxx/Debug/2j3e326p/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/MUKTI/projek simpeg/APLIKASI SIMPEG/android/app/.cxx/Debug/2j3e326p/armeabi-v7a/CMakeFiles/rebuild_cache.dir

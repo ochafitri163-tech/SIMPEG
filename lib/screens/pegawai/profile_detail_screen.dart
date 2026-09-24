@@ -395,7 +395,7 @@ class ProfileDetailScreen extends StatelessWidget {
                       label: 'Keluarga',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+                        MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
                       ),
                     ),
                     _QuickAction(
@@ -587,7 +587,7 @@ class ProfileDetailScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const KeluargaScreen()),
+                              builder: (_) => KeluargaScreen(user: user)),
                         ),
                       ),
                       _QuickAction(
@@ -695,7 +695,7 @@ class ProfileDetailScreen extends StatelessWidget {
             label: 'Keluarga',
             selected: false,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+              MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
             ),
             isSmallScreen: isSmallScreen,
           ),

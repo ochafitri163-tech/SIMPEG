@@ -16,65 +16,147 @@ import '../../theme/app_colors.dart';
 /// ke model [InsentifItem] + [InsentifSlipDetail] yang sama persis dipakai
 /// UI/PDF di bawah.
 Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+
+  if (userId == null) {
+    try {
+      final peg = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', user.nik)
+          .maybeSingle();
+      if (peg != null && peg['id'] != null) {
+        userId = peg['id'].toString();
+      }
+    } catch (_) {}
+  }
+
   if (userId == null) return [];
 
-  final rows = await Supabase.instance.client
-      .from('insentif')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false);
+  // 1. Coba ambil dari tabel insentif Supabase
+  try {
+    final rows = await Supabase.instance.client
+        .from('insentif')
+        .select()
+        .eq('pegawai_id', userId)
+        .order('created_at', ascending: false);
 
-  return (rows as List).map((row) {
-    final slip = InsentifSlipDetail(
-      bulanLabel: (row['periode'] as String).toUpperCase(),
-      nik: user.nik,
-      nama: user.name,
-      golongan: user.golonganUntukSlip,
-      unitKerja: user.unitKerja,
-      jabatan: user.jabatan,
-      insentifJabatan: (row['insentif_jabatan'] ?? 0) as int,
-      insentifPrestasi: (row['insentif_prestasi'] ?? 0) as int,
-      insentifTransportasi: (row['insentif_transportasi'] ?? 0) as int,
-      insentifPangan: (row['insentif_pangan'] ?? 0) as int,
-      insentifBpjsKesehatan: (row['insentif_bpjs_kesehatan'] ?? 0) as int,
-      insentifPerumahan: (row['insentif_perumahan'] ?? 0) as int,
-      insentifBpjsTenagaKerja: (row['insentif_bpjs_tenaga_kerja'] ?? 0) as int,
-      insentifPerusahaan: (row['insentif_perusahaan'] ?? 0) as int,
-      lembur: (row['lembur'] ?? 0) as int,
-      insentifPajak: (row['insentif_pajak'] ?? 0) as int,
-      insentifAirMinum: (row['insentif_air_minum'] ?? 0) as int,
-      insentifKomunikasi: (row['insentif_komunikasi'] ?? 0) as int,
-      potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
-      potonganPmiLain: (row['potongan_pmi_lain'] ?? 0) as int,
-      potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
-      potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
-      potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
-      potonganInsentifPerusahaan:
-          (row['potongan_insentif_perusahaan'] ?? 0) as int,
-      potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
-      potonganPajak: (row['potongan_pajak'] ?? 0) as int,
-      potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
-      potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
-      potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
-      potonganRekeningAirMinum:
-          (row['potongan_rekening_air_minum'] ?? 0) as int,
-      potonganKas: (row['potongan_kas'] ?? 0) as int,
-      potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
-      potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
-      potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
-      potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
-      potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
-      potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
-    );
+    if ((rows as List).isNotEmpty) {
+      return rows.map((row) {
+        final slip = InsentifSlipDetail(
+          bulanLabel: ((row['periode'] ?? '') as String).toUpperCase(),
+          nik: user.nik,
+          nama: user.name,
+          golongan: user.golonganUntukSlip,
+          unitKerja: user.unitKerja,
+          jabatan: user.jabatan,
+          insentifJabatan: (row['insentif_jabatan'] ?? 0) as int,
+          insentifPrestasi: (row['insentif_prestasi'] ?? 0) as int,
+          insentifTransportasi: (row['insentif_transportasi'] ?? 0) as int,
+          insentifPangan: (row['insentif_pangan'] ?? 0) as int,
+          insentifBpjsKesehatan: (row['insentif_bpjs_kesehatan'] ?? 0) as int,
+          insentifPerumahan: (row['insentif_perumahan'] ?? 0) as int,
+          insentifBpjsTenagaKerja: (row['insentif_bpjs_tenaga_kerja'] ?? 0) as int,
+          insentifPerusahaan: (row['insentif_perusahaan'] ?? 0) as int,
+          lembur: (row['lembur'] ?? 0) as int,
+          insentifPajak: (row['insentif_pajak'] ?? 0) as int,
+          insentifAirMinum: (row['insentif_air_minum'] ?? 0) as int,
+          insentifKomunikasi: (row['insentif_komunikasi'] ?? 0) as int,
+          potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
+          potonganPmiLain: (row['potongan_pmi_lain'] ?? 0) as int,
+          potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+          potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+          potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+          potonganInsentifPerusahaan:
+              (row['potongan_insentif_perusahaan'] ?? 0) as int,
+          potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+          potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+          potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+          potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+          potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+          potonganRekeningAirMinum:
+              (row['potongan_rekening_air_minum'] ?? 0) as int,
+          potonganKas: (row['potongan_kas'] ?? 0) as int,
+          potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+          potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+          potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+          potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+          potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+          potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
+        );
 
-    return InsentifItem(
-      judul: row['judul'] as String,
-      periode: row['periode'] as String,
-      jumlah: slip.jumlahDiterima,
-      slip: slip,
-    );
-  }).toList();
+        return InsentifItem(
+          judul: (row['judul'] ?? 'Slip Insentif') as String,
+          periode: (row['periode'] ?? '-') as String,
+          jumlah: slip.jumlahDiterima,
+          slip: slip,
+        );
+      }).toList();
+    }
+  } catch (_) {}
+
+  // 2. Fallback jika tabel insentif belum ada record, ambil dari tabel payroll yang terbit
+  try {
+    final payrollRows = await Supabase.instance.client
+        .from('payroll')
+        .select()
+        .eq('pegawai_id', userId)
+        .order('tahun', ascending: false)
+        .order('bulan', ascending: false);
+
+    return (payrollRows as List).map((row) {
+      final slip = InsentifSlipDetail(
+        bulanLabel: ((row['periode'] ?? '') as String).toUpperCase(),
+        nik: user.nik,
+        nama: user.name,
+        golongan: user.golonganUntukSlip,
+        unitKerja: user.unitKerja,
+        jabatan: user.jabatan,
+        insentifJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+        insentifPrestasi: (row['tunjangan_prestasi'] ?? 0) as int,
+        insentifTransportasi: (row['tunjangan_transportasi'] ?? 0) as int,
+        insentifPangan: (row['tunjangan_pangan'] ?? 0) as int,
+        insentifBpjsKesehatan: (row['tunjangan_bpjs_kesehatan'] ?? 0) as int,
+        insentifPerumahan: (row['tunjangan_perumahan'] ?? 0) as int,
+        insentifBpjsTenagaKerja: (row['tunjangan_bpjs_tenaga_kerja'] ?? 0) as int,
+        insentifPerusahaan: (row['tunjangan_perusahaan'] ?? 0) as int,
+        lembur: (row['lembur'] ?? 0) as int,
+        insentifPajak: (row['tunjangan_pajak'] ?? 0) as int,
+        insentifAirMinum: (row['tunjangan_air_minum'] ?? 0) as int,
+        insentifKomunikasi: (row['tunjangan_komunikasi'] ?? 0) as int,
+        potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
+        potonganPmiLain: (row['potongan_trandist_pmi_lain'] ?? 0) as int,
+        potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+        potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+        potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+        potonganInsentifPerusahaan:
+            (row['potongan_tunjangan_perusahaan'] ?? 0) as int,
+        potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+        potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+        potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+        potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+        potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+        potonganRekeningAirMinum:
+            (row['potongan_rekening_air_minum'] ?? 0) as int,
+        potonganKas: (row['potongan_kas'] ?? 0) as int,
+        potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+        potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+        potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+        potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+        potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+        potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
+      );
+
+      return InsentifItem(
+        judul: 'Slip Insentif ${(row['periode'] ?? '')}',
+        periode: (row['periode'] ?? '-') as String,
+        jumlah: slip.jumlahDiterima,
+        slip: slip,
+      );
+    }).toList();
+  } catch (_) {
+    return [];
+  }
 }
 
 /// Halaman Insentif — didesain mengikuti mockup UI (kartu ringkasan ungu

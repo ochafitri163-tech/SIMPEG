@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
@@ -18,10 +20,20 @@ class _PrestasiRow {
   });
 
   factory _PrestasiRow.fromMap(Map<String, dynamic> row) {
+    String? rawKet = row['keterangan'] as String?;
+    String? displayKet = rawKet;
+    if (rawKet != null && rawKet.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(rawKet);
+        if (decoded is Map) {
+          displayKet = (decoded['desc'] ?? decoded['keterangan'] ?? rawKet) as String?;
+        }
+      } catch (_) {}
+    }
     return _PrestasiRow(
-      judul: row['judul'] as String,
-      tanggal: row['tanggal'] as String,
-      keterangan: row['keterangan'] as String?,
+      judul: (row['judul'] ?? 'Prestasi') as String,
+      tanggal: (row['tanggal'] ?? '') as String,
+      keterangan: displayKet,
       tingkat: row['tingkat'] as String?,
     );
   }
@@ -50,8 +62,43 @@ class _SanksiRow {
   }
 }
 
-Future<List<_PrestasiRow>> _fetchPrestasi() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+Future<String?> _resolvePegawaiId(AppUser? user) async {
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId != null) return userId;
+
+  String nik = user?.nik ?? '';
+  if (nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik') ?? '';
+      if (nik.isEmpty) {
+        final sessionJson = prefs.getString('user_session_json');
+        if (sessionJson != null) {
+          final decoded = jsonDecode(sessionJson) as Map<String, dynamic>;
+          nik = (decoded['nik'] ?? '') as String;
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (nik.isNotEmpty) {
+    try {
+      final res = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', nik)
+          .maybeSingle();
+      if (res != null) {
+        return res['id'] as String?;
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+Future<List<_PrestasiRow>> _fetchPrestasi(AppUser? user) async {
+  final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
   final rows = await Supabase.instance.client
@@ -65,8 +112,8 @@ Future<List<_PrestasiRow>> _fetchPrestasi() async {
       .toList();
 }
 
-Future<List<_SanksiRow>> _fetchSanksi() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+Future<List<_SanksiRow>> _fetchSanksi(AppUser? user) async {
+  final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
   final rows = await Supabase.instance.client
@@ -99,17 +146,17 @@ class _PrestasiSanksiScreenState extends State<PrestasiSanksiScreen> {
   @override
   void initState() {
     super.initState();
-    _prestasiFuture = _fetchPrestasi();
-    _sanksiFuture = _fetchSanksi();
+    _prestasiFuture = _fetchPrestasi(widget.user);
+    _sanksiFuture = _fetchSanksi(widget.user);
   }
 
   Future<void> _refreshPrestasi() async {
-    setState(() => _prestasiFuture = _fetchPrestasi());
+    setState(() => _prestasiFuture = _fetchPrestasi(widget.user));
     await _prestasiFuture;
   }
 
   Future<void> _refreshSanksi() async {
-    setState(() => _sanksiFuture = _fetchSanksi());
+    setState(() => _sanksiFuture = _fetchSanksi(widget.user));
     await _sanksiFuture;
   }
 

@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
@@ -23,25 +27,90 @@ class _LemburRow {
   }
 }
 
-Future<List<_LemburRow>> _fetchLembur() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+Future<String?> _resolvePegawaiId(AppUser? user) async {
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId != null && userId.isNotEmpty) return userId;
+
+  String? nik = user?.nik;
+  if (nik == null || nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik');
+      if (nik == null || nik.isEmpty) {
+        final sessionStr = prefs.getString('user_session_json');
+        if (sessionStr != null && sessionStr.isNotEmpty) {
+          final jsonMap = jsonDecode(sessionStr);
+          nik = jsonMap['nik'] as String?;
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (nik != null && nik.isNotEmpty) {
+    try {
+      final peg = await Supabase.instance.client
+          .from('pegawai')
+          .select('id')
+          .eq('nik', nik)
+          .maybeSingle();
+      if (peg != null && peg['id'] != null) {
+        return peg['id'].toString();
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
+  final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
-  final rows = await Supabase.instance.client
-      .from('lembur')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false);
+  // 1. Coba ambil dari tabel lembur Supabase
+  try {
+    final rows = await Supabase.instance.client
+        .from('lembur')
+        .select()
+        .eq('pegawai_id', userId)
+        .order('created_at', ascending: false);
 
-  return (rows as List)
-      .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+    if ((rows as List).isNotEmpty) {
+      return (rows)
+          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
+          .toList();
+    }
+  } catch (_) {}
+
+  // 2. Fallback ambil dari tabel payroll di mana lembur > 0
+  try {
+    final payrollRows = await Supabase.instance.client
+        .from('payroll')
+        .select('periode, lembur, tahun, bulan')
+        .eq('pegawai_id', userId)
+        .gt('lembur', 0)
+        .order('tahun', ascending: false)
+        .order('bulan', ascending: false);
+
+    if ((payrollRows as List).isNotEmpty) {
+      return (payrollRows).map((r) {
+        final uang = (r['lembur'] ?? 0) as int;
+        return _LemburRow(
+          bulan: (r['periode'] ?? '-') as String,
+          jamLembur: max(1, (uang / 50000).round()),
+          uangLembur: uang,
+        );
+      }).toList();
+    }
+  } catch (_) {}
+
+  return [];
 }
 
 /// Halaman "Lembur" — menampilkan riwayat jam & uang lembur pegawai yang
 /// sedang login, diambil dari Supabase.
 class LemburScreen extends StatefulWidget {
-  const LemburScreen({super.key});
+  final AppUser? user;
+  const LemburScreen({super.key, this.user});
 
   @override
   State<LemburScreen> createState() => _LemburScreenState();
@@ -53,11 +122,11 @@ class _LemburScreenState extends State<LemburScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _fetchLembur();
+    _future = _fetchLembur(widget.user);
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _fetchLembur());
+    setState(() => _future = _fetchLembur(widget.user));
     await _future;
   }
 

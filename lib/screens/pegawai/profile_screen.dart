@@ -98,7 +98,7 @@ class ProfileScreen extends StatelessWidget {
                         subtitle: 'Pasangan & tanggungan',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const KeluargaScreen()),
+                              builder: (_) => KeluargaScreen(user: user)),
                         ),
                         isSmallScreen: isSmallScreen,
                       ),
@@ -449,7 +449,7 @@ class ProfileScreen extends StatelessWidget {
                       label: 'Keluarga',
                       isSmallScreen: isSmallScreen,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+                        MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
                       ),
                     ),
                   ],
@@ -565,7 +565,7 @@ class ProfileScreen extends StatelessWidget {
                         label: 'Keluarga',
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const KeluargaScreen()),
+                          MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
                         ),
                       ),
                     ],

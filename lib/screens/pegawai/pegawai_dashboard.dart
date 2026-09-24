@@ -230,7 +230,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       _QuickMenuItem(
           label: 'Lembur',
           icon: Icons.access_time_filled_rounded,
-          builder: (_) => const LemburScreen()),
+          builder: (_) => LemburScreen(user: widget.user)),
       _QuickMenuItem(
           label: 'Tunjangan\nPendidikan',
           icon: Icons.description_rounded,
