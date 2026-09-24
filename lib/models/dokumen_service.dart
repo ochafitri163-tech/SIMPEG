@@ -43,7 +43,7 @@ class DokumenKepegawaian {
   factory DokumenKepegawaian.fromRow(Map<String, dynamic> row) {
     return DokumenKepegawaian(
       id: (row['id'] as num?)?.toInt() ?? 0,
-      pegawaiId: row['pegawai_id'] as String?,
+      pegawaiId: row['pegawai_id']?.toString(),
       judul: (row['judul'] ?? '') as String,
       kategori: (row['kategori'] ?? 'Umum') as String,
       fileUrl: (row['file_url'] ?? '') as String,
@@ -81,8 +81,6 @@ class DokumenService {
   /// Cache memori lokal agar dokumen yang baru diunggah SDM langsung
   /// muncul dan tersimpan bahkan saat offline atau tabel DB belum siap.
   static final List<DokumenKepegawaian> _localCache = [];
-
-  static List<DokumenKepegawaian> _defaultDokumen() => [];
 
   /// Dokumen yang bisa diakses user login: miliknya + dokumen umum.
   static Future<List<DokumenKepegawaian>> untukSaya() async {

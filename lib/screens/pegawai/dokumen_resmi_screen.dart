@@ -1,12 +1,74 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/dokumen_service.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 
+/// Custom Painter untuk menggambar border putus-putus (dashed border)
+/// persis seperti CSS `border: 1px dashed #CBD5E1;` pada Web SIMPEG.
+class DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double borderRadius;
+
+  const DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 1.0,
+    this.dashWidth = 6.0,
+    this.dashSpace = 4.0,
+    this.borderRadius = 14.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        strokeWidth / 2,
+        strokeWidth / 2,
+        size.width - strokeWidth,
+        size.height - strokeWidth,
+      ),
+      Radius.circular(borderRadius),
+    );
+
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final currentDash = (distance + dashWidth < metric.length)
+            ? dashWidth
+            : metric.length - distance;
+        final extract = metric.extractPath(distance, distance + currentDash);
+        canvas.drawPath(extract, paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.dashWidth != dashWidth ||
+        oldDelegate.dashSpace != dashSpace ||
+        oldDelegate.borderRadius != borderRadius;
+  }
+}
+
 /// Halaman "Dokumen Surat (SDM)" / "Dokumen Resmi Pegawai (SDM)"
 /// Menampilkan Surat Kerja (SK) & Surat Diklat/Pelatihan resmi milik pegawai
-/// yang diterbitkan dan diverifikasi oleh SDM, identik dengan halaman di Web SIMPEG.
+/// yang diterbitkan dan diunggah oleh SDM, identik 100% dengan tampilan di Web SIMPEG.
 class DokumenResmiScreen extends StatefulWidget {
   final AppUser user;
   const DokumenResmiScreen({super.key, required this.user});
@@ -17,7 +79,6 @@ class DokumenResmiScreen extends StatefulWidget {
 
 class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
   static const Color navy = Color(0xFF0D2C6E);
-  static const Color accent = Color(0xFF2E86AB);
   static const Color docBlue = Color(0xFF0284C7);
 
   late Future<List<DokumenKepegawaian>> _future;
@@ -34,464 +95,233 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
     });
   }
 
-  Future<void> _bukaFileLangsung(DokumenKepegawaian d) async {
-    if (d.fileUrl.isNotEmpty) {
-      final uri = Uri.tryParse(d.fileUrl);
-      if (uri != null && await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
+  /// Menyesuaikan host localhost / 127.0.0.1 bila berjalan di emulator Android
+  String _resolveFileUrl(String rawUrl) {
+    if (rawUrl.isEmpty || rawUrl == '#') return '';
+    var url = rawUrl;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      if (url.contains('127.0.0.1')) {
+        url = url.replaceAll('127.0.0.1', '10.0.2.2');
+      } else if (url.contains('localhost')) {
+        url = url.replaceAll('localhost', '10.0.2.2');
       }
     }
+    return url;
+  }
+
+  /// Menampilkan dokumen fisik (View File)
+  Future<void> _viewFile(DokumenKepegawaian d) async {
+    final url = _resolveFileUrl(d.fileUrl);
+    if (url.isEmpty || url == '#') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berkas fisik dokumen ini belum diunggah oleh SDM.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Tampilkan modal loading sederhana
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: docBlue),
+                SizedBox(height: 14),
+                Text(
+                  'Membuka dokumen...',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 12));
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(); // dismiss loading
+
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final bytes = response.bodyBytes;
+        final isPdf = d.fileNama.toLowerCase().endsWith('.pdf') ||
+            url.toLowerCase().endsWith('.pdf') ||
+            (bytes.length >= 4 &&
+                bytes[0] == 0x25 &&
+                bytes[1] == 0x50 &&
+                bytes[2] == 0x44 &&
+                bytes[3] == 0x46); // Header %PDF
+
+        if (isPdf) {
+          // Buka interactive PDF viewer native
+          await Printing.layoutPdf(
+            name: d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf',
+            onLayout: (format) async => bytes,
+          );
+          return;
+        } else {
+          // Buka viewer gambar
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (ctx) => Dialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppBar(
+                      title: Text(
+                        d.judul,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                      backgroundColor: navy,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      automaticallyImplyLeading: false,
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    InteractiveViewer(
+                      maxScale: 4.0,
+                      child: Image.memory(bytes, fit: BoxFit.contain),
+                    ),
+                  ],
+                ),
+              ),
+            );
+            return;
+          }
+        }
+      }
+    } catch (_) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    // Fallback: coba luncurkan URL langsung ke aplikasi eksternal / browser
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      } catch (_) {}
+    }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.download_done_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text('Mengunduh ${d.fileNama.isNotEmpty ? d.fileNama : 'dokumen.pdf'}...'),
-              ),
-            ],
-          ),
-          backgroundColor: docBlue,
+          content: Text('Tidak dapat membuka ${d.fileNama}. Periksa koneksi ke server.'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
   }
 
-  void _showPreviewModal(DokumenKepegawaian d) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isSk = d.kategori == 'SK' || d.judul.toLowerCase().contains('sk') || d.judul.toLowerCase().contains('pengangkatan');
-    final tglFormat = '${d.dibuatPada.day} ${_getNamaBulan(d.dibuatPada.month)} ${d.dibuatPada.year}';
-    final namaPegawai = widget.user.nama.isNotEmpty ? widget.user.nama : 'Pegawai Perumda';
-    final nikPegawai = widget.user.nik.isNotEmpty ? widget.user.nik : '0000000000000000';
-    final jabatanPegawai = widget.user.jabatan.isNotEmpty ? widget.user.jabatan : 'Staf Pegawai';
-    final unitKerjaPegawai = widget.user.unitKerja.isNotEmpty ? widget.user.unitKerja : 'Kantor Pusat Indramayu';
+  /// Mengunduh dokumen fisik (Download)
+  Future<void> _downloadFile(DokumenKepegawaian d) async {
+    final url = _resolveFileUrl(d.fileUrl);
+    if (url.isEmpty || url == '#') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berkas fisik dokumen ini belum diunggah oleh SDM.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: isDark ? const Color(0xFF1E2638) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
-              maxWidth: 520,
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header Bar Modal
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: docBlue.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          isSk ? Icons.description_rounded : Icons.school_rounded,
-                          size: 20,
-                          color: docBlue,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Lembar Dokumen Resmi SDM',
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary(context),
-                              ),
-                            ),
-                            Text(
-                              isSk ? 'Surat Keputusan (SK) Direksi' : 'Sertifikat Diklat & Pelatihan',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.textSecondary(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 22),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        color: AppColors.textSecondary(context),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Mengunduh ${d.fileNama.isNotEmpty ? d.fileNama : 'dokumen'}...',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: docBlue,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
 
-                // Scrollable Paper Document View
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Kop Surat
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.water_drop_rounded,
-                                  color: Color(0xFF0284C7),
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: const [
-                                    Text(
-                                      'PERUSAHAAN UMUM DAERAH AIR MINUM',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: 'serif',
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1E293B),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    Text(
-                                      'TIRTA DARMA AYU',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: 'serif',
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF0284C7),
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      'Jl. Ki Hajar Dewantara No. 15, Kotakulon, Indramayu\nTelp: (0234) 272027 | Email: info@tirtadarmaayu.co.id',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 8.5,
-                                        color: Color(0xFF64748B),
-                                        height: 1.25,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final bytes = response.bodyBytes;
+        final fileName = d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf';
 
-                          // Garis Ganda Kop Surat
-                          Container(height: 2.2, color: const Color(0xFF0F172A)),
-                          const SizedBox(height: 1.5),
-                          Container(height: 0.8, color: const Color(0xFF0F172A)),
-                          const SizedBox(height: 14),
+        // Trigger native OS save / share sheet (Downloads / Drive / File Manager)
+        await Printing.sharePdf(bytes: bytes, filename: fileName);
 
-                          // Judul Surat & Nomor
-                          Text(
-                            isSk ? 'SURAT KEPUTUSAN DIREKSI' : 'SERTIFIKAT KELULUSAN & KOMPETENSI',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: 0.5,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Nomor: ${d.nomor ?? (isSk ? "SK/SDM/2024/001" : "STP/SDM/2024/088")}',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF475569),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Isi Surat
-                          if (isSk) ...[
-                            const Text(
-                              'TENTANG',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-                            ),
-                            Text(
-                              d.judul.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'DIREKTUR UTAMA PERUMDA AIR MINUM TIRTA DARMA AYU',
-                                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Menimbang: Bahwa demi kelancaran tugas kepegawaian dan peningkatan mutu pelayanan, dipandang perlu menetapkan keputusan ini.\n\nMemutuskan dan Menetapkan kepada:',
-                                style: TextStyle(fontSize: 9.5, color: Color(0xFF334155), height: 1.4),
-                              ),
-                            ),
-                          ] else ...[
-                            const Text(
-                              'Diberikan dengan bangga kepada:',
-                              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xFF475569)),
-                            ),
-                          ],
-
-                          const SizedBox(height: 10),
-
-                          // Box Biodata Pegawai
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Column(
-                              children: [
-                                _previewRow('Nama Pegawai', namaPegawai, isBold: true),
-                                const SizedBox(height: 4),
-                                _previewRow('NIK / No. Induk', nikPegawai),
-                                const SizedBox(height: 4),
-                                _previewRow('Jabatan', jabatanPegawai),
-                                const SizedBox(height: 4),
-                                _previewRow('Unit Kerja', unitKerjaPegawai),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          // Diktum Akhir
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              isSk
-                                  ? 'Keputusan ini berlaku sejak tanggal ditetapkan, dengan ketentuan apabila di kemudian hari terdapat kekeliruan akan diperbaiki sebagaimana mestinya.'
-                                  : 'Telah mengikuti dan menyelesaikan kegiatan Pelatihan serta dinyatakan LULUS dan Memenuhi Standar Kompetensi Kepegawaian Perumda Air Minum Tirta Darma Ayu.',
-                              style: const TextStyle(fontSize: 9.5, color: Color(0xFF334155), height: 1.4),
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // Tanda Tangan & QR
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              // QR Code Verifikasi
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                                ),
-                                child: Column(
-                                  children: const [
-                                    Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF0F172A)),
-                                    SizedBox(height: 2),
-                                    Text('TERVERIFIKASI', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
-                                  ],
-                                ),
-                              ),
-
-                              // TTD & Stempel
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Ditetapkan di Indramayu\nPada tanggal $tglFormat',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 9, color: Color(0xFF475569)),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Direktur Utama,',
-                                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  // Stempel + Paraf
-                                  Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.6), width: 1.5),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: const Text(
-                                          '★ PERUMDA TIRTA DARMA AYU ★',
-                                          style: TextStyle(
-                                            fontSize: 6.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFFDC2626),
-                                          ),
-                                        ),
-                                      ),
-                                      const Icon(Icons.gesture_rounded, size: 28, color: Color(0xFF1E293B)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Ir. H. Ady Setiawan, S.H., M.H., M.M.',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+        if (mounted) {
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$fileName berhasil diunduh',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
-                ),
-
-                const Divider(height: 1),
-
-                // Footer Buttons Modal
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: BorderSide(color: AppColors.divider(context)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: Text(
-                            'Tutup',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary(context),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _bukaFileLangsung(d);
-                          },
-                          icon: const Icon(Icons.download_rounded, size: 16),
-                          label: const Text('Unduh Berkas', style: TextStyle(fontSize: 13)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: docBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
+              backgroundColor: const Color(0xFF047857),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-          ),
-        );
-      },
-    );
-  }
+          );
+        }
+        return;
+      }
+    } catch (_) {}
 
-  Widget _previewRow(String label, String value, {bool isBold = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 95,
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B)),
-          ),
-        ),
-        const Text(': ', style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-              color: const Color(0xFF1E293B),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+    // Fallback: buka link unduh langsung di browser eksternal
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      } catch (_) {}
+    }
 
-  String _getNamaBulan(int bulan) {
-    const namaBulan = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return (bulan >= 1 && bulan <= 12) ? namaBulan[bulan - 1] : '';
+    if (mounted) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengunduh ${d.fileNama}. Periksa koneksi ke server.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -500,7 +330,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       backgroundColor: AppColors.pageBackground(context),
       body: Column(
         children: [
-          // Top AppBar Header
+          // Top Header Bar
           ClipRRect(
             child: Container(
               width: double.infinity,
@@ -547,10 +377,10 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Dokumen Surat (SDM)',
                                 style: TextStyle(
@@ -584,8 +414,9 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: docBlue));
                 }
+
                 final items = snapshot.data ?? const <DokumenKepegawaian>[];
                 final skList = items.where((d) => d.kategori == 'SK').toList();
                 final diklatList = items.where((d) => d.kategori == 'Diklat').toList();
@@ -594,10 +425,12 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                 final diklat = diklatList.isNotEmpty ? diklatList.first : null;
 
                 return RefreshIndicator(
+                  color: docBlue,
                   onRefresh: () async => _refresh(),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
+                      // Ribbon Card Header
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
@@ -609,35 +442,23 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Dokumen Resmi Pegawai (SDM)',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.textPrimary(context),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Surat Kerja & Surat Diklat resmi yang diterbitkan dan diunggah oleh SDM.',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary(context),
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            // Header Title & Subtitle persis Web
+                            Text(
+                              'Dokumen Resmi Pegawai (SDM)',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary(context),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Surat Kerja & Surat Diklat resmi yang diterbitkan dan diunggah oleh SDM.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary(context),
+                                height: 1.35,
+                              ),
                             ),
 
                             const SizedBox(height: 20),
@@ -648,17 +469,15 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                               badgeBg: const Color(0xFFECFDF5),
                               badgeBorder: const Color(0xFFA7F3D0),
                               badgeText: const Color(0xFF047857),
-                              badgeIcon: Icons.description_rounded,
-                              defaultTitle: 'Surat Keputusan Pengangkatan Pegawai Tetap',
-                              defaultNomor: 'SK/SDM/2024/001',
-                              defaultDate: '2024-01-15',
-                              defaultFileName: 'SK_Pengangkatan_Pegawai.pdf',
+                              badgeIcon: Icons.description_outlined,
+                              emptyTitle: 'Belum Ada Dokumen SK',
+                              emptySubtitle: 'Surat Keputusan belum diterbitkan atau diunggah oleh SDM.',
                               dokumen: sk,
-                              onView: (d) => _showPreviewModal(d),
-                              onDownload: (d) => _bukaFileLangsung(d),
+                              onView: (d) => _viewFile(d),
+                              onDownload: (d) => _downloadFile(d),
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 18),
 
                             // Kartu 2: Surat Diklat / Pelatihan
                             _DocCard(
@@ -666,14 +485,12 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                               badgeBg: const Color(0xFFF5F3FF),
                               badgeBorder: const Color(0xFFDDD6FE),
                               badgeText: const Color(0xFF6D28D9),
-                              badgeIcon: Icons.school_rounded,
-                              defaultTitle: 'Sertifikat Diklat & Pelatihan Manajemen Kepegawaian',
-                              defaultNomor: 'STP/SDM/2024/088',
-                              defaultDate: '2024-05-20',
-                              defaultFileName: 'Sertifikat_Diklat_SDM.pdf',
+                              badgeIcon: Icons.school_outlined,
+                              emptyTitle: 'Belum Ada Dokumen Diklat',
+                              emptySubtitle: 'Sertifikat Diklat belum diterbitkan atau diunggah oleh SDM.',
                               dokumen: diklat,
-                              onView: (d) => _showPreviewModal(d),
-                              onDownload: (d) => _bukaFileLangsung(d),
+                              onView: (d) => _viewFile(d),
+                              onDownload: (d) => _downloadFile(d),
                             ),
                           ],
                         ),
@@ -690,16 +507,15 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
   }
 }
 
+/// Widget Kartu Dokumen (SK & Diklat) yang identik dengan Web SIMPEG
 class _DocCard extends StatelessWidget {
   final String badgeLabel;
   final Color badgeBg;
   final Color badgeBorder;
   final Color badgeText;
   final IconData badgeIcon;
-  final String defaultTitle;
-  final String defaultNomor;
-  final String defaultDate;
-  final String defaultFileName;
+  final String emptyTitle;
+  final String emptySubtitle;
   final DokumenKepegawaian? dokumen;
   final void Function(DokumenKepegawaian) onView;
   final void Function(DokumenKepegawaian) onDownload;
@@ -710,10 +526,8 @@ class _DocCard extends StatelessWidget {
     required this.badgeBorder,
     required this.badgeText,
     required this.badgeIcon,
-    required this.defaultTitle,
-    required this.defaultNomor,
-    required this.defaultDate,
-    required this.defaultFileName,
+    required this.emptyTitle,
+    required this.emptySubtitle,
     required this.dokumen,
     required this.onView,
     required this.onDownload,
@@ -726,54 +540,59 @@ class _DocCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final adaDokumen = dokumen != null;
 
-    final judul = adaDokumen ? dokumen!.judul : 'Belum Ada Dokumen';
-    final nomor = adaDokumen ? (dokumen!.nomor ?? '-') : 'Belum diterbitkan atau diunggah oleh SDM.';
-    final tglStr = adaDokumen ? _formatTgl(dokumen!.dibuatPada) : 'Belum Terbit';
+    final judul = adaDokumen ? dokumen!.judul : emptyTitle;
+    final sub = adaDokumen ? 'No: ${dokumen!.nomor ?? '-'}' : emptySubtitle;
+    final tglStr = adaDokumen ? _formatTgl(dokumen!.dibuatPada) : 'Belum terbit';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
+    final content = Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF192132) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF28344C) : (adaDokumen ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
-          style: adaDokumen ? BorderStyle.solid : BorderStyle.solid,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: adaDokumen
+            ? Border.all(
+                color: isDark ? const Color(0xFF28344C) : const Color(0xFFE2E8F0),
+                width: 1,
+              )
+            : null, // border digambar oleh DashedBorderPainter bila kosong
+        boxShadow: adaDokumen
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Badge & Date
+          // Baris Badge Kategori & Tanggal
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isDark ? badgeText.withValues(alpha: 0.18) : badgeBg,
+                  color: isDark ? badgeText.withValues(alpha: 0.16) : badgeBg,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isDark ? badgeText.withValues(alpha: 0.35) : badgeBorder,
+                    width: 1,
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(badgeIcon, size: 13, color: isDark ? badgeText : badgeText),
-                    const SizedBox(width: 5),
+                    Icon(badgeIcon, size: 14, color: badgeText),
+                    const SizedBox(width: 6),
                     Text(
                       badgeLabel,
                       style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : badgeText,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: badgeText,
                       ),
                     ),
                   ],
@@ -783,15 +602,15 @@ class _DocCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.calendar_today_rounded,
-                    size: 12,
+                    Icons.calendar_today_outlined,
+                    size: 13,
                     color: AppColors.textSecondary(context),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     tglStr,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       color: AppColors.textSecondary(context),
                       fontWeight: FontWeight.w500,
                     ),
@@ -801,63 +620,76 @@ class _DocCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Title
+          // Judul Dokumen
           Text(
             judul,
             style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              color: adaDokumen ? AppColors.textPrimary(context) : AppColors.textSecondary(context),
+              fontSize: 15,
+              fontWeight: adaDokumen ? FontWeight.w700 : FontWeight.w600,
+              color: adaDokumen
+                  ? AppColors.textPrimary(context)
+                  : AppColors.textSecondary(context),
               height: 1.35,
             ),
           ),
 
           const SizedBox(height: 4),
 
-          // Subtitle / No Surat
+          // Subtitle (No Surat atau Keterangan Belum Diterbitkan)
           Text(
-            adaDokumen ? 'No: $nomor' : nomor,
+            sub,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 12.5,
               color: AppColors.textSecondary(context),
+              height: 1.35,
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
-          // Action Buttons
+          // Aksi Dokumen (Tombol View File & Download ATAU Status "Belum Tersedia")
           if (adaDokumen)
             Row(
               children: [
+                // Tombol [View File] persis Web
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => onView(dokumen!),
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('View File', style: TextStyle(fontSize: 12.5)),
+                    icon: const Icon(Icons.visibility_outlined, size: 15),
+                    label: const Text(
+                      'View File',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary(context),
+                      foregroundColor: isDark ? Colors.white70 : const Color(0xFF334155),
                       side: BorderSide(
                         color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                        width: 1,
                       ),
-                      backgroundColor: isDark ? const Color(0xFF141A29) : const Color(0xFFF8FAFC),
+                      backgroundColor:
+                          isDark ? const Color(0xFF141A29) : const Color(0xFFF8FAFC),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
+                // Tombol [Download] persis Web
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => onDownload(dokumen!),
-                    icon: const Icon(Icons.download_rounded, size: 16),
-                    label: const Text('Download', style: TextStyle(fontSize: 12.5)),
+                    icon: const Icon(Icons.download_rounded, size: 15),
+                    label: const Text(
+                      'Download',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: docBlue,
                       foregroundColor: Colors.white,
                       elevation: 1,
-                      shadowColor: docBlue.withValues(alpha: 0.3),
+                      shadowColor: docBlue.withValues(alpha: 0.35),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -866,10 +698,9 @@ class _DocCard extends StatelessWidget {
               ],
             )
           else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              alignment: Alignment.center,
+            // Status Footer saat Belum Ada Dokumen
+            Align(
+              alignment: Alignment.centerLeft,
               child: Text(
                 'Belum Tersedia',
                 style: TextStyle(
@@ -882,6 +713,23 @@ class _DocCard extends StatelessWidget {
         ],
       ),
     );
+
+    // Bila belum ada dokumen, bungkus dengan dashed border & opacity 0.85
+    if (!adaDokumen) {
+      return Opacity(
+        opacity: 0.85,
+        child: CustomPaint(
+          painter: DashedBorderPainter(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            borderRadius: 14,
+            strokeWidth: 1.2,
+          ),
+          child: content,
+        ),
+      );
+    }
+
+    return content;
   }
 
   String _formatTgl(DateTime d) {
@@ -889,4 +737,4 @@ class _DocCard extends StatelessWidget {
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
   }
-}
+}

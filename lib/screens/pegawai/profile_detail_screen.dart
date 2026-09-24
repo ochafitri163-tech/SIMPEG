@@ -4,6 +4,7 @@ import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
+import 'cv_screen.dart';
 import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -399,6 +400,14 @@ class ProfileDetailScreen extends StatelessWidget {
                       ),
                     ),
                     _QuickAction(
+                      icon: Icons.badge_rounded,
+                      label: 'CV',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => CvScreen(user: user)),
+                      ),
+                    ),
+                    _QuickAction(
                       icon: Icons.description_rounded,
                       label: 'Dokumen Surat',
                       isSmallScreen: isSmallScreen,
@@ -591,6 +600,15 @@ class ProfileDetailScreen extends StatelessWidget {
                         ),
                       ),
                       _QuickAction(
+                        icon: Icons.badge_rounded,
+                        label: 'CV',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => CvScreen(user: user)),
+                        ),
+                      ),
+                      _QuickAction(
                         icon: Icons.description_rounded,
                         label: 'Dokumen Surat',
                         isSmallScreen: isSmallScreen,
@@ -696,6 +714,15 @@ class ProfileDetailScreen extends StatelessWidget {
             selected: false,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
+            ),
+            isSmallScreen: isSmallScreen,
+          ),
+          const SizedBox(width: 8),
+          _TabChip(
+            label: 'CV',
+            selected: false,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => CvScreen(user: user)),
             ),
             isSmallScreen: isSmallScreen,
           ),

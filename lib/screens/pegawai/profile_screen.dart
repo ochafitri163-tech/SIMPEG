@@ -5,6 +5,7 @@ import '../../models/user_role.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
 import 'absensi_screen.dart';
+import 'cv_screen.dart';
 import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
 import 'keluarga_screen.dart';
@@ -99,6 +100,18 @@ class ProfileScreen extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => KeluargaScreen(user: user)),
+                        ),
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _TileDivider(),
+                      _MenuTile(
+                        icon: Icons.badge_rounded,
+                        iconColor: accent,
+                        title: 'Curriculum Vitae (CV)',
+                        subtitle: 'Ringkasan biodata & profil riwayat hidup',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => CvScreen(user: user)),
                         ),
                         isSmallScreen: isSmallScreen,
                       ),
@@ -452,6 +465,14 @@ class ProfileScreen extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
                       ),
                     ),
+                    _QuickAction(
+                      icon: Icons.badge_rounded,
+                      label: 'CV',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => CvScreen(user: user)),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -566,6 +587,14 @@ class ProfileScreen extends StatelessWidget {
                         isSmallScreen: isSmallScreen,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
+                        ),
+                      ),
+                      _QuickAction(
+                        icon: Icons.badge_rounded,
+                        label: 'CV',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => CvScreen(user: user)),
                         ),
                       ),
                     ],
