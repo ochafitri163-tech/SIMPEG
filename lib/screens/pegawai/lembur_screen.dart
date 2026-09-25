@@ -21,17 +21,27 @@ class _LemburRow {
   factory _LemburRow.fromMap(Map<String, dynamic> row) {
     return _LemburRow(
       bulan: row['bulan'] as String,
-      jamLembur: (row['jam_lembur'] ?? 0) as int,
-      uangLembur: (row['uang_lembur'] ?? 0) as int,
+      jamLembur: _lemburToInt(row['jam_lembur']),
+      uangLembur: _lemburToInt(row['uang_lembur']),
     );
   }
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId != null && userId.isNotEmpty) return userId;
+/// Helper: konversi value dari Supabase (bisa num/double/int) ke int secara aman.
+int _lemburToInt(dynamic val) {
+  if (val == null) return 0;
+  if (val is int) return val;
+  if (val is double) return val.toInt();
+  if (val is num) return val.toInt();
+  if (val is String) return int.tryParse(val) ?? 0;
+  return 0;
+}
 
+Future<String?> _resolvePegawaiId(AppUser? user) async {
+  // 1. Prioritas: gunakan NIK dari AppUser (selalu ada setelah login)
   String? nik = user?.nik;
+
+  // 2. Fallback: ambil dari SharedPreferences
   if (nik == null || nik.isEmpty) {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -46,6 +56,7 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
     } catch (_) {}
   }
 
+  // 3. Resolve NIK ke pegawai_id (UUID) dari tabel pegawai di Supabase
   if (nik != null && nik.isNotEmpty) {
     try {
       final peg = await Supabase.instance.client
@@ -58,6 +69,10 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
       }
     } catch (_) {}
   }
+
+  // 4. Last resort: coba Supabase Auth user ID
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId != null && userId.isNotEmpty) return userId;
 
   return null;
 }
@@ -93,7 +108,7 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
 
     if ((payrollRows as List).isNotEmpty) {
       return (payrollRows).map((r) {
-        final uang = (r['lembur'] ?? 0) as int;
+        final uang = _lemburToInt(r['lembur']);
         return _LemburRow(
           bulan: (r['periode'] ?? '-') as String,
           jamLembur: max(1, (uang / 50000).round()),

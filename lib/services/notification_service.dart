@@ -21,6 +21,38 @@ class NotificationService {
     priority: Priority.high,
   );
 
+  static const _channelGaji = AndroidNotificationDetails(
+    'gaji_channel',
+    'Gaji & Payroll',
+    channelDescription: 'Notifikasi slip gaji, insentif, dan tunjangan pendidikan',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  static const _channelThr = AndroidNotificationDetails(
+    'thr_channel',
+    'THR & Gaji 13',
+    channelDescription: 'Notifikasi THR dan gaji ke-13',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  static const _channelPengaduan = AndroidNotificationDetails(
+    'pengaduan_channel',
+    'Pengaduan Pegawai',
+    channelDescription: 'Update status pengaduan pegawai',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
+  static const _channelKepegawaian = AndroidNotificationDetails(
+    'kepegawaian_channel',
+    'Kepegawaian',
+    channelDescription: 'Notifikasi cuti, lembur, dokumen, dan info kepegawaian',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+
   static const _channelPengumuman = AndroidNotificationDetails(
     'pengumuman_channel',
     'Pengumuman Kantor',
@@ -144,6 +176,50 @@ class NotificationService {
       title,
       body,
       const NotificationDetails(android: _channelPengumuman),
+    );
+  }
+
+  /// Notifikasi: Gaji masuk / Slip diterbitkan
+  Future<void> showGajiMasuk({required String title, required String body}) {
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: _channelGaji),
+    );
+  }
+
+  /// Notifikasi: THR masuk
+  Future<void> showThrMasuk({required String title, required String body}) {
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: _channelThr),
+    );
+  }
+
+  /// Notifikasi: Update status pengaduan
+  Future<void> showPengaduan({required String title, required String body}) {
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: _channelPengaduan),
+    );
+  }
+
+  /// Notifikasi: Kepegawaian (cuti, lembur, dokumen)
+  Future<void> showKepegawaian({required String title, required String body}) {
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return _plugin.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: _channelKepegawaian),
     );
   }
 

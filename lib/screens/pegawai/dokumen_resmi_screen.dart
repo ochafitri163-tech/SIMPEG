@@ -254,7 +254,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       return;
     }
 
-    final downloadApiUrl = (d.id != null && d.id!.isNotEmpty && int.tryParse(d.id!) != null)
+    final downloadApiUrl = d.id > 0
         ? '${ApiService.baseUrl}/dokumen/${d.id}/download'
         : url;
 

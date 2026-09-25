@@ -169,7 +169,121 @@ class FcmService {
       }
     }
 
+    // 4. Supabase Realtime Listener untuk Gaji Masuk (Payroll)
+    _subscribeTable('payroll', PostgresChangeEvent.insert, (newRecord) {
+      NotificationService.instance.showGajiMasuk(
+        title: '💰 Gaji Masuk!',
+        body: 'Slip gaji periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
+      );
+    });
+
+    // 5. Supabase Realtime Listener untuk THR Masuk
+    _subscribeTable('thr', PostgresChangeEvent.insert, (newRecord) {
+      NotificationService.instance.showThrMasuk(
+        title: '🎉 THR Masuk!',
+        body: 'THR periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
+      );
+    });
+
+    // 6. Supabase Realtime Listener untuk Gaji 13
+    _subscribeTable('gaji_13', PostgresChangeEvent.insert, (newRecord) {
+      NotificationService.instance.showGajiMasuk(
+        title: '📚 Tunjangan Pendidikan Masuk!',
+        body: 'Gaji ke-13 / Tunjangan Pendidikan telah diterbitkan.',
+      );
+    });
+
+    // 7. Supabase Realtime Listener untuk Insentif
+    _subscribeTable('insentif', PostgresChangeEvent.insert, (newRecord) {
+      NotificationService.instance.showGajiMasuk(
+        title: '💵 Insentif Masuk!',
+        body: 'Slip insentif periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
+      );
+    });
+
+    // 8. Supabase Realtime Listener untuk Pengaduan (status update)
+    _subscribeTable('pengaduan_pegawai', PostgresChangeEvent.update, (newRecord) {
+      final status = newRecord['status'] as String? ?? '';
+      final judul = newRecord['judul'] as String? ?? 'pengaduan';
+      NotificationService.instance.showPengaduan(
+        title: '📋 Update Pengaduan',
+        body: 'Pengaduan "$judul" sekarang berstatus: $status',
+      );
+    });
+
+    // 9. Supabase Realtime Listener untuk Pengajuan Cuti (approval)
+    _subscribeTable('pengajuan_cuti', PostgresChangeEvent.update, (newRecord) {
+      final status = newRecord['status'] as String? ?? '';
+      NotificationService.instance.showKepegawaian(
+        title: '📝 Update Pengajuan Cuti',
+        body: 'Pengajuan cuti Anda sekarang berstatus: $status',
+      );
+    });
+
+    // 10. Supabase Realtime Listener untuk Lembur
+    _subscribeTable('lembur', PostgresChangeEvent.insert, (newRecord) {
+      final bulan = newRecord['bulan'] as String? ?? '-';
+      NotificationService.instance.showKepegawaian(
+        title: '⏰ Data Lembur',
+        body: 'Data lembur bulan $bulan telah dicatat.',
+      );
+    });
+
+    // 11. Supabase Realtime Listener untuk Dokumen Kepegawaian (SK/Diklat baru)
+    _subscribeTable('dokumen_pegawai', PostgresChangeEvent.insert, (newRecord) {
+      final judul = newRecord['judul'] as String? ?? 'Dokumen Baru';
+      NotificationService.instance.showKepegawaian(
+        title: '📄 Dokumen Baru',
+        body: 'Dokumen "$judul" telah diunggah oleh SDM.',
+      );
+    });
+
     _initialized = true;
+  }
+
+  /// Helper: subscribe ke Supabase Realtime untuk tabel tertentu.
+  /// Filter notifikasi agar hanya tampil untuk pegawai yang sedang login.
+  void _subscribeTable(
+    String table,
+    PostgresChangeEvent event,
+    void Function(Map<String, dynamic> newRecord) onEvent,
+  ) {
+    try {
+      Supabase.instance.client
+          .channel('public:$table')
+          .onPostgresChanges(
+            event: event,
+            schema: 'public',
+            table: table,
+            callback: (payload) {
+              final newRecord = payload.newRecord;
+              if (newRecord.isEmpty) return;
+
+              // Filter: hanya tampilkan notifikasi untuk pegawai yang login
+              final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+              final recordPegawaiId = newRecord['pegawai_id']?.toString();
+
+              // Jika user sedang login via Supabase Auth, filter per pegawai_id
+              // Jika tidak (login via Laravel API), tampilkan semua notifikasi
+              if (currentUserId != null &&
+                  recordPegawaiId != null &&
+                  recordPegawaiId != currentUserId) {
+                return;
+              }
+
+              if (kDebugMode) {
+                print('Supabase Realtime [$table] event: ${payload.eventType}');
+              }
+
+              onEvent(newRecord);
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Supabase Realtime [$table] subscription error: $e');
+      }
+    }
   }
 
   /// Mendapatkan FCM Token milik device (berguna jika ingin notif per individu)

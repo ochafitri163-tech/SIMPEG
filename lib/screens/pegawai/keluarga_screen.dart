@@ -32,10 +32,10 @@ class _KeluargaRow {
 }
 
 Future<String?> _resolvePegawaiId(AppUser? user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId != null && userId.isNotEmpty) return userId;
-
+  // 1. Prioritas: gunakan NIK dari AppUser (selalu ada setelah login)
   String? nik = user?.nik;
+
+  // 2. Fallback: ambil dari SharedPreferences
   if (nik == null || nik.isEmpty) {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -50,6 +50,7 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
     } catch (_) {}
   }
 
+  // 3. Resolve NIK ke pegawai_id (UUID) dari tabel pegawai di Supabase
   if (nik != null && nik.isNotEmpty) {
     try {
       final peg = await Supabase.instance.client
@@ -63,6 +64,10 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
     } catch (_) {}
   }
 
+  // 4. Last resort: coba Supabase Auth user ID (jarang berhasil karena login via Laravel)
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId != null && userId.isNotEmpty) return userId;
+
   return null;
 }
 
@@ -70,15 +75,19 @@ Future<List<_KeluargaRow>> _fetchKeluarga(AppUser? user) async {
   final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
-  final rows = await Supabase.instance.client
-      .from('keluarga')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: true);
+  try {
+    final rows = await Supabase.instance.client
+        .from('keluarga')
+        .select()
+        .eq('pegawai_id', userId)
+        .order('created_at', ascending: true);
 
-  return (rows as List)
-      .map((r) => _KeluargaRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+    return (rows as List)
+        .map((r) => _KeluargaRow.fromMap(r as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    return [];
+  }
 }
 
 /// Halaman "Data Keluarga" — menampilkan daftar anggota keluarga pegawai

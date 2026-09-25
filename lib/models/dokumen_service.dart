@@ -76,7 +76,7 @@ class DokumenService {
   /// Kategori resmi yang diterbitkan SDM & ditampilkan di kartu
   /// "Dokumen Resmi Pegawai" pada halaman Profil (Surat Kerja & Surat
   /// Diklat/Pelatihan).
-  static const List<String> kategoriResmi = ['SK', 'Diklat'];
+  static const List<String> kategoriResmi = ['SK', 'Diklat', 'surat_kerja', 'surat_diklat', 'sk', 'diklat'];
 
   /// Cache memori lokal agar dokumen yang baru diunggah SDM langsung
   /// muncul dan tersimpan bahkan saat offline atau tabel DB belum siap.
