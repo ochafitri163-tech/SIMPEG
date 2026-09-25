@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/dokumen_service.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
 /// Custom Painter untuk menggambar border putus-putus (dashed border)
@@ -86,12 +87,12 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
   @override
   void initState() {
     super.initState();
-    _future = DokumenService.dokumenResmiSaya();
+    _future = DokumenService.dokumenResmiSaya(nik: widget.user.nik);
   }
 
   void _refresh() {
     setState(() {
-      _future = DokumenService.dokumenResmiSaya();
+      _future = DokumenService.dokumenResmiSaya(nik: widget.user.nik);
     });
   }
 
@@ -120,6 +121,17 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
         ),
       );
       return;
+    }
+
+    // Pada browser Web, buka langsung PDF/gambar di tab baru
+    if (kIsWeb) {
+      final uri = Uri.tryParse(url);
+      if (uri != null) {
+        try {
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+          return;
+        } catch (_) {}
+      }
     }
 
     // Tampilkan modal loading sederhana
@@ -242,6 +254,21 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       return;
     }
 
+    final downloadApiUrl = (d.id != null && d.id!.isNotEmpty && int.tryParse(d.id!) != null)
+        ? '${ApiService.baseUrl}/dokumen/${d.id}/download'
+        : url;
+
+    // Pada browser Web, gunakan link download API langsung untuk trigger browser file download
+    if (kIsWeb) {
+      final uri = Uri.tryParse(downloadApiUrl);
+      if (uri != null) {
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        } catch (_) {}
+      }
+    }
+
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       SnackBar(
@@ -304,7 +331,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
     } catch (_) {}
 
     // Fallback: buka link unduh langsung di browser eksternal
-    final uri = Uri.tryParse(url);
+    final uri = Uri.tryParse(downloadApiUrl);
     if (uri != null) {
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);

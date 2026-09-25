@@ -17,10 +17,18 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, String>> _getHeaders() async {
+  static Future<Map<String, String>> _getHeaders({String? explicitNik}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
-    final nik = prefs.getString('user_nik') ?? '';
+    var nik = explicitNik ?? prefs.getString('user_nik') ?? '';
+
+    if (nik.isEmpty) {
+      final session = await getSavedUserSession();
+      if (session != null && session['nik'] != null) {
+        nik = session['nik'].toString();
+        await prefs.setString('user_nik', nik);
+      }
+    }
 
     return {
       'Content-Type': 'application/json',
@@ -131,6 +139,15 @@ class ApiService {
   static Future<void> saveUserSession(Map<String, dynamic> userMap) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_session_json', jsonEncode(userMap));
+    if (userMap['nik'] != null && userMap['nik'].toString().isNotEmpty) {
+      await prefs.setString('user_nik', userMap['nik'].toString());
+    }
+    if (userMap['name'] != null && userMap['name'].toString().isNotEmpty) {
+      await prefs.setString('user_nama', userMap['name'].toString());
+    }
+    if (userMap['jabatan'] != null && userMap['jabatan'].toString().isNotEmpty) {
+      await prefs.setString('user_jabatan', userMap['jabatan'].toString());
+    }
   }
 
   /// Ambil data session pengguna yang tersimpan (jika ada)
@@ -146,10 +163,11 @@ class ApiService {
   }
 
   /// 8. Get Dokumen Resmi Pegawai (SK & Diklat)
-  static Future<Map<String, dynamic>> getDokumenResmi() async {
-    final url = Uri.parse('$baseUrl/dokumen');
+  static Future<Map<String, dynamic>> getDokumenResmi({String? nik}) async {
+    final q = (nik != null && nik.isNotEmpty) ? '?nik=$nik' : '';
+    final url = Uri.parse('$baseUrl/dokumen$q');
     try {
-      final response = await http.get(url, headers: await _getHeaders()).timeout(const Duration(seconds: 3));
+      final response = await http.get(url, headers: await _getHeaders(explicitNik: nik)).timeout(const Duration(seconds: 5));
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Error: $e'};

@@ -83,10 +83,13 @@ class DokumenService {
   static final List<DokumenKepegawaian> _localCache = [];
 
   /// Dokumen yang bisa diakses user login: miliknya + dokumen umum.
-  static Future<List<DokumenKepegawaian>> untukSaya() async {
+  static Future<List<DokumenKepegawaian>> untukSaya({String? nik}) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final activeNik = (nik != null && nik.isNotEmpty) ? nik : prefs.getString('user_nik');
+
       // 1. Coba ambil dari API backend SIMPEG Laravel (yang terhubung langsung ke DB PostgreSQL)
-      final apiRes = await ApiService.getDokumenResmi();
+      final apiRes = await ApiService.getDokumenResmi(nik: activeNik);
       if (apiRes['success'] == true && apiRes['data'] is List) {
         final rawList = apiRes['data'] as List;
         if (rawList.isNotEmpty) {
@@ -96,13 +99,11 @@ class DokumenService {
 
       // 2. Fallback ke Supabase query
       String? uid = _client.auth.currentUser?.id;
-      if (uid == null) {
+      if (activeNik != null && activeNik.isNotEmpty) {
         try {
-          final prefs = await SharedPreferences.getInstance();
-          final nik = prefs.getString('user_nik');
-          if (nik != null && nik.isNotEmpty) {
-            final peg = await _client.from('pegawai').select('id').eq('nik', nik).maybeSingle();
-            uid = peg?['id'] as String?;
+          final peg = await _client.from('pegawai').select('id').eq('nik', activeNik).maybeSingle();
+          if (peg != null && peg['id'] != null) {
+            uid = peg['id'].toString();
           }
         } catch (_) {}
       }
@@ -128,8 +129,8 @@ class DokumenService {
   /// Dokumen resmi (Surat Kerja/SK & Surat Diklat/Pelatihan) milik user
   /// login, untuk ditampilkan di kartu "Dokumen Resmi Pegawai (SDM)" pada
   /// halaman Profil.
-  static Future<List<DokumenKepegawaian>> dokumenResmiSaya() async {
-    final semua = await untukSaya();
+  static Future<List<DokumenKepegawaian>> dokumenResmiSaya({String? nik}) async {
+    final semua = await untukSaya(nik: nik);
     return semua.where((d) => kategoriResmi.contains(d.kategori)).toList();
   }
 
