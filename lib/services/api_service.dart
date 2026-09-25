@@ -165,13 +165,29 @@ class ApiService {
   /// 8. Get Dokumen Resmi Pegawai (SK & Diklat)
   static Future<Map<String, dynamic>> getDokumenResmi({String? nik}) async {
     final q = (nik != null && nik.isNotEmpty) ? '?nik=$nik' : '';
-    final url = Uri.parse('$baseUrl/dokumen$q');
-    try {
-      final response = await http.get(url, headers: await _getHeaders(explicitNik: nik)).timeout(const Duration(seconds: 5));
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+    final candidateUrls = <String>[
+      '$baseUrl/dokumen$q',
+      'http://192.168.110.74:8000/api/v1/dokumen$q',
+      'http://10.0.2.2:8000/api/v1/dokumen$q',
+      'http://127.0.0.1:8000/api/v1/dokumen$q',
+    ];
+
+    final seen = <String>{};
+    for (final u in candidateUrls) {
+      if (!seen.add(u)) continue;
+      try {
+        final response = await http
+            .get(Uri.parse(u), headers: await _getHeaders(explicitNik: nik))
+            .timeout(const Duration(seconds: 3));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['success'] == true) {
+            return data;
+          }
+        }
+      } catch (_) {}
     }
+    return {'success': false, 'message': 'Gagal mengambil data dokumen dari server.'};
   }
 
   /// 9. Get Pengumuman Perusahaan
