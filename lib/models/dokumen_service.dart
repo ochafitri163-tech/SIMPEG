@@ -131,7 +131,8 @@ class DokumenService {
   /// halaman Profil.
   static Future<List<DokumenKepegawaian>> dokumenResmiSaya({String? nik}) async {
     final semua = await untukSaya(nik: nik);
-    return semua.where((d) => kategoriResmi.contains(d.kategori)).toList();
+    final resmiLower = kategoriResmi.map((k) => k.toLowerCase()).toSet();
+    return semua.where((d) => resmiLower.contains(d.kategori.toLowerCase())).toList();
   }
 
   /// SDM — seluruh dokumen.

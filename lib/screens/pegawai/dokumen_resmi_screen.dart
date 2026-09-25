@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -96,24 +97,40 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
     });
   }
 
-  /// Menyesuaikan host localhost / 127.0.0.1 bila berjalan di emulator Android
+  /// Menyesuaikan host URL agar selalu sesuai dengan host ApiService.baseUrl
   String _resolveFileUrl(String rawUrl) {
     if (rawUrl.isEmpty || rawUrl == '#') return '';
-    var url = rawUrl;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      if (url.contains('127.0.0.1')) {
-        url = url.replaceAll('127.0.0.1', '10.0.2.2');
-      } else if (url.contains('localhost')) {
-        url = url.replaceAll('localhost', '10.0.2.2');
+    var url = rawUrl.trim();
+
+    final baseUri = Uri.tryParse(ApiService.baseUrl);
+    final baseOrigin = baseUri != null ? '${baseUri.scheme}://${baseUri.host}:${baseUri.port}' : '';
+
+    if (url.startsWith('/')) {
+      return '$baseOrigin$url';
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri != null && baseUri != null) {
+      if ((uri.host == '127.0.0.1' || uri.host == 'localhost') && (baseUri.host != '127.0.0.1' && baseUri.host != 'localhost')) {
+        return uri.replace(host: baseUri.host, port: baseUri.port).toString();
+      }
+      if (defaultTargetPlatform == TargetPlatform.android && (uri.host == '127.0.0.1' || uri.host == 'localhost')) {
+        final targetHost = (baseUri.host != '127.0.0.1' && baseUri.host != 'localhost') ? baseUri.host : '10.0.2.2';
+        return uri.replace(host: targetHost, port: baseUri.port).toString();
       }
     }
+
     return url;
   }
 
   /// Menampilkan dokumen fisik (View File)
   Future<void> _viewFile(DokumenKepegawaian d) async {
     final url = _resolveFileUrl(d.fileUrl);
-    if (url.isEmpty || url == '#') {
+    final downloadApiUrl = d.id > 0
+        ? '${ApiService.baseUrl}/dokumen/${d.id}/download'
+        : '';
+
+    if ((url.isEmpty || url == '#') && downloadApiUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Berkas fisik dokumen ini belum diunggah oleh SDM.'),
@@ -125,7 +142,8 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
 
     // Pada browser Web, buka langsung PDF/gambar di tab baru
     if (kIsWeb) {
-      final uri = Uri.tryParse(url);
+      final target = url.isNotEmpty && url != '#' ? url : downloadApiUrl;
+      final uri = Uri.tryParse(target);
       if (uri != null) {
         try {
           await launchUrl(uri, mode: LaunchMode.platformDefault);
@@ -158,72 +176,94 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       ),
     );
 
-    try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 12));
-      if (mounted) Navigator.of(context, rootNavigator: true).pop(); // dismiss loading
+    Uint8List? bytes;
+    final urlsToTry = <String>[];
+    if (downloadApiUrl.isNotEmpty) urlsToTry.add(downloadApiUrl);
+    if (url.isNotEmpty && url != '#' && !urlsToTry.contains(url)) urlsToTry.add(url);
 
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final bytes = response.bodyBytes;
-        final isPdf = d.fileNama.toLowerCase().endsWith('.pdf') ||
-            url.toLowerCase().endsWith('.pdf') ||
-            (bytes.length >= 4 &&
-                bytes[0] == 0x25 &&
-                bytes[1] == 0x50 &&
-                bytes[2] == 0x44 &&
-                bytes[3] == 0x46); // Header %PDF
+    for (final fetchUrl in urlsToTry) {
+      try {
+        final response = await http.get(Uri.parse(fetchUrl)).timeout(const Duration(seconds: 12));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          if (response.bodyBytes.length < 300) {
+            final text = utf8.decode(response.bodyBytes, allowMalformed: true);
+            if (text.contains('"success":false')) {
+              continue;
+            }
+          }
+          bytes = response.bodyBytes;
+          break;
+        }
+      } catch (_) {}
+    }
 
-        if (isPdf) {
-          // Buka interactive PDF viewer native
+    if (mounted) Navigator.of(context, rootNavigator: true).pop(); // dismiss loading
+
+    if (bytes != null && bytes.isNotEmpty) {
+      final fileName = d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf';
+      final isPdf = fileName.toLowerCase().endsWith('.pdf') ||
+          (bytes.length >= 4 &&
+              bytes[0] == 0x25 &&
+              bytes[1] == 0x50 &&
+              bytes[2] == 0x44 &&
+              bytes[3] == 0x46); // Header %PDF
+
+      if (isPdf) {
+        try {
           await Printing.layoutPdf(
-            name: d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf',
-            onLayout: (format) async => bytes,
+            name: fileName,
+            onLayout: (format) async => bytes!,
           );
           return;
-        } else {
-          // Buka viewer gambar
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (ctx) => Dialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppBar(
-                      title: Text(
-                        d.judul,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                      ),
-                      backgroundColor: navy,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      automaticallyImplyLeading: false,
-                      actions: [
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                    InteractiveViewer(
-                      maxScale: 4.0,
-                      child: Image.memory(bytes, fit: BoxFit.contain),
-                    ),
-                  ],
-                ),
-              ),
-            );
+        } catch (_) {
+          try {
+            await Printing.sharePdf(bytes: bytes, filename: fileName);
             return;
-          }
+          } catch (_) {}
+        }
+      } else {
+        // Buka viewer gambar
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppBar(
+                    title: Text(
+                      d.judul,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                    backgroundColor: navy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    automaticallyImplyLeading: false,
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  InteractiveViewer(
+                    maxScale: 4.0,
+                    child: Image.memory(bytes!, fit: BoxFit.contain),
+                  ),
+                ],
+              ),
+            ),
+          );
+          return;
         }
       }
-    } catch (_) {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
     }
 
     // Fallback: coba luncurkan URL langsung ke aplikasi eksternal / browser
-    final uri = Uri.tryParse(url);
+    final fallbackUrl = url.isNotEmpty && url != '#' ? url : downloadApiUrl;
+    final uri = Uri.tryParse(fallbackUrl);
     if (uri != null) {
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -234,7 +274,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Tidak dapat membuka ${d.fileNama}. Periksa koneksi ke server.'),
+          content: Text('Tidak dapat membuka ${d.fileNama}. Berkas belum tersedia di server.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -244,7 +284,11 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
   /// Mengunduh dokumen fisik (Download)
   Future<void> _downloadFile(DokumenKepegawaian d) async {
     final url = _resolveFileUrl(d.fileUrl);
-    if (url.isEmpty || url == '#') {
+    final downloadApiUrl = d.id > 0
+        ? '${ApiService.baseUrl}/dokumen/${d.id}/download'
+        : '';
+
+    if ((url.isEmpty || url == '#') && downloadApiUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Berkas fisik dokumen ini belum diunggah oleh SDM.'),
@@ -254,13 +298,10 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       return;
     }
 
-    final downloadApiUrl = d.id > 0
-        ? '${ApiService.baseUrl}/dokumen/${d.id}/download'
-        : url;
-
     // Pada browser Web, gunakan link download API langsung untuk trigger browser file download
     if (kIsWeb) {
-      final uri = Uri.tryParse(downloadApiUrl);
+      final target = downloadApiUrl.isNotEmpty ? downloadApiUrl : url;
+      final uri = Uri.tryParse(target);
       if (uri != null) {
         try {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -295,12 +336,31 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       ),
     );
 
-    try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-        final bytes = response.bodyBytes;
-        final fileName = d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf';
+    Uint8List? bytes;
+    final urlsToTry = <String>[];
+    if (downloadApiUrl.isNotEmpty) urlsToTry.add(downloadApiUrl);
+    if (url.isNotEmpty && url != '#' && !urlsToTry.contains(url)) urlsToTry.add(url);
 
+    for (final fetchUrl in urlsToTry) {
+      try {
+        final response = await http.get(Uri.parse(fetchUrl)).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          if (response.bodyBytes.length < 300) {
+            final text = utf8.decode(response.bodyBytes, allowMalformed: true);
+            if (text.contains('"success":false')) {
+              continue;
+            }
+          }
+          bytes = response.bodyBytes;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (bytes != null && bytes.isNotEmpty) {
+      final fileName = d.fileNama.isNotEmpty ? d.fileNama : 'Dokumen.pdf';
+
+      try {
         // Trigger native OS save / share sheet (Downloads / Drive / File Manager)
         await Printing.sharePdf(bytes: bytes, filename: fileName);
 
@@ -327,11 +387,12 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
           );
         }
         return;
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // Fallback: buka link unduh langsung di browser eksternal
-    final uri = Uri.tryParse(downloadApiUrl);
+    final fallbackUrl = downloadApiUrl.isNotEmpty ? downloadApiUrl : url;
+    final uri = Uri.tryParse(fallbackUrl);
     if (uri != null) {
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -343,7 +404,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Gagal mengunduh ${d.fileNama}. Periksa koneksi ke server.'),
+          content: Text('Gagal mengunduh ${d.fileNama}. Berkas belum tersedia di server.'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
@@ -445,8 +506,8 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                 }
 
                 final items = snapshot.data ?? const <DokumenKepegawaian>[];
-                final skList = items.where((d) => d.kategori == 'SK').toList();
-                final diklatList = items.where((d) => d.kategori == 'Diklat').toList();
+                final skList = items.where((d) => ['sk', 'surat_kerja'].contains(d.kategori.toLowerCase())).toList();
+                final diklatList = items.where((d) => ['diklat', 'surat_diklat'].contains(d.kategori.toLowerCase())).toList();
 
                 final sk = skList.isNotEmpty ? skList.first : null;
                 final diklat = diklatList.isNotEmpty ? diklatList.first : null;
