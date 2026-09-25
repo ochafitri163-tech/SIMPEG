@@ -236,7 +236,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           icon: Icons.description_rounded,
           builder: (_) => const TunjanganPendidikanScreen()),
       _QuickMenuItem(
-          label: 'Insentif\nPendidikan',
+          label: 'Insentif',
           icon: Icons.star_rounded,
           builder: (_) => InsentifScreen(user: widget.user)),
       if (widget.user.role == UserRole.sdm)

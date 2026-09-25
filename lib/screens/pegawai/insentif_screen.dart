@@ -8,27 +8,129 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import 'payroll_screen.dart' show formatRupiah;
 import '../../theme/app_colors.dart';
 
-/// Helper: konversi value dari Supabase (bisa num/double/int/String) ke int
-/// secara aman. Supabase PostgreSQL mengirim angka sebagai double/num, bukan int.
+/// Helper: konversi value (bisa num/double/int/String) ke int secara aman
 int _toInt(dynamic val) {
   if (val == null) return 0;
   if (val is int) return val;
   if (val is double) return val.toInt();
   if (val is num) return val.toInt();
-  if (val is String) return int.tryParse(val) ?? 0;
+  if (val is String) {
+    final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+    return int.tryParse(cleaned) ?? 0;
+  }
   return 0;
 }
 
-/// Ambil semua data insentif milik pegawai yang sedang login dari
-/// Supabase, diurutkan dari yang terbaru (created_at desc), lalu dipetakan
-/// ke model [InsentifItem] + [InsentifSlipDetail] yang sama persis dipakai
-/// UI/PDF di bawah.
-Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
+/// Helper untuk memetakan satu baris record (dari ApiService backend atau Supabase)
+/// ke model [InsentifItem] dan [InsentifSlipDetail]
+InsentifItem _rowToInsentifItem(Map<String, dynamic> row, AppUser user) {
+  final int bulan = _toInt(row['bulan'] ?? (row['month'] ?? 0));
+  final int tahun = _toInt(row['tahun'] ?? (row['year'] ?? 0));
 
+  const bulanNames = [
+    '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  String periode = (row['periode'] ?? '').toString().trim();
+  if (periode.isEmpty || periode == '-') {
+    if (bulan >= 1 && bulan <= 12) {
+      periode = '${bulanNames[bulan]} ${tahun > 0 ? tahun : DateTime.now().year}';
+    } else {
+      periode = 'Tahun ${tahun > 0 ? tahun : DateTime.now().year}';
+    }
+  }
+
+  final slip = InsentifSlipDetail(
+    bulanLabel: periode.toUpperCase(),
+    nik: (row['nik'] ?? user.nik).toString(),
+    nama: (row['nama'] ?? user.name).toString(),
+    golongan: (row['golongan'] ?? user.golonganUntukSlip).toString(),
+    unitKerja: (row['unit_kerja'] ?? user.unitKerja).toString(),
+    jabatan: (row['jabatan'] ?? user.jabatan).toString(),
+    // Komponen Penerimaan Insentif (Non-Gapok PDAM)
+    insentifJabatan: _toInt(row['insentif_jabatan'] ?? row['tunjangan_jabatan']),
+    insentifPrestasi: _toInt(row['insentif_prestasi'] ?? row['tunjangan_prestasi']),
+    insentifTransportasi: _toInt(row['insentif_transportasi'] ?? row['tunjangan_transportasi']),
+    insentifPangan: _toInt(row['insentif_pangan'] ?? row['tunjangan_pangan']),
+    insentifBpjsKesehatan: _toInt(row['insentif_bpjs_kesehatan'] ?? (row['tunjangan_bpjs_kesehatan'] ?? row['tunjangan_bpjskes'])),
+    insentifPerumahan: _toInt(row['insentif_perumahan'] ?? row['tunjangan_perumahan']),
+    insentifBpjsTenagaKerja: _toInt(row['insentif_bpjs_tenaga_kerja'] ?? (row['tunjangan_bpjs_tenaga_kerja'] ?? row['tunjangan_bpjstk'])),
+    insentifPerusahaan: _toInt(row['insentif_perusahaan'] ?? row['tunjangan_perusahaan']),
+    lembur: _toInt(row['lembur']),
+    insentifPajak: _toInt(row['insentif_pajak'] ?? row['tunjangan_pajak']),
+    insentifAirMinum: _toInt(row['insentif_air_minum'] ?? (row['tunjangan_air_minum'] ?? row['tunjangan_airminum'])),
+    insentifKomunikasi: _toInt(row['insentif_komunikasi'] ?? row['tunjangan_komunikasi']),
+    // Potongan Insentif
+    potonganSanksiPerusahaan: _toInt(row['potongan_sanksi_perusahaan'] ?? row['potongan_sanksi']),
+    potonganPmiLain: _toInt(row['potongan_pmi_lain'] ?? (row['potongan_trandist_pmi_lain'] ?? row['potongan_lain'])),
+    potonganDapenma: _toInt(row['potongan_dapenma']),
+    potonganBpjsTenagaKerja: _toInt(row['potongan_bpjs_tenaga_kerja'] ?? row['potongan_bpjstk']),
+    potonganPerumahan: _toInt(row['potongan_perumahan']),
+    potonganInsentifPerusahaan: _toInt(row['potongan_insentif_perusahaan'] ?? (row['potongan_tunjangan_perusahaan'] ?? row['potongan_tperusahaan'])),
+    potonganKorpri: _toInt(row['potongan_korpri']),
+    potonganPajak: _toInt(row['potongan_pajak']),
+    potonganBpjsKesehatan: _toInt(row['potongan_bpjs_kesehatan'] ?? row['potongan_bpjskes']),
+    // Potongan Non-Insentif
+    potonganKoperasi: _toInt(row['potongan_koperasi']),
+    potonganDarmaWanita: _toInt(row['potongan_darma_wanita'] ?? row['potongan_darmawanita']),
+    potonganRekeningAirMinum: _toInt(row['potongan_rekening_air_minum'] ?? row['potongan_ledeng']),
+    potonganKas: _toInt(row['potongan_kas']),
+    potonganBankBjb: _toInt(row['potongan_bank_bjb'] ?? row['potongan_bjb']),
+    potonganBankBjbs: _toInt(row['potongan_bank_bjbs'] ?? row['potongan_bjbs']),
+    potonganBankBtn: _toInt(row['potongan_bank_btn'] ?? row['potongan_btn']),
+    potonganBankBpr: _toInt(row['potongan_bank_bpr'] ?? row['potongan_bpr']),
+    potonganAsuransi: _toInt(row['potongan_asuransi']),
+    potonganZakatProfesi: _toInt(row['potongan_zakat_profesi'] ?? row['potongan_zakat']),
+  );
+
+  final calculatedJumlah = slip.jumlahDiterima;
+  final explicitJumlah = _toInt(row['insentif_diterima'] ?? (row['nominal'] ?? row['jumlah']));
+
+  return InsentifItem(
+    judul: (row['judul'] ?? 'Slip Insentif $periode').toString(),
+    periode: periode,
+    jumlah: explicitJumlah > 0 ? explicitJumlah : calculatedJumlah,
+    slip: slip,
+  );
+}
+
+/// Ambil data insentif resmi pegawai dari backend Laravel (ApiService)
+/// atau fallback ke Supabase
+Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
+  // 1. Prioritas Utama: Ambil dari API Laravel Backend
+  try {
+    final res = await ApiService.getInsentif(nik: user.nik);
+    if (res['success'] == true && res['data'] != null) {
+      final data = res['data'];
+      final List<InsentifItem> items = [];
+
+      if (data['list'] is List && (data['list'] as List).isNotEmpty) {
+        for (final item in (data['list'] as List)) {
+          if (item is Map<String, dynamic>) {
+            items.add(_rowToInsentifItem(item, user));
+          } else if (item is Map) {
+            items.add(_rowToInsentifItem(Map<String, dynamic>.from(item), user));
+          }
+        }
+      } else if (data['insentif'] is Map) {
+        items.add(_rowToInsentifItem(Map<String, dynamic>.from(data['insentif'] as Map), user));
+      }
+
+      if (items.isNotEmpty) {
+        return items;
+      }
+    }
+  } catch (e) {
+    debugPrint('Gagal fetch insentif dari ApiService: $e');
+  }
+
+  // 2. Fallback Supabase: Dapatkan target ID pegawai
+  String? userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) {
     try {
       final peg = await Supabase.instance.client
@@ -42,132 +144,40 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
     } catch (_) {}
   }
 
-  if (userId == null) return [];
+  if (userId != null) {
+    // 2a. Coba tabel insentif di Supabase
+    try {
+      final rows = await Supabase.instance.client
+          .from('insentif')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('created_at', ascending: false);
 
-  // 1. Coba ambil dari tabel insentif Supabase
-  try {
-    final rows = await Supabase.instance.client
-        .from('insentif')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('created_at', ascending: false);
+      if ((rows as List).isNotEmpty) {
+        return (rows as List)
+            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
+            .toList();
+      }
+    } catch (_) {}
 
-    if ((rows as List).isNotEmpty) {
-      return rows.map((row) {
-        final slip = InsentifSlipDetail(
-          bulanLabel: ((row['periode'] ?? '') as String).toUpperCase(),
-          nik: user.nik,
-          nama: user.name,
-          golongan: user.golonganUntukSlip,
-          unitKerja: user.unitKerja,
-          jabatan: user.jabatan,
-          insentifJabatan: _toInt(row['insentif_jabatan']),
-          insentifPrestasi: _toInt(row['insentif_prestasi']),
-          insentifTransportasi: _toInt(row['insentif_transportasi']),
-          insentifPangan: _toInt(row['insentif_pangan']),
-          insentifBpjsKesehatan: _toInt(row['insentif_bpjs_kesehatan']),
-          insentifPerumahan: _toInt(row['insentif_perumahan']),
-          insentifBpjsTenagaKerja: _toInt(row['insentif_bpjs_tenaga_kerja']),
-          insentifPerusahaan: _toInt(row['insentif_perusahaan']),
-          lembur: _toInt(row['lembur']),
-          insentifPajak: _toInt(row['insentif_pajak']),
-          insentifAirMinum: _toInt(row['insentif_air_minum']),
-          insentifKomunikasi: _toInt(row['insentif_komunikasi']),
-          potonganSanksiPerusahaan: _toInt(row['potongan_sanksi_perusahaan']),
-          potonganPmiLain: _toInt(row['potongan_pmi_lain']),
-          potonganDapenma: _toInt(row['potongan_dapenma']),
-          potonganBpjsTenagaKerja: _toInt(row['potongan_bpjs_tenaga_kerja']),
-          potonganPerumahan: _toInt(row['potongan_perumahan']),
-          potonganInsentifPerusahaan:
-              _toInt(row['potongan_insentif_perusahaan']),
-          potonganKorpri: _toInt(row['potongan_korpri']),
-          potonganPajak: _toInt(row['potongan_pajak']),
-          potonganBpjsKesehatan: _toInt(row['potongan_bpjs_kesehatan']),
-          potonganKoperasi: _toInt(row['potongan_koperasi']),
-          potonganDarmaWanita: _toInt(row['potongan_darma_wanita']),
-          potonganRekeningAirMinum:
-              _toInt(row['potongan_rekening_air_minum']),
-          potonganKas: _toInt(row['potongan_kas']),
-          potonganBankBjb: _toInt(row['potongan_bank_bjb']),
-          potonganBankBjbs: _toInt(row['potongan_bank_bjbs']),
-          potonganBankBtn: _toInt(row['potongan_bank_btn']),
-          potonganBankBpr: _toInt(row['potongan_bank_bpr']),
-          potonganAsuransi: _toInt(row['potongan_asuransi']),
-          potonganZakatProfesi: _toInt(row['potongan_zakat_profesi']),
-        );
+    // 2b. Fallback tabel payroll di Supabase
+    try {
+      final payrollRows = await Supabase.instance.client
+          .from('payroll')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('tahun', ascending: false)
+          .order('bulan', ascending: false);
 
-        return InsentifItem(
-          judul: (row['judul'] ?? 'Slip Insentif') as String,
-          periode: (row['periode'] ?? '-') as String,
-          jumlah: slip.jumlahDiterima,
-          slip: slip,
-        );
-      }).toList();
-    }
-  } catch (_) {}
-
-  // 2. Fallback jika tabel insentif belum ada record, ambil dari tabel payroll yang terbit
-  try {
-    final payrollRows = await Supabase.instance.client
-        .from('payroll')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('tahun', ascending: false)
-        .order('bulan', ascending: false);
-
-    return (payrollRows as List).map((row) {
-      final slip = InsentifSlipDetail(
-        bulanLabel: ((row['periode'] ?? '') as String).toUpperCase(),
-        nik: user.nik,
-        nama: user.name,
-        golongan: user.golonganUntukSlip,
-        unitKerja: user.unitKerja,
-        jabatan: user.jabatan,
-        insentifJabatan: _toInt(row['tunjangan_jabatan']),
-        insentifPrestasi: _toInt(row['tunjangan_prestasi']),
-        insentifTransportasi: _toInt(row['tunjangan_transportasi']),
-        insentifPangan: _toInt(row['tunjangan_pangan']),
-        insentifBpjsKesehatan: _toInt(row['tunjangan_bpjs_kesehatan']),
-        insentifPerumahan: _toInt(row['tunjangan_perumahan']),
-        insentifBpjsTenagaKerja: _toInt(row['tunjangan_bpjs_tenaga_kerja']),
-        insentifPerusahaan: _toInt(row['tunjangan_perusahaan']),
-        lembur: _toInt(row['lembur']),
-        insentifPajak: _toInt(row['tunjangan_pajak']),
-        insentifAirMinum: _toInt(row['tunjangan_air_minum']),
-        insentifKomunikasi: _toInt(row['tunjangan_komunikasi']),
-        potonganSanksiPerusahaan: _toInt(row['potongan_sanksi_perusahaan']),
-        potonganPmiLain: _toInt(row['potongan_trandist_pmi_lain']),
-        potonganDapenma: _toInt(row['potongan_dapenma']),
-        potonganBpjsTenagaKerja: _toInt(row['potongan_bpjs_tenaga_kerja']),
-        potonganPerumahan: _toInt(row['potongan_perumahan']),
-        potonganInsentifPerusahaan:
-            _toInt(row['potongan_tunjangan_perusahaan']),
-        potonganKorpri: _toInt(row['potongan_korpri']),
-        potonganPajak: _toInt(row['potongan_pajak']),
-        potonganBpjsKesehatan: _toInt(row['potongan_bpjs_kesehatan']),
-        potonganKoperasi: _toInt(row['potongan_koperasi']),
-        potonganDarmaWanita: _toInt(row['potongan_darma_wanita']),
-        potonganRekeningAirMinum:
-            _toInt(row['potongan_rekening_air_minum']),
-        potonganKas: _toInt(row['potongan_kas']),
-        potonganBankBjb: _toInt(row['potongan_bank_bjb']),
-        potonganBankBjbs: _toInt(row['potongan_bank_bjbs']),
-        potonganBankBtn: _toInt(row['potongan_bank_btn']),
-        potonganBankBpr: _toInt(row['potongan_bank_bpr']),
-        potonganAsuransi: _toInt(row['potongan_asuransi']),
-        potonganZakatProfesi: _toInt(row['potongan_zakat_profesi']),
-      );
-
-      return InsentifItem(
-        judul: 'Slip Insentif ${(row['periode'] ?? '')}',
-        periode: (row['periode'] ?? '-') as String,
-        jumlah: slip.jumlahDiterima,
-        slip: slip,
-      );
-    }).toList();
-  } catch (_) {
-    return [];
+      if ((payrollRows as List).isNotEmpty) {
+        return (payrollRows as List)
+            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
+            .toList();
+      }
+    } catch (_) {}
   }
+
+  return [];
 }
 
 /// Halaman Insentif — didesain mengikuti mockup UI (kartu ringkasan ungu
@@ -324,7 +334,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Insentif Pendidikan',
+                    'Insentif Pegawai',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 17,
@@ -363,7 +373,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
       child: Column(
         children: [
           Text(
-            'Insentif Pendidikan · ${item.periode}',
+            'Insentif Pegawai · ${item.periode}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12.5,
@@ -798,7 +808,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'Slip Insentif Pendidikan',
+          'Slip Insentif Pegawai',
           style: pw.TextStyle(
               fontSize: 20, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),

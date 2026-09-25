@@ -106,6 +106,19 @@ class ApiService {
     }
   }
 
+  /// 5b. Get Insentif Pegawai
+  static Future<Map<String, dynamic>> getInsentif({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/payroll/insentif').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
   /// 6. Get Absensi
   static Future<Map<String, dynamic>> getAbsensi() async {
     final url = Uri.parse('$baseUrl/absensi');
