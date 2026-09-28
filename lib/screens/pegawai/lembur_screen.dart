@@ -4,36 +4,51 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'payroll_screen.dart' show formatRupiah;
 
 class _LemburRow {
   final String bulan;
-  final int jamLembur;
+  final num jamLembur;
   final int uangLembur;
+  final String? keterangan;
+  final String? tanggal;
 
   const _LemburRow({
     required this.bulan,
     required this.jamLembur,
     required this.uangLembur,
+    this.keterangan,
+    this.tanggal,
   });
 
   factory _LemburRow.fromMap(Map<String, dynamic> row) {
     return _LemburRow(
-      bulan: row['bulan'] as String,
-      jamLembur: _lemburToInt(row['jam_lembur']),
+      bulan: (row['bulan'] ?? '-') as String,
+      jamLembur: _lemburToNum(row['jam_lembur']),
       uangLembur: _lemburToInt(row['uang_lembur']),
+      keterangan: row['keterangan']?.toString(),
+      tanggal: row['tanggal']?.toString(),
     );
   }
 }
 
-/// Helper: konversi value dari Supabase (bisa num/double/int) ke int secara aman.
+/// Helper: konversi value ke int secara aman.
 int _lemburToInt(dynamic val) {
   if (val == null) return 0;
   if (val is int) return val;
   if (val is double) return val.toInt();
   if (val is num) return val.toInt();
   if (val is String) return int.tryParse(val) ?? 0;
+  return 0;
+}
+
+/// Helper: konversi value jam (bisa 9 atau 9.5) secara aman.
+num _lemburToNum(dynamic val) {
+  if (val == null) return 0;
+  if (val is num) return val;
+  if (val is String) return num.tryParse(val) ?? 0;
   return 0;
 }
 
@@ -78,25 +93,89 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
 }
 
 Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
+  // 1. Prioritas Utama: Ambil dari API Laravel (ApiService.getLembur)
+  // Backend menyatukan data input manual Set Prestasi SDM, tabel lembur, & payroll.
+  try {
+    final res = await ApiService.getLembur(nik: user?.nik);
+    if (res['success'] == true && res['data'] is List) {
+      final list = res['data'] as List;
+      if (list.isNotEmpty) {
+        return list
+            .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
+            .toList();
+      }
+    }
+  } catch (e) {
+    debugPrint('Gagal fetch lembur via ApiService: $e');
+  }
+
+  // 2. Fallback: Query langsung ke Supabase
   final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
-  // 1. Coba ambil dari tabel lembur Supabase
+  // 2a. Dari tabel prestasi (input manual SDM)
   try {
-    final rows = await Supabase.instance.client
+    final prestasiRows = await Supabase.instance.client
+        .from('prestasi')
+        .select()
+        .eq('pegawai_id', userId)
+        .order('created_at', ascending: false);
+
+    final List<_LemburRow> fromPrestasi = [];
+    for (final r in (prestasiRows as List)) {
+      Map<String, dynamic> meta = {};
+      if (r['keterangan'] != null) {
+        try {
+          meta = jsonDecode(r['keterangan'].toString()) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      final jam = _lemburToNum(meta['jam_lembur'] ?? r['jam_lembur']);
+      final uang = _lemburToInt(meta['nominal_lembur'] ?? (jam * 9375).round());
+      if (jam > 0 || uang > 0) {
+        String bulanStr = '-';
+        if (r['tanggal'] != null) {
+          final tglStr = r['tanggal'].toString();
+          try {
+            final dt = DateTime.parse(tglStr);
+            const bNames = [
+              '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+              'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+            ];
+            bulanStr = '${bNames[dt.month]} ${dt.year}';
+          } catch (_) {
+            bulanStr = tglStr;
+          }
+        }
+        fromPrestasi.add(_LemburRow(
+          bulan: bulanStr,
+          jamLembur: jam,
+          uangLembur: uang,
+          keterangan: meta['desc']?.toString() ?? r['judul']?.toString(),
+          tanggal: r['tanggal']?.toString(),
+        ));
+      }
+    }
+    if (fromPrestasi.isNotEmpty) {
+      return fromPrestasi;
+    }
+  } catch (_) {}
+
+  // 2b. Dari tabel lembur
+  try {
+    final List<Map<String, dynamic>> rows = await Supabase.instance.client
         .from('lembur')
         .select()
         .eq('pegawai_id', userId)
         .order('created_at', ascending: false);
 
-    if ((rows as List).isNotEmpty) {
-      return (rows)
-          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
+    if (rows.isNotEmpty) {
+      return rows
+          .map((r) => _LemburRow.fromMap(r))
           .toList();
     }
   } catch (_) {}
 
-  // 2. Fallback ambil dari tabel payroll di mana lembur > 0
+  // 2c. Fallback dari tabel payroll di mana lembur > 0
   try {
     final payrollRows = await Supabase.instance.client
         .from('payroll')
@@ -109,9 +188,11 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
     if ((payrollRows as List).isNotEmpty) {
       return (payrollRows).map((r) {
         final uang = _lemburToInt(r['lembur']);
+        // Standard rate PDAM Rp 9.375 / jam (BUKAN 50.000)
+        final jam = max(1.0, (uang / 9375.0));
         return _LemburRow(
           bulan: (r['periode'] ?? '-') as String,
-          jamLembur: max(1, (uang / 50000).round()),
+          jamLembur: double.parse(jam.toStringAsFixed(1)),
           uangLembur: uang,
         );
       }).toList();
@@ -122,7 +203,7 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
 }
 
 /// Halaman "Lembur" — menampilkan riwayat jam & uang lembur pegawai yang
-/// sedang login, diambil dari Supabase.
+/// sedang login.
 class LemburScreen extends StatefulWidget {
   final AppUser? user;
   const LemburScreen({super.key, this.user});
@@ -252,7 +333,7 @@ class _LemburScreenState extends State<LemburScreen> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '${item.jamLembur} jam',
+                                      '${item.jamLembur % 1 == 0 ? item.jamLembur.toInt() : item.jamLembur} jam',
                                       style: const TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
@@ -262,6 +343,18 @@ class _LemburScreenState extends State<LemburScreen> {
                                   ],
                                 ),
                               ),
+                              if (item.keterangan != null && item.keterangan!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.keterangan!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

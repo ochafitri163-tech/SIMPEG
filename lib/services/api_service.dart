@@ -119,6 +119,35 @@ class ApiService {
     }
   }
 
+  /// 5c. Get Lembur Pegawai
+  static Future<Map<String, dynamic>> getLembur({String? nik}) async {
+    final q = (nik != null && nik.isNotEmpty) ? '?nik=$nik' : '';
+    final candidateUrls = <String>[
+      '$baseUrl/lembur$q',
+      '$baseUrl/payroll/lembur$q',
+      'http://192.168.110.74:8000/api/v1/lembur$q',
+      'http://10.0.2.2:8000/api/v1/lembur$q',
+      'http://127.0.0.1:8000/api/v1/lembur$q',
+    ];
+
+    final seen = <String>{};
+    for (final u in candidateUrls) {
+      if (!seen.add(u)) continue;
+      try {
+        final response = await http
+            .get(Uri.parse(u), headers: await _getHeaders(explicitNik: nik))
+            .timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['success'] == true) {
+            return data;
+          }
+        }
+      } catch (_) {}
+    }
+    return {'success': false, 'message': 'Gagal mengambil data lembur dari server.'};
+  }
+
   /// 6. Get Absensi
   static Future<Map<String, dynamic>> getAbsensi() async {
     final url = Uri.parse('$baseUrl/absensi');
