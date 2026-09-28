@@ -145,22 +145,7 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
   }
 
   if (userId != null) {
-    // 2a. Coba tabel insentif di Supabase
-    try {
-      final rows = await Supabase.instance.client
-          .from('insentif')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false);
-
-      if ((rows as List).isNotEmpty) {
-        return (rows as List)
-            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
-            .toList();
-      }
-    } catch (_) {}
-
-    // 2b. Fallback tabel payroll di Supabase
+    // 2a. Prioritas Utama: Tabel payroll di Supabase (data resmi disetujui dengan rincian potongan lengkap)
     try {
       final payrollRows = await Supabase.instance.client
           .from('payroll')
@@ -171,6 +156,21 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
 
       if ((payrollRows as List).isNotEmpty) {
         return (payrollRows as List)
+            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
+            .toList();
+      }
+    } catch (_) {}
+
+    // 2b. Fallback: Tabel insentif di Supabase
+    try {
+      final rows = await Supabase.instance.client
+          .from('insentif')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('created_at', ascending: false);
+
+      if ((rows as List).isNotEmpty) {
+        return (rows as List)
             .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
             .toList();
       }
