@@ -71,16 +71,24 @@ Future<String?> _resolvePegawaiId(AppUser? user) async {
     } catch (_) {}
   }
 
-  // 3. Resolve NIK ke pegawai_id (UUID) dari tabel pegawai di Supabase
+  // 3. Resolve NIK ke pegawai_id (UUID) dengan caching di SharedPreferences
   if (nik != null && nik.isNotEmpty) {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedId = prefs.getString('cached_peg_id_$nik');
+      if (cachedId != null && cachedId.isNotEmpty) {
+        return cachedId;
+      }
+
       final peg = await Supabase.instance.client
           .from('pegawai')
           .select('id')
           .eq('nik', nik)
           .maybeSingle();
       if (peg != null && peg['id'] != null) {
-        return peg['id'].toString();
+        final id = peg['id'].toString();
+        await prefs.setString('cached_peg_id_$nik', id);
+        return id;
       }
     } catch (_) {}
   }
@@ -99,30 +107,46 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
     final res = await ApiService.getLembur(nik: user?.nik);
     if (res['success'] == true && res['data'] is List) {
       final list = res['data'] as List;
-      if (list.isNotEmpty) {
-        return list
-            .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
-            .toList();
-      }
+      return list
+          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
+          .toList();
     }
   } catch (e) {
     debugPrint('Gagal fetch lembur via ApiService: $e');
   }
 
-  // 2. Fallback: Query langsung ke Supabase
+  // 2. Fallback: Query langsung ke Supabase jika API backend offline
   final userId = await _resolvePegawaiId(user);
   if (userId == null) return [];
 
-  // 2a. Dari tabel prestasi (input manual SDM)
   try {
-    final prestasiRows = await Supabase.instance.client
-        .from('prestasi')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('created_at', ascending: false);
+    final results = await Future.wait([
+      Supabase.instance.client
+          .from('prestasi')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('created_at', ascending: false),
+      Supabase.instance.client
+          .from('lembur')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('created_at', ascending: false),
+      Supabase.instance.client
+          .from('payroll')
+          .select('periode, lembur, tahun, bulan')
+          .eq('pegawai_id', userId)
+          .gt('lembur', 0)
+          .order('tahun', ascending: false)
+          .order('bulan', ascending: false),
+    ]);
 
+    final prestasiRows = results[0] as List;
+    final lemburRows = results[1] as List;
+    final payrollRows = results[2] as List;
+
+    // 2a. Dari tabel prestasi (input manual SDM)
     final List<_LemburRow> fromPrestasi = [];
-    for (final r in (prestasiRows as List)) {
+    for (final r in prestasiRows) {
       Map<String, dynamic> meta = {};
       if (r['keterangan'] != null) {
         try {
@@ -150,7 +174,7 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
           bulan: bulanStr,
           jamLembur: jam,
           uangLembur: uang,
-          keterangan: meta['desc']?.toString() ?? r['judul']?.toString(),
+          keterangan: meta['desc'] ?? (r['judul']?.toString()),
           tanggal: r['tanggal']?.toString(),
         ));
       }
@@ -158,35 +182,17 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
     if (fromPrestasi.isNotEmpty) {
       return fromPrestasi;
     }
-  } catch (_) {}
 
-  // 2b. Dari tabel lembur
-  try {
-    final List<Map<String, dynamic>> rows = await Supabase.instance.client
-        .from('lembur')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('created_at', ascending: false);
-
-    if (rows.isNotEmpty) {
-      return rows
-          .map((r) => _LemburRow.fromMap(r))
+    // 2b. Dari tabel lembur
+    if (lemburRows.isNotEmpty) {
+      return lemburRows
+          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
           .toList();
     }
-  } catch (_) {}
 
-  // 2c. Fallback dari tabel payroll di mana lembur > 0
-  try {
-    final payrollRows = await Supabase.instance.client
-        .from('payroll')
-        .select('periode, lembur, tahun, bulan')
-        .eq('pegawai_id', userId)
-        .gt('lembur', 0)
-        .order('tahun', ascending: false)
-        .order('bulan', ascending: false);
-
-    if ((payrollRows as List).isNotEmpty) {
-      return (payrollRows).map((r) {
+    // 2c. Fallback dari tabel payroll di mana lembur > 0
+    if (payrollRows.isNotEmpty) {
+      return payrollRows.map((r) {
         final uang = _lemburToInt(r['lembur']);
         // Standard rate PDAM Rp 9.375 / jam (BUKAN 50.000)
         final jam = max(1.0, (uang / 9375.0));
@@ -197,7 +203,9 @@ Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
         );
       }).toList();
     }
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('Fallback Supabase lembur error: $e');
+  }
 
   return [];
 }
