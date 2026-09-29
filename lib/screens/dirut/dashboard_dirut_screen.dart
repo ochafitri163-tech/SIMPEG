@@ -11,6 +11,7 @@ import '../shared/riwayat_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
 /// alur:
 /// 1. Approval Tahap 1 (menungguDirutTahap1) — layak diinvestigasi?
@@ -59,6 +60,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   }
 
   Future<void> _logout() async {
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

@@ -203,11 +203,13 @@ class FcmService {
 
     // 8. Supabase Realtime Listener untuk Pengaduan (status update)
     _subscribeTable('pengaduan_pegawai', PostgresChangeEvent.update, (newRecord) {
+      final id = (newRecord['id'] as num?)?.toInt();
       final status = newRecord['status'] as String? ?? '';
       final judul = newRecord['judul'] as String? ?? 'pengaduan';
       NotificationService.instance.showPengaduan(
         title: '📋 Update Pengaduan',
         body: 'Pengaduan "$judul" sekarang berstatus: $status',
+        pengaduanId: id,
       );
     });
 
@@ -217,6 +219,7 @@ class FcmService {
       NotificationService.instance.showKepegawaian(
         title: '📝 Update Pengajuan Cuti',
         body: 'Pengajuan cuti Anda sekarang berstatus: $status',
+        type: 'cuti',
       );
     });
 
@@ -226,6 +229,7 @@ class FcmService {
       NotificationService.instance.showKepegawaian(
         title: '⏰ Data Lembur',
         body: 'Data lembur bulan $bulan telah dicatat.',
+        type: 'lembur',
       );
     });
 
@@ -235,6 +239,7 @@ class FcmService {
       NotificationService.instance.showKepegawaian(
         title: '📄 Dokumen Baru',
         body: 'Dokumen "$judul" telah diunggah oleh SDM.',
+        type: 'dokumen',
       );
     });
 

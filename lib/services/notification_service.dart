@@ -81,7 +81,7 @@ class NotificationService {
     await _plugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        NotificationNavHelper.openPengumuman();
+        NotificationNavHelper.handlePayloadString(response.payload);
       },
     );
 
@@ -130,6 +130,7 @@ class NotificationService {
       title: 'Waktunya Absen Masuk 🕖',
       body: 'Jangan lupa lakukan absensi masuk hari ini.',
       details: _channelAbsensi,
+      payload: '{"type":"absensi"}',
     );
     await _scheduleDaily(
       id: 2,
@@ -138,6 +139,7 @@ class NotificationService {
       title: 'Waktunya Absen Pulang 🕟',
       body: 'Jangan lupa lakukan absensi pulang sebelum meninggalkan kantor.',
       details: _channelAbsensi,
+      payload: '{"type":"absensi"}',
     );
 
     await _plugin.show(
@@ -145,6 +147,7 @@ class NotificationService {
       'Pengingat Absensi Diaktifkan ✅',
       'Kamu akan diingatkan absen masuk (07:30) & pulang (16:30) setiap hari kerja.',
       const NotificationDetails(android: _channelAbsensi),
+      payload: '{"type":"absensi"}',
     );
   }
 
@@ -162,6 +165,7 @@ class NotificationService {
       'Pengumuman Kantor Diaktifkan 📢',
       'Kamu akan menerima notifikasi setiap ada info/pengumuman baru dari PDAM.',
       const NotificationDetails(android: _channelPengumuman),
+      payload: '{"type":"pengumuman"}',
     );
   }
 
@@ -169,13 +173,20 @@ class NotificationService {
     await _plugin.cancel(3);
   }
 
-  Future<void> showPengumuman({required String title, required String body}) {
-    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  Future<void> showPengumuman({
+    required String title,
+    required String body,
+    int? pengumumanId,
+  }) {
+    final id = pengumumanId ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
     return _plugin.show(
       id,
       title,
       body,
       const NotificationDetails(android: _channelPengumuman),
+      payload: pengumumanId != null
+          ? '{"type":"pengumuman","pengumuman_id":$pengumumanId}'
+          : '{"type":"pengumuman"}',
     );
   }
 
@@ -187,6 +198,7 @@ class NotificationService {
       title,
       body,
       const NotificationDetails(android: _channelGaji),
+      payload: '{"type":"gaji"}',
     );
   }
 
@@ -198,28 +210,41 @@ class NotificationService {
       title,
       body,
       const NotificationDetails(android: _channelThr),
+      payload: '{"type":"thr"}',
     );
   }
 
   /// Notifikasi: Update status pengaduan
-  Future<void> showPengaduan({required String title, required String body}) {
-    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  Future<void> showPengaduan({
+    required String title,
+    required String body,
+    int? pengaduanId,
+  }) {
+    final id = pengaduanId ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
     return _plugin.show(
       id,
       title,
       body,
       const NotificationDetails(android: _channelPengaduan),
+      payload: pengaduanId != null
+          ? '{"type":"pengaduan","pengaduan_id":$pengaduanId}'
+          : '{"type":"pengaduan"}',
     );
   }
 
   /// Notifikasi: Kepegawaian (cuti, lembur, dokumen)
-  Future<void> showKepegawaian({required String title, required String body}) {
+  Future<void> showKepegawaian({
+    required String title,
+    required String body,
+    String type = 'kepegawaian',
+  }) {
     final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return _plugin.show(
       id,
       title,
       body,
       const NotificationDetails(android: _channelKepegawaian),
+      payload: '{"type":"$type"}',
     );
   }
 
@@ -245,6 +270,8 @@ class NotificationService {
       return;
     }
 
+    final payloadStr = '{"type":"pengumuman","pengumuman_id":$id}';
+
     try {
       await _plugin.zonedSchedule(
         id,
@@ -255,6 +282,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payloadStr,
       );
     } catch (_) {
       try {
@@ -267,6 +295,7 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.inexact,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payloadStr,
         );
       } catch (_) {}
     }
@@ -285,6 +314,7 @@ class NotificationService {
     required String title,
     required String body,
     required AndroidNotificationDetails details,
+    String? payload,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled =
@@ -305,6 +335,7 @@ class NotificationService {
       matchDateTimeComponents: DateTimeComponents.time,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
     );
   }
 }

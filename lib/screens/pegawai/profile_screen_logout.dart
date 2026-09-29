@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:simpeg_mobile/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/onesignal_service.dart';
 
 Future<void> confirmLogoutPatched(context) async {
   const danger = Color(0xFFE74C3C);
@@ -101,6 +102,9 @@ Future<void> confirmLogoutPatched(context) async {
   );
 
   if (konfirmasi == true && context.mounted) {
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
     await Supabase.instance.client.auth.signOut();
 
     if (!context.mounted) return;

@@ -14,6 +14,7 @@ import 'terbitkan_sk_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../services/onesignal_service.dart';
 /// Dashboard untuk role SDM — titik akhir alur Pengaduan (tindak lanjut
 /// administratif). Data & aksi terhubung ke Supabase lewat
 /// [PengaduanService.untukRoleSebagaiObjek] & [PengaduanService.sdmSelesaikan].
@@ -45,6 +46,9 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
   }
 
   Future<void> _logout() async {
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

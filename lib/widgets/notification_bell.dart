@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pengaduan_model.dart';
 import '../models/pengaduan_service.dart';
 import '../models/pengumuman_model.dart';
 import '../models/user_role.dart';
 import '../screens/shared/detail_pengaduan_screen.dart';
+import '../services/notification_nav_helper.dart';
 import 'pengumuman_card.dart' show showPengumumanDetail;
 
 /// Ikon lonceng notifikasi yang dipasang di AppBar tiap dashboard.
@@ -31,11 +33,45 @@ class _NotificationBellState extends State<NotificationBell> {
   static const Color _navy = Color(0xFF0D2C6E);
 
   int _belumDibaca = 0;
+  RealtimeChannel? _notifSubscription;
 
   @override
   void initState() {
     super.initState();
     _muatJumlahBelumDibaca();
+    _subscribeRealtimeNotifikasi();
+  }
+
+  @override
+  void dispose() {
+    try {
+      _notifSubscription?.unsubscribe();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _subscribeRealtimeNotifikasi() {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      _notifSubscription = Supabase.instance.client
+          .channel('public:notifikasi:${widget.user.nik}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'notifikasi',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'untuk_pegawai_id',
+              value: userId,
+            ),
+            callback: (_) {
+              _muatJumlahBelumDibaca();
+            },
+          )
+          .subscribe();
+    } catch (_) {}
   }
 
   Future<void> _muatJumlahBelumDibaca() async {
@@ -51,15 +87,14 @@ class _NotificationBellState extends State<NotificationBell> {
   /// 1. Tandai notifikasi itu sudah dibaca.
   /// 2. Tutup bottom sheet daftar notifikasi.
   /// 3. Arahkan ke tujuan sesuai jenis notifikasinya:
-  ///    - punya `pengumuman_id` ATAU judulnya "Pengumuman Baru" -> langsung
-  ///      munculkan POPUP detail pengumuman DI ATAS layar yang sedang
-  ///      dibuka (mis. Beranda) -- TIDAK pindah halaman, sama seperti saat
-  ///      kartu "Berita & Pengumuman" di dashboard ditekan. Kalau
-  ///      `pengumuman_id` belum ada (mis. notifikasi lama / migrasi kolom
-  ///      belum dijalankan), fallback ke pengumuman TERBARU yang tayang
-  ///      untuk role user ini.
-  ///    - punya `pengaduan_id`   -> buka halaman detail Pengaduan.
-  ///    - selain itu             -> tidak ada tujuan, cukup ditandai dibaca.
+  ///    - punya `pengumuman_id` ATAU judul/pesan mengandung "Pengumuman" ->
+  ///      munculkan POPUP detail pengumuman DI ATAS layar yang sedang dibuka.
+  ///    - punya `pengaduan_id` -> buka halaman detail Pengaduan.
+  ///    - cuti -> buka form / persetujuan cuti.
+  ///    - gaji/payroll/insentif -> buka slip gaji.
+  ///    - thr -> buka THR.
+  ///    - lembur -> buka lembur.
+  ///    - dokumen / sk -> buka dokumen resmi.
   Future<void> _bukaNotifikasi(Map<String, dynamic> n) async {
     final notifId = (n['id'] as num?)?.toInt();
     if (notifId != null) {
@@ -69,9 +104,10 @@ class _NotificationBellState extends State<NotificationBell> {
 
     final pengumumanId = (n['pengumuman_id'] as num?)?.toInt();
     final pengaduanId = (n['pengaduan_id'] as num?)?.toInt();
-    final judul = (n['judul'] as String?) ?? '';
+    final judul = (n['judul'] as String? ?? '').toLowerCase();
+    final pesan = (n['pesan'] as String? ?? '').toLowerCase();
     final adalahNotifPengumuman =
-        pengumumanId != null || judul.toLowerCase().contains('pengumuman');
+        pengumumanId != null || judul.contains('pengumuman') || pesan.contains('pengumuman');
 
     if (!mounted) return;
     Navigator.of(context).pop(); // tutup bottom sheet daftar notifikasi
@@ -105,6 +141,42 @@ class _NotificationBellState extends State<NotificationBell> {
           ),
         ),
       );
+      return;
+    }
+
+    // Navigasi untuk kategori notifikasi lainnya
+    if (judul.contains('cuti') || pesan.contains('cuti')) {
+      await NotificationNavHelper.openCuti();
+      return;
+    }
+
+    if (judul.contains('gaji') ||
+        judul.contains('payroll') ||
+        judul.contains('insentif') ||
+        pesan.contains('gaji') ||
+        pesan.contains('payroll') ||
+        pesan.contains('insentif')) {
+      await NotificationNavHelper.openPayroll();
+      return;
+    }
+
+    if (judul.contains('thr') || pesan.contains('thr')) {
+      await NotificationNavHelper.openThr();
+      return;
+    }
+
+    if (judul.contains('lembur') || pesan.contains('lembur')) {
+      await NotificationNavHelper.openLembur();
+      return;
+    }
+
+    if (judul.contains('dokumen') ||
+        judul.contains('sk ') ||
+        judul.contains('sk sanksi') ||
+        pesan.contains('dokumen') ||
+        pesan.contains('berkas')) {
+      await NotificationNavHelper.openDokumen();
+      return;
     }
   }
 
@@ -189,79 +261,93 @@ class _NotificationBellState extends State<NotificationBell> {
                                     separatorBuilder: (_, __) =>
                                         const Divider(height: 18),
                                     itemBuilder: (_, i) {
-                                      final n = notif[i];
-                                      final dibaca =
-                                          (n['dibaca'] ?? false) as bool;
-                                      final waktu =
-                                          DateTime.parse(n['waktu'] as String);
-                                      final adaTujuan =
-                                          n['pengumuman_id'] != null ||
-                                              n['pengaduan_id'] != null ||
-                                              (n['judul'] as String? ?? '')
-                                                  .toLowerCase()
-                                                  .contains('pengumuman');
-                                      return InkWell(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
-                                        onTap: () => _bukaNotifikasi(n),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 4),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    top: 4, right: 10),
-                                                width: 8,
-                                                height: 8,
-                                                decoration: BoxDecoration(
-                                                  color: dibaca
-                                                      ? Colors.transparent
-                                                      : _navy,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(n['judul'] as String,
-                                                        style: const TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w700)),
-                                                    const SizedBox(height: 2),
-                                                    Text(n['pesan'] as String,
-                                                        style: const TextStyle(
-                                                            fontSize: 12,
-                                                            color: Colors.grey)),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                        formatTanggalJam(waktu),
-                                                        style: const TextStyle(
-                                                            fontSize: 10.5,
-                                                            color: Colors.grey)),
-                                                  ],
-                                                ),
-                                              ),
-                                              if (adaTujuan)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          top: 4, left: 4),
-                                                  child: Icon(
-                                                      Icons
-                                                          .chevron_right_rounded,
-                                                      size: 18,
-                                                      color: Colors.grey[400]),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
+                                       final n = notif[i];
+                                       final dibaca =
+                                           (n['dibaca'] ?? false) as bool;
+                                       final waktu =
+                                           DateTime.parse(n['waktu'] as String);
+                                       final jStr = (n['judul'] as String? ?? '').toLowerCase();
+                                       final pStr = (n['pesan'] as String? ?? '').toLowerCase();
+                                       final adaTujuan = n['pengumuman_id'] != null ||
+                                           n['pengaduan_id'] != null ||
+                                           jStr.contains('pengumuman') ||
+                                           pStr.contains('pengumuman') ||
+                                           jStr.contains('cuti') ||
+                                           pStr.contains('cuti') ||
+                                           jStr.contains('gaji') ||
+                                           pStr.contains('gaji') ||
+                                           jStr.contains('payroll') ||
+                                           pStr.contains('payroll') ||
+                                           jStr.contains('thr') ||
+                                           pStr.contains('thr') ||
+                                           jStr.contains('lembur') ||
+                                           pStr.contains('lembur') ||
+                                           jStr.contains('dokumen') ||
+                                           pStr.contains('dokumen') ||
+                                           jStr.contains('sk') ||
+                                           pStr.contains('sk');
+                                       return InkWell(
+                                         borderRadius:
+                                             BorderRadius.circular(8),
+                                         onTap: () => _bukaNotifikasi(n),
+                                         child: Padding(
+                                           padding: const EdgeInsets.symmetric(
+                                               vertical: 4),
+                                           child: Row(
+                                             crossAxisAlignment:
+                                                 CrossAxisAlignment.start,
+                                             children: [
+                                               Container(
+                                                 margin: const EdgeInsets.only(
+                                                     top: 4, right: 10),
+                                                 width: 8,
+                                                 height: 8,
+                                                 decoration: BoxDecoration(
+                                                   color: dibaca
+                                                       ? Colors.transparent
+                                                       : _navy,
+                                                   shape: BoxShape.circle,
+                                                 ),
+                                               ),
+                                               Expanded(
+                                                 child: Column(
+                                                   crossAxisAlignment:
+                                                       CrossAxisAlignment.start,
+                                                   children: [
+                                                     Text(n['judul'] as String,
+                                                         style: const TextStyle(
+                                                             fontSize: 13,
+                                                             fontWeight:
+                                                                 FontWeight.w700)),
+                                                     const SizedBox(height: 2),
+                                                     Text(n['pesan'] as String,
+                                                         style: const TextStyle(
+                                                             fontSize: 12,
+                                                             color: Colors.grey)),
+                                                     const SizedBox(height: 2),
+                                                     Text(
+                                                         formatTanggalJam(waktu),
+                                                         style: const TextStyle(
+                                                             fontSize: 10.5,
+                                                             color: Colors.grey)),
+                                                   ],
+                                                 ),
+                                               ),
+                                               if (adaTujuan)
+                                                 Padding(
+                                                   padding:
+                                                       const EdgeInsets.only(
+                                                           top: 4, left: 4),
+                                                   child: Icon(
+                                                       Icons
+                                                           .chevron_right_rounded,
+                                                       size: 18,
+                                                       color: Colors.grey[400]),
+                                                 ),
+                                             ],
+                                           ),
+                                         ),
+                                       );
                                     },
                                   ),
                       ),

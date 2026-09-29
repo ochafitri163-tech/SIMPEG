@@ -11,6 +11,7 @@ import '../shared/riwayat_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
 /// Data pengaduan diambil dari Supabase lewat [PengaduanService], semua
 /// aksi (verifikasi, selesaikan tindak lanjut) langsung menulis ke
@@ -58,6 +59,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
   }
 
   Future<void> _logout() async {
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

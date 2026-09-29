@@ -12,6 +12,7 @@ import '../shared/riwayat_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../services/onesignal_service.dart';
 /// Dashboard untuk role TPDPK — Tahap 3 & Tahap 4 (fungsional).
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardTpdpkScreen extends StatefulWidget {
@@ -42,6 +43,9 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   }
 
   Future<void> _logout() async {
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
     await Supabase.instance.client.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
