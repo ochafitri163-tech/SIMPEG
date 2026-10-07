@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'notification_nav_helper.dart';
 
@@ -8,6 +10,11 @@ class OneSignalService {
   static final OneSignalService instance = OneSignalService._();
 
   static const String appId = 'b7556b90-2f97-44f2-93e2-bd94abe8229e';
+
+  /// REST API Key dari OneSignal Dashboard > Settings > Keys & IDs
+  /// Ganti dengan REST API Key project OneSignal Anda.
+  static const String _restApiKey = 'os_v2_app_w5kwxebps5cpfe7cxwkkx2bctyt34xy5qooehvv63djfl4za6mlx266vbxeborrxadrxpw2t67lhtljxszzsaphrkivaqqeqmrl5pxa';
+
   bool _initialized = false;
 
   bool get _isSupportedPlatform {
@@ -92,5 +99,45 @@ class OneSignalService {
     try {
       await OneSignal.logout();
     } catch (_) {}
+  }
+
+  /// Mengirimkan Push Notification Broadcast ke SEMUA subscriber OneSignal.
+  /// Ini menggantikan FcmService.sendBroadcastNotification() yang sudah dihapus.
+  ///
+  /// Menggunakan OneSignal REST API (Create Notification):
+  /// https://documentation.onesignal.com/reference/create-notification
+  static Future<void> sendBroadcastNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final url = Uri.parse('https://onesignal.com/api/v1/notifications');
+
+      final payload = {
+        'app_id': appId,
+        'included_segments': ['All'],
+        'headings': {'en': title},
+        'contents': {'en': body},
+        if (data != null) 'data': data,
+      };
+
+      await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': 'Basic $_restApiKey',
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (kDebugMode) {
+        print('OneSignal broadcast sent: $title');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending OneSignal broadcast: $e');
+      }
+    }
   }
 }

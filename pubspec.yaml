@@ -37,8 +37,9 @@ dependencies:
   # Local Notifications & Push Notifications
   flutter_local_notifications: ^17.2.4
   onesignal_flutter: ^5.2.7
-  firebase_core: ^3.10.0
-  firebase_messaging: ^15.2.0
+
+  # Web Notifications API (untuk browser notification di Flutter Web)
+  web: ^1.1.0
 
   # Utilities
   intl: ^0.19.0

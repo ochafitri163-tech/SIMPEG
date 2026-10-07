@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import '../services/notification_service.dart';
-import '../services/fcm_service.dart';
+import '../services/onesignal_service.dart';
 import '../services/audit_log_service.dart';
 // Diberi prefix karena file ini juga mengimpor `services/notification_service.dart`
 // yang KEBETULAN punya nama kelas sama (NotificationService) tapi untuk hal
@@ -565,11 +565,12 @@ class PengumumanService {
     required String judul,
     required List<UserRole> target,
   }) async {
-    // 1) Push notification (best-effort, tidak boleh menggagalkan alur utama).
+    // 1) Push notification via OneSignal (best-effort, tidak boleh menggagalkan alur utama).
     try {
-      await FcmService.sendBroadcastNotification(
+      await OneSignalService.sendBroadcastNotification(
         title: '📢 Pengumuman Baru',
         body: judul,
+        data: {'type': 'pengumuman', 'pengumuman_id': pengumumanId.toString()},
       );
     } catch (_) {}
 

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
-import 'services/fcm_service.dart';
+import 'services/realtime_notification_service.dart';
 import 'services/onesignal_service.dart';
 import 'services/notification_nav_helper.dart';
 import 'services/theme_controller.dart';
@@ -29,12 +28,11 @@ Future<void> main() async {
   // 3. Inisialisasi OneSignal Push Notification Cloud
   await OneSignalService.instance.init();
 
-  // 4. Inisialisasi Firebase
+  // 4. Inisialisasi Supabase Realtime Notification Listener
   try {
-    await Firebase.initializeApp();
-    await FcmService.instance.init();
+    await RealtimeNotificationService.instance.init();
   } catch (e) {
-    debugPrint('Firebase init error: $e');
+    debugPrint('Realtime notification init error: $e');
   }
 
   await ThemeController.instance.loadSaved();
