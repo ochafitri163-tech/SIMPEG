@@ -5,6 +5,12 @@ import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../dirut/dashboard_dirut_screen.dart';
+import '../kadiv/dashboard_kadiv_screen.dart';
+import '../kspi/dashboard_kspi_screen.dart';
+import '../tpdpk/dashboard_tpdpk_screen.dart';
+import '../sdm/dashboard_sdm_screen.dart';
+import 'tugas_saya_screen.dart';
 import '../../theme/app_colors.dart';
 
 class StatusPengaduanScreen extends StatefulWidget {
@@ -25,6 +31,150 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   static const Color accent = Color(0xFF2E86AB);
   Color get labelDark => AppColors.textPrimary(context);
   Color get hintGrey => AppColors.textSecondary(context);
+
+  Widget _getRoleTasksPage(AppUser user) {
+    switch (user.role) {
+      case UserRole.kadivKategori:
+        return DashboardKadivScreen(user: user, showBackButton: true);
+      case UserRole.kspi:
+        return DashboardKspiScreen(user: user, showBackButton: true);
+      case UserRole.tpdpk:
+        return DashboardTpdpkScreen(user: user, showBackButton: true);
+      case UserRole.direktur:
+        return DashboardDirutScreen(user: user, showBackButton: true);
+      case UserRole.sdm:
+        return DashboardSdmScreen(user: user, showBackButton: true);
+      default:
+        return TugasSayaScreen(user: user, showBackButton: true);
+    }
+  }
+
+  int _getStageIndex(PengaduanStatus status) {
+    switch (status) {
+      case PengaduanStatus.menungguKadiv:
+      case PengaduanStatus.menungguVerifikasiKadiv:
+        return 1;
+      case PengaduanStatus.menungguDirutTahap1:
+      case PengaduanStatus.menungguPilihEksekutor:
+      case PengaduanStatus.reviewKspi:
+      case PengaduanStatus.menungguReviewKspi:
+        return 2;
+      case PengaduanStatus.investigasiBerjalan:
+      case PengaduanStatus.menungguInvestigasi:
+      case PengaduanStatus.revisiInvestigasi:
+      case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
+      case PengaduanStatus.tindakLanjutBerjalan:
+      case PengaduanStatus.tindakLanjut:
+      case PengaduanStatus.menungguSdm:
+        return 3;
+      case PengaduanStatus.selesai:
+      case PengaduanStatus.arsip:
+      case PengaduanStatus.ditolakDirektur:
+      case PengaduanStatus.peninjauanKembali:
+        return 4;
+    }
+  }
+
+  Widget _buildProgressStepper(Pengaduan p, bool isSmallScreen) {
+    final currentStage = _getStageIndex(p.status);
+    final isArsip = p.status == PengaduanStatus.arsip;
+
+    final stages = [
+      (label: 'Diajukan', icon: Icons.send_rounded),
+      (label: 'Diverifikasi', icon: Icons.fact_check_rounded),
+      (label: 'Diproses', icon: Icons.autorenew_rounded),
+      (label: isArsip ? 'Arsip' : 'Selesai', icon: isArsip ? Icons.archive_rounded : Icons.check_circle_rounded),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Progres Pengaduan',
+            style: TextStyle(
+              fontSize: isSmallScreen ? 10.5 : 11.5,
+              fontWeight: FontWeight.bold,
+              color: labelDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(stages.length, (index) {
+              final stageNum = index + 1;
+              final isCompleted = stageNum < currentStage || (stageNum == currentStage && currentStage == 4);
+              final isCurrent = stageNum == currentStage && currentStage < 4;
+              final color = isArsip && stageNum == 4
+                  ? const Color(0xFF7F8C8D)
+                  : (isCompleted
+                      ? const Color(0xFF27AE60)
+                      : (isCurrent ? accent : hintGrey.withValues(alpha: 0.4)));
+
+              final isLast = index == stages.length - 1;
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: isSmallScreen ? 22 : 26,
+                            height: isSmallScreen ? 22 : 26,
+                            decoration: BoxDecoration(
+                              color: isCompleted || isCurrent ? color : Colors.transparent,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: color,
+                                width: isCurrent ? 2 : 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              isCompleted ? Icons.check_rounded : stages[index].icon,
+                              size: isSmallScreen ? 12 : 14,
+                              color: isCompleted || isCurrent ? Colors.white : color,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            stages[index].label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 8.5 : 9.5,
+                              fontWeight: isCurrent || isCompleted ? FontWeight.bold : FontWeight.w500,
+                              color: isCurrent || isCompleted ? labelDark : hintGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isLast)
+                      Container(
+                        height: 2,
+                        width: isSmallScreen ? 10 : 16,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: stageNum < currentStage ? const Color(0xFF27AE60) : hintGrey.withValues(alpha: 0.25),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
 
   final _searchController = TextEditingController();
   String _query = '';
@@ -740,6 +890,17 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ),
               const SizedBox(width: 8),
               actionButton(
+                icon: Icons.fact_check_rounded,
+                tooltip: 'Tasks',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _getRoleTasksPage(widget.user),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              actionButton(
                 icon: Icons.history_rounded,
                 tooltip: 'Riwayat Pengaduan',
                 onTap: () => Navigator.push(
@@ -801,7 +962,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Status Pengaduan',
+                        'Kelola Pengaduan',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: isSmallScreen ? 17 : 19,
@@ -1251,6 +1412,35 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                         ],
                       ),
                     ),
+                    _buildProgressStepper(p, isSmallScreen),
+                    if ((p.keteranganTerakhir ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: accent.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.note_alt_outlined, size: 15, color: accent),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Catatan: ${p.keteranganTerakhir!.trim()}',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10.5 : 11.5,
+                                  color: labelDark,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

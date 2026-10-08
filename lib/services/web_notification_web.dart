@@ -6,16 +6,16 @@ void showWebNotification(String title, String body) {
   try {
     if (web.Notification.permission == 'granted') {
       web.Notification(
-        title.toJS,
-        web.NotificationOptions(body: body.toJS),
+        title,
+        web.NotificationOptions(body: body),
       );
     } else if (web.Notification.permission != 'denied') {
       // Minta izin dulu, baru tampilkan
       web.Notification.requestPermission().toDart.then((permission) {
         if (permission.toDart == 'granted') {
           web.Notification(
-            title.toJS,
-            web.NotificationOptions(body: body.toJS),
+            title,
+            web.NotificationOptions(body: body),
           );
         }
       });

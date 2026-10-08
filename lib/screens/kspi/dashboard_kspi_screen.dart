@@ -3,9 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
+import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
+import '../../widgets/pegawai_picker_sheet.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 
@@ -16,7 +18,12 @@ import '../../services/onesignal_service.dart';
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardKspiScreen extends StatefulWidget {
   final AppUser user;
-  const DashboardKspiScreen({super.key, required this.user});
+  final bool showBackButton;
+  const DashboardKspiScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<DashboardKspiScreen> createState() => _DashboardKspiScreenState();
@@ -350,44 +357,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
 
   // ---------- 1. Review awal & pilih eksekutor ----------
-  Future<void> _bukaReviewEksekutor(Pengaduan p) async {
-    // Eksekutor sekarang ada 3 pilihan konkret: Kadiv Administrasi, Kadiv
-    // Teknik, atau TPDPK — bukan lagi 'Kadiv Kategori' generik, supaya
-    // tugas investigasi langsung masuk ke kotak masuk Kadiv yang benar
-    // sesuai divisinya.
-    Eksekutor eksekutorDipilih = Eksekutor.kadiv;
-    DivisiKadiv divisiDipilih = DivisiKadiv.administrasi;
-    int jumlahPetugas = 1;
-    final List<TextEditingController> petugasControllers = [
-      TextEditingController()
-    ];
+  Future<void> _bukaReviewAwal(Pengaduan p) async {
+    List<PegawaiOption> selectedExecutors = [];
     final catatanController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      Widget pilihanEksekutorChip({
-        required String label,
-        required bool selected,
-        required VoidCallback onTap,
-      }) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: selected
-                          ? Colors.white
-                          : AppColors.textPrimary(context),
-                      fontWeight: FontWeight.w600)),
-              selected: selected,
-              selectedColor: _accent,
-              onSelected: (_) => setSheetState(onTap),
-            ),
-          ),
-        );
-      }
-
       return SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -400,86 +374,182 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   'Peninjauan Kembali dari Direktur', p.catatanPeninjauanKembali!),
               const SizedBox(height: 14),
             ],
-            const Text('Eksekutor',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                pilihanEksekutorChip(
-                  label: DivisiKadiv.administrasi.label,
-                  selected: eksekutorDipilih == Eksekutor.kadiv &&
-                      divisiDipilih == DivisiKadiv.administrasi,
-                  onTap: () {
-                    eksekutorDipilih = Eksekutor.kadiv;
-                    divisiDipilih = DivisiKadiv.administrasi;
-                  },
+                const Text(
+                  'Eksekutor Pegawai',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
-                pilihanEksekutorChip(
-                  label: DivisiKadiv.teknik.label,
-                  selected: eksekutorDipilih == Eksekutor.kadiv &&
-                      divisiDipilih == DivisiKadiv.teknik,
-                  onTap: () {
-                    eksekutorDipilih = Eksekutor.kadiv;
-                    divisiDipilih = DivisiKadiv.teknik;
-                  },
-                ),
-                pilihanEksekutorChip(
-                  label: 'TPDPK',
-                  selected: eksekutorDipilih == Eksekutor.tpdpk,
-                  onTap: () => eksekutorDipilih = Eksekutor.tpdpk,
-                ),
+                if (selectedExecutors.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${selectedExecutors.length} Terpilih',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _accent),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Jumlah petugas investigasi',
-                      style: TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700)),
-                ),
-                IconButton(
-                  onPressed: jumlahPetugas > 1
-                      ? () => setSheetState(() {
-                            jumlahPetugas--;
-                            petugasControllers.removeLast().dispose();
-                          })
-                      : null,
-                  icon: const Icon(Icons.remove_circle_outline_rounded),
-                  color: _accent,
-                ),
-                Text('$jumlahPetugas',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                IconButton(
-                  onPressed: () => setSheetState(() {
-                    jumlahPetugas++;
-                    petugasControllers.add(TextEditingController());
-                  }),
-                  icon: const Icon(Icons.add_circle_outline_rounded),
-                  color: _accent,
-                ),
-              ],
+            const SizedBox(height: 4),
+            const Text(
+              'Pilih 1 atau beberapa pegawai SIMPEG sebagai tim eksekutor investigasi.',
+              style: TextStyle(fontSize: 11.5, color: Colors.grey),
             ),
-            ...List.generate(jumlahPetugas, (i) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: TextField(
-                  controller: petugasControllers[i],
-                  decoration: InputDecoration(
-                    labelText: 'Nama petugas investigasi ${i + 1}',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
+            const SizedBox(height: 10),
+
+            // Selector Button / List Card untuk Eksekutor
+            if (selectedExecutors.isEmpty)
+              InkWell(
+                onTap: () async {
+                  final res = await showPegawaiMultiPickerSheet(
+                    context: ctx,
+                    selectedPegawaiList: selectedExecutors,
+                    title: 'Pilih Tim Eksekutor Investigasi',
+                  );
+                  if (res != null) {
+                    setSheetState(() => selectedExecutors = res);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF1E2638)
+                        : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF2C384E)
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.person_add_alt_1_rounded,
+                          color: _accent, size: 22),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Pilih Pegawai Eksekutor',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: _accent,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down_rounded, color: _accent),
+                    ],
                   ),
                 ),
-              );
-            }),
-            const SizedBox(height: 14),
+              )
+            else
+              Column(
+                children: [
+                  ...selectedExecutors.map((peg) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _accent.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _accent.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: _accent,
+                            child: Text(
+                              peg.initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  peg.name,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${peg.jabatan} • NIK: ${peg.nik}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                size: 18, color: Colors.redAccent),
+                            onPressed: () {
+                              setSheetState(() {
+                                selectedExecutors
+                                    .removeWhere((item) => item.id == peg.id);
+                              });
+                            },
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final res = await showPegawaiMultiPickerSheet(
+                        context: ctx,
+                        selectedPegawaiList: selectedExecutors,
+                        title: 'Edit Tim Eksekutor Investigasi',
+                      );
+                      if (res != null) {
+                        setSheetState(() => selectedExecutors = res);
+                      }
+                    },
+                    icon: const Icon(Icons.group_add_rounded, size: 18),
+                    label: const Text('Tambah / Edit Tim Eksekutor'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _accent,
+                      side: const BorderSide(color: _accent),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 16),
+
             TextField(
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Catatan review (opsional)',
+                labelText: 'Catatan Penugasan (opsional)',
+                hintText: 'Tambahkan instruksi khusus untuk para eksekutor...',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -489,15 +559,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (petugasControllers.any((c) => c.text.trim().isEmpty)) {
-                    _showSnack('Nama semua petugas investigasi wajib diisi.',
+                  if (selectedExecutors.isEmpty) {
+                    _showSnack(
+                        'Harap pilih minimal 1 pegawai eksekutor.',
                         const Color(0xFFE74C3C));
                     return;
                   }
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
-                label: const Text('Tetapkan Eksekutor & Petugas'),
+                label: Text(selectedExecutors.isEmpty
+                    ? 'Tetapkan Eksekutor & Buat Tugas'
+                    : 'Tetapkan ${selectedExecutors.length} Eksekutor & Buat Tugas'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
@@ -512,38 +585,28 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       );
     });
 
-    if (ok != true) return;
+    if (ok != true || selectedExecutors.isEmpty) return;
     final id = p.supabaseId;
     if (id == null) return;
-
-    final daftarPetugas = petugasControllers
-        .map((c) => c.text.trim())
-        .where((s) => s.isNotEmpty)
-        .join(', ');
-
-    final labelTujuan = eksekutorDipilih == Eksekutor.kadiv
-        ? divisiDipilih.label
-        : 'TPDPK';
 
     try {
       await PengaduanService.reviewDanPilihEksekutor(
         pengaduanId: id,
         oleh: widget.user.name,
-        eksekutor: eksekutorDipilih.name,
-        divisiKadiv:
-            eksekutorDipilih == Eksekutor.kadiv ? divisiDipilih.name : null,
-        petugas: daftarPetugas.isEmpty ? null : daftarPetugas,
+        selectedExecutors: selectedExecutors,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
       );
 
       if (!mounted) return;
-      _showSnack('${p.nomorPengaduan} diteruskan ke $labelTujuan.',
+      final names = selectedExecutors.map((e) => e.name).join(', ');
+      _showSnack(
+          '${p.nomorPengaduan} berhasil ditugaskan ke: $names.',
           const Color(0xFF27AE60));
       await _refresh();
     } catch (e) {
-      if (mounted) _showSnack('Gagal memproses: $e', Colors.red);
+      if (mounted) _showSnack('Gagal memproses penugasan: $e', Colors.red);
     }
   }
 
@@ -941,7 +1004,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   _buildSection(
                       'PILIH EKSEKUTOR INVESTIGASI',
                       reviewAwal,
-                      _bukaReviewEksekutor,
+                      _bukaReviewAwal,
                       'Belum ada pengaduan siap ditugaskan.',
                       'Pilih Eksekutor'),
                   _buildSection(
@@ -1035,9 +1098,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         children: [
           Row(
             children: [
+              if (widget.showBackButton) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
-                  'Investigasi Pengaduan',
+                  'Tasks Penetapan Eksekutor',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,

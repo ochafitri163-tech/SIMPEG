@@ -23,6 +23,7 @@ import 'profile_detail_screen.dart';
 import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
+import 'tugas_saya_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -109,25 +110,20 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   /// dashboard pegawai standar (Beranda/Status Pengaduan/Profil), hanya
   /// ditambah satu tab khusus di footer untuk fitur verifikasi/approval
   /// pengaduan sesuai role masing-masing.
-  bool get _hasRoleFeature => widget.user.role != UserRole.pegawai;
-
-  /// Dashboard khusus role approval yang ditampilkan di tab tambahan
-  /// footer. Kalau role-nya Pegawai biasa, tab ini tidak pernah dipakai.
-  Widget _buildRoleDashboardTab() {
-    switch (widget.user.role) {
+  Widget _getRoleTasksPage(AppUser user) {
+    switch (user.role) {
       case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: widget.user);
+        return DashboardKadivScreen(user: user, showBackButton: true);
       case UserRole.kspi:
-        return DashboardKspiScreen(user: widget.user);
+        return DashboardKspiScreen(user: user, showBackButton: true);
       case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: widget.user);
+        return DashboardTpdpkScreen(user: user, showBackButton: true);
       case UserRole.direktur:
-        return DashboardDirutScreen(user: widget.user);
+        return DashboardDirutScreen(user: user, showBackButton: true);
       case UserRole.sdm:
-        return DashboardSdmScreen(user: widget.user);
-      case UserRole.keuangan:
-      case UserRole.pegawai:
-        return const SizedBox.shrink();
+        return DashboardSdmScreen(user: user, showBackButton: true);
+      default:
+        return TugasSayaScreen(user: user, showBackButton: true);
     }
   }
 
@@ -191,10 +187,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
             // menampilkan dashboard tugasnya sendiri (verifikasi/approval
             // pengaduan) di sini, karena tugas itu sudah menggantikan
             // "Status Pengaduan" milik Pegawai biasa.
-            _hasRoleFeature
-                ? _buildRoleDashboardTab()
-                : StatusPengaduanScreen(
-                    user: widget.user, showBackButton: false),
+            StatusPengaduanScreen(
+                user: widget.user, showBackButton: false),
             ProfileDetailScreen(user: widget.user, showBackButton: false),
           ],
         ),
@@ -214,6 +208,10 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
     final menuItems = <_QuickMenuItem>[
       _QuickMenuItem(
+          label: 'Tugas Saya',
+          icon: Icons.assignment_turned_in_rounded,
+          builder: (_) => _getRoleTasksPage(widget.user)),
+      _QuickMenuItem(
           label: 'Payroll',
           icon: Icons.description_rounded,
           builder: (_) => PayrollScreen(user: widget.user)),
@@ -224,9 +222,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       _QuickMenuItem(
           label: 'Pengaduan',
           icon: Icons.chat_bubble_rounded,
-          builder: (_) => _hasRoleFeature
-              ? _buildRoleDashboardTab()
-              : PengaduanPegawaiScreen(user: widget.user)),
+          builder: (_) => PengaduanPegawaiScreen(user: widget.user)),
       _QuickMenuItem(
           label: 'Lembur',
           icon: Icons.access_time_filled_rounded,
@@ -1235,14 +1231,10 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 selectedIcon: Icons.grid_view_rounded,
                 label: 'Beranda',
               ),
-              FloatingNavItem(
-                icon: _hasRoleFeature
-                    ? Icons.shield_outlined
-                    : Icons.fact_check_outlined,
-                selectedIcon: _hasRoleFeature
-                    ? Icons.shield_rounded
-                    : Icons.fact_check_rounded,
-                label: _hasRoleFeature ? 'Kelola' : 'Status',
+              const FloatingNavItem(
+                icon: Icons.fact_check_outlined,
+                selectedIcon: Icons.fact_check_rounded,
+                label: 'Kelola Pengaduan',
               ),
               const FloatingNavItem(
                 icon: Icons.person_outline_rounded,
@@ -1255,12 +1247,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
         final items = [
           (icon: Icons.home_rounded, index: 0),
-          (
-            icon: _hasRoleFeature
-                ? Icons.admin_panel_settings_rounded
-                : Icons.fact_check_rounded,
-            index: 1
-          ),
+          (icon: Icons.fact_check_rounded, index: 1),
           (icon: Icons.person_rounded, index: 2),
         ];
 

@@ -17,7 +17,12 @@ import '../../services/onesignal_service.dart';
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardTpdpkScreen extends StatefulWidget {
   final AppUser user;
-  const DashboardTpdpkScreen({super.key, required this.user});
+  final bool showBackButton;
+  const DashboardTpdpkScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<DashboardTpdpkScreen> createState() => _DashboardTpdpkScreenState();
@@ -623,9 +628,17 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         children: [
           Row(
             children: [
+              if (widget.showBackButton) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
-                  'Investigasi TPDPK',
+                  'Tasks Investigasi TPDPK',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,

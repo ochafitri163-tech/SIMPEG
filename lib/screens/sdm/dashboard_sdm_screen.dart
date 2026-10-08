@@ -20,7 +20,12 @@ import '../../services/onesignal_service.dart';
 /// [PengaduanService.untukRoleSebagaiObjek] & [PengaduanService.sdmSelesaikan].
 class DashboardSdmScreen extends StatefulWidget {
   final AppUser user;
-  const DashboardSdmScreen({super.key, required this.user});
+  final bool showBackButton;
+  const DashboardSdmScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<DashboardSdmScreen> createState() => _DashboardSdmScreenState();
@@ -380,6 +385,14 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
         children: [
           Row(
             children: [
+              if (widget.showBackButton) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
                   'Tindak Lanjut SDM',

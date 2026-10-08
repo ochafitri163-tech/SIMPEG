@@ -104,6 +104,7 @@ class _NotificationBellState extends State<NotificationBell> {
 
     final pengumumanId = (n['pengumuman_id'] as num?)?.toInt();
     final pengaduanId = (n['pengaduan_id'] as num?)?.toInt();
+    final taskId = (n['task_id'] as num?)?.toInt();
     final judul = (n['judul'] as String? ?? '').toLowerCase();
     final pesan = (n['pesan'] as String? ?? '').toLowerCase();
     final adalahNotifPengumuman =
@@ -111,6 +112,11 @@ class _NotificationBellState extends State<NotificationBell> {
 
     if (!mounted) return;
     Navigator.of(context).pop(); // tutup bottom sheet daftar notifikasi
+
+    if (taskId != null || judul.contains('penugasan') || judul.contains('tugas') || pesan.contains('ditunjuk')) {
+      await NotificationNavHelper.openTugasSaya();
+      return;
+    }
 
     if (adalahNotifPengumuman) {
       Pengumuman? p;

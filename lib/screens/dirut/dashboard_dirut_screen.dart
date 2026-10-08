@@ -19,7 +19,12 @@ import '../../services/onesignal_service.dart';
 /// 3. Pilih eksekutor tindak lanjut (menungguPilihEksekutorTindakLanjut)
 class DashboardDirutScreen extends StatefulWidget {
   final AppUser user;
-  const DashboardDirutScreen({super.key, required this.user});
+  final bool showBackButton;
+  const DashboardDirutScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<DashboardDirutScreen> createState() => _DashboardDirutScreenState();
@@ -582,7 +587,13 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 ),
               );
             } else {
-              final menunggu = snapshot.data ?? [];
+              final semua = snapshot.data ?? [];
+              final menunggu = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.menungguDirutTahap1 ||
+                      p.status == PengaduanStatus.menungguDirutTahap2 ||
+                      p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut)
+                  .toList();
 
               content = menunggu.isEmpty
                   ? Container(
@@ -628,7 +639,13 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                           Transform.translate(
                             offset: const Offset(0, -28),
                             child: _buildProfileCard(
-                                snapshot.data?.length ?? 0),
+                                snapshot.data
+                                        ?.where((p) =>
+                                            p.status == PengaduanStatus.menungguDirutTahap1 ||
+                                            p.status == PengaduanStatus.menungguDirutTahap2 ||
+                                            p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut)
+                                        .length ??
+                                    0),
                           ),
                           const SizedBox(height: 18),
                           content,
@@ -675,9 +692,17 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
         children: [
           Row(
             children: [
+              if (widget.showBackButton) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
-                  'Persetujuan Direktur',
+                  'Tasks Persetujuan Direktur',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,

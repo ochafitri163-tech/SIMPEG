@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
-import 'notification_nav_helper.dart';
 import 'web_notification_stub.dart'
     if (dart.library.js_interop) 'web_notification_web.dart';
 

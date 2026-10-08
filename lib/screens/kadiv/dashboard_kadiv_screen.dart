@@ -18,7 +18,12 @@ import '../../services/onesignal_service.dart';
 /// database (bukan lagi mutasi object in-memory).
 class DashboardKadivScreen extends StatefulWidget {
   final AppUser user;
-  const DashboardKadivScreen({super.key, required this.user});
+  final bool showBackButton;
+  const DashboardKadivScreen({
+    super.key,
+    required this.user,
+    this.showBackButton = true,
+  });
 
   @override
   State<DashboardKadivScreen> createState() => _DashboardKadivScreenState();
@@ -564,9 +569,17 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
         children: [
           Row(
             children: [
+              if (widget.showBackButton) ...[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
-                  'Verifikasi Pengaduan',
+                  'Tasks Verifikasi & Eksekusi',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,

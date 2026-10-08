@@ -279,6 +279,7 @@ class Pengaduan {
 
   // --- Tahap KSPI: pilih eksekutor investigasi ---
   Eksekutor? eksekutor;
+  String? executorId; // ID pegawai eksekutor (foreign key ke tabel pegawai)
   String? petugasInvestigasi;
   /// Diisi hanya bila [eksekutor] == Eksekutor.kadiv — menentukan Kadiv
   /// divisi apa (administrasi/teknik) yang jadi eksekutor investigasi,
@@ -343,6 +344,7 @@ class Pengaduan {
     this.keputusanDirutTahap1,
     this.catatanDirutTahap1,
     this.eksekutor,
+    this.executorId,
     this.petugasInvestigasi,
     this.eksekutorDivisiKadiv,
     this.hasilInvestigasi,

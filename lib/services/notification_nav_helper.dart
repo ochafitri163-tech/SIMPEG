@@ -10,6 +10,7 @@ import '../screens/pegawai/payroll_screen.dart';
 import '../screens/pegawai/pengajuan_cuti_screen.dart';
 import '../screens/pegawai/status_pengaduan_screen.dart';
 import '../screens/pegawai/thr_screen.dart';
+import '../screens/pegawai/tugas_saya_screen.dart';
 import '../screens/shared/detail_pengaduan_screen.dart';
 import '../screens/shared/pengumuman_list_screen.dart';
 import '../screens/shared/persetujuan_cuti_screen.dart';
@@ -78,6 +79,11 @@ class NotificationNavHelper {
     final type = data['type']?.toString().toLowerCase().trim() ?? '';
 
     switch (type) {
+      case 'task':
+      case 'tugas':
+      case 'penugasan':
+        await openTugasSaya();
+        break;
       case 'pengumuman':
         final pId = int.tryParse(data['pengumuman_id']?.toString() ?? data['id']?.toString() ?? '');
         await openPengumuman(pengumumanId: pId);
@@ -109,7 +115,9 @@ class NotificationNavHelper {
         await openDokumen();
         break;
       default:
-        if (data.containsKey('pengumuman_id')) {
+        if (data.containsKey('task_id')) {
+          await openTugasSaya();
+        } else if (data.containsKey('pengumuman_id')) {
           final pId = int.tryParse(data['pengumuman_id'].toString());
           await openPengumuman(pengumumanId: pId);
         } else if (data.containsKey('pengaduan_id')) {
@@ -251,6 +259,18 @@ class NotificationNavHelper {
     final user = await _getActiveUser();
     if (user != null) {
       navState.push(MaterialPageRoute(builder: (_) => DokumenResmiScreen(user: user)));
+    }
+  }
+
+  /// Navigasi ke Tugas Saya untuk Eksekutor
+  static Future<void> openTugasSaya() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final navState = navigatorKey.currentState;
+    if (navState == null) return;
+
+    final user = await _getActiveUser();
+    if (user != null) {
+      navState.push(MaterialPageRoute(builder: (_) => TugasSayaScreen(user: user)));
     }
   }
 }

@@ -1,11 +1,12 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_service.dart';
+import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../widgets/pegawai_picker_sheet.dart';
 import 'status_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 
@@ -60,10 +61,26 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   final _deskripsiController = TextEditingController();
 
   String? _kategori;
+  PegawaiOption? _selectedPelaku;
   final List<_FotoLampiran> _fotoLampiran = [];
   final ImagePicker _picker = ImagePicker();
   final MediaLampiranController _mediaController = MediaLampiranController();
   bool _isSubmitting = false;
+
+  Future<void> _pilihPelaku() async {
+    final picked = await showPegawaiPickerSheet(
+      context: context,
+      selectedPegawai: _selectedPelaku,
+      title: 'Pilih Pegawai yang Diadukan',
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedPelaku = picked;
+      _pihakTerlaporController.text = picked.name;
+      _nikPelakuController.text = picked.nik;
+      _jabatanPelakuController.text = picked.jabatan;
+    });
+  }
 
   @override
   void dispose() {
@@ -351,6 +368,69 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
               children: [
                 _buildFieldLabel('Pelaku / Pihak yang Diadukan'),
                 const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _pilihPelaku,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: accent.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.person_search_rounded,
+                            color: accent,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _selectedPelaku != null
+                                    ? _selectedPelaku!.name
+                                    : 'Pilih Pegawai dari Data',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: _selectedPelaku != null ? labelDark : accent,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _selectedPelaku != null
+                                    ? '${_selectedPelaku!.jabatan} · NIK: ${_selectedPelaku!.nik}'
+                                    : 'Klik di sini untuk memilih pegawai dari data',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: hintGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _selectedPelaku != null ? Icons.swap_horiz_rounded : Icons.chevron_right_rounded,
+                          color: accent,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 _buildTextField(
                   controller: _pihakTerlaporController,
                   hint: 'Nama pegawai atau unit terkait',

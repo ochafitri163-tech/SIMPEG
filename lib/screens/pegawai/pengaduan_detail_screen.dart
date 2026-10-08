@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
+import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/pegawai_picker_sheet.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -752,23 +754,43 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       }
     } else if (role == UserRole.kspi) {
       if (p.status == PengaduanStatus.menungguPilihEksekutor) {
-        panel = _panelPilihEksekutor(
-          judul: 'Pilih Eksekutor Investigasi',
-          onPilih: (e) async {
-            final petugas = await _dialogCatatan(
-              judul: 'Nama Petugas (opsional)',
-              hint: 'Nama petugas investigasi...',
-            );
-            await _jalankan(
-              () => PengaduanService.kspiPilihEksekutor(
-                pengaduanId: p.supabaseId!,
-                oleh: oleh,
-                eksekutor: e,
-                petugas: petugas,
-              ),
-              sukses: 'Eksekutor investigasi ditentukan: ${e.label}.',
-            );
-          },
+        panel = SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () async {
+                    final selectedList = await showPegawaiMultiPickerSheet(
+                      context: context,
+                      title: 'Pilih Tim Eksekutor Investigasi',
+                    );
+                    if (selectedList == null || selectedList.isEmpty) return;
+                    final catatan = await _dialogCatatan(
+                      judul: 'Catatan Penugasan (opsional)',
+                      hint: 'Catatan untuk para eksekutor...',
+                    );
+                    final names = selectedList.map((e) => e.name).join(', ');
+                    await _jalankan(
+                      () => PengaduanService.reviewDanPilihEksekutor(
+                        pengaduanId: p.supabaseId!,
+                        oleh: oleh,
+                        selectedExecutors: selectedList,
+                        catatan: catatan,
+                      ),
+                      sukses:
+                          'Eksekutor investigasi ditentukan: $names.',
+                    );
+                  },
+            icon: const Icon(Icons.person_search_rounded, size: 18),
+            label: const Text('Pilih Eksekutor Investigasi'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
         );
       } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
           p.eksekutorTindakLanjut == Eksekutor.kspi) {

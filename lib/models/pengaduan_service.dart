@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
+import 'task_model.dart';
 import '../services/audit_log_service.dart';
 
 /// Mengubah satu baris hasil query Supabase (Map) menjadi object
@@ -32,8 +33,12 @@ Pengaduan pengaduanFromRow(
 
   Eksekutor? parseEksekutor(String? s) {
     if (s == null) return null;
-    return Eksekutor.values.firstWhere((e) => e.name == s);
+    return Eksekutor.values.firstWhere(
+      (e) => e.name == s,
+      orElse: () => Eksekutor.tpdpk,
+    );
   }
+
 
   DivisiKadiv? parseDivisiKadiv(String? s) {
     if (s == null) return null;
@@ -79,6 +84,7 @@ Pengaduan pengaduanFromRow(
         parseKeputusan(row['keputusan_dirut_tahap1'] as String?),
     catatanDirutTahap1: row['catatan_dirut_tahap1'] as String?,
     eksekutor: parseEksekutor(row['eksekutor'] as String?),
+    executorId: row['executor_id']?.toString(),
     petugasInvestigasi: row['petugas_investigasi'] as String?,
     eksekutorDivisiKadiv:
         parseDivisiKadiv(row['eksekutor_divisi_kadiv'] as String?),
@@ -135,6 +141,14 @@ class PengaduanService {
 
   static final _client = Supabase.instance.client;
 
+  static String _resolveEksekutorCategory(String? category, String? role) {
+    final candidate = (category ?? role ?? '').toLowerCase();
+    if (candidate == 'kadiv' || candidate == 'kadivkategori') return 'kadiv';
+    if (candidate == 'kspi') return 'kspi';
+    if (candidate == 'tpdpk') return 'tpdpk';
+    return 'tpdpk';
+  }
+
   /// Membuat nomor pengaduan berformat PGD-YYYYMM-NNN.
   ///
   /// Nomor urut diambil dari NOMOR TERBESAR yang sudah ada pada bulan
@@ -182,52 +196,157 @@ class PengaduanService {
     );
   }
 
-  /// KSPI — review awal & pilih eksekutor investigasi. Eksekutor bisa
-  /// TPDPK, atau salah satu dari 2 Kadiv (Administrasi/Teknik) — kalau
-  /// eksekutor == 'kadiv', [divisiKadiv] WAJIB diisi ('administrasi' |
-  /// 'teknik') supaya tugas hanya masuk ke kotak masuk Kadiv yang dipilih.
+  /// Mengambil seluruh data pegawai untuk keperluan pemilihan eksekutor
+  static Future<List<PegawaiOption>> fetchDaftarPegawai() async {
+    final rows = await _client
+        .from('pegawai')
+        .select()
+        .order('name', ascending: true);
+
+    return (rows as List)
+        .map((r) => PegawaiOption.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// KSPI — review awal & pilih eksekutor investigasi.
+  ///
+  /// KSPI — review awal & pilih eksekutor investigasi (bisa 1 atau beberapa eksekutor).
+  ///
+  /// Memasukkan [selectedExecutors] (atau [executorPegawai]),
+  /// membatalkan task & notifikasi eksekutor lama jika ada pergantian,
+  /// membuat task baru di tabel `tasks` untuk tiap eksekutor dengan status "Menunggu",
+  /// serta mengirim notifikasi ke seluruh eksekutor yang dipilih.
   static Future<void> reviewDanPilihEksekutor({
     required int pengaduanId,
     required String oleh,
-    required String eksekutor, // 'kadiv' | 'tpdpk'
-    String?
-        divisiKadiv, // 'administrasi' | 'teknik', wajib bila eksekutor == 'kadiv'
-    String? petugas,
+    List<PegawaiOption>? selectedExecutors,
+    String? executorPegawaiId,
+    PegawaiOption? executorPegawai,
+    String? eksekutorCategory,
+    String? divisiKadiv,
     String? catatan,
   }) async {
+    final currentUser = _client.auth.currentUser;
+    final kspiUserId = currentUser?.id;
+
+    final executors = (selectedExecutors != null && selectedExecutors.isNotEmpty)
+        ? selectedExecutors
+        : (executorPegawai != null ? [executorPegawai] : <PegawaiOption>[]);
+
+    if (executors.isEmpty) {
+      throw 'Harap pilih minimal 1 eksekutor pegawai.';
+    }
+
+    final newExecutorIds = executors.map((e) => e.id).toSet();
+    final executorNames = executors.map((e) => e.name).join(', ');
+    final primaryExecutorId = executors.first.id;
+
+    // Ambil info pengaduan untuk judul & kategori
+    final pData = await _client
+        .from('pengaduan_pegawai')
+        .select('judul, kategori, nomor_pengaduan')
+        .eq('id', pengaduanId)
+        .single();
+
+    // 1. Batalkan task lama untuk pegawai yang tidak dipilih lagi
+    try {
+      final existingTasks = await _client
+          .from('tasks')
+          .select('id, assigned_to')
+          .eq('pengaduan_id', pengaduanId)
+          .eq('is_active', true);
+
+      for (final t in (existingTasks as List)) {
+        final assignedTo = t['assigned_to']?.toString();
+        if (assignedTo != null && !newExecutorIds.contains(assignedTo)) {
+          await _client.from('tasks').update({
+            'is_active': false,
+            'status': 'Dibatalkan',
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id', t['id']);
+
+          await NotificationService.kirimKePegawai(
+            pegawaiId: assignedTo,
+            judul: 'Penugasan Dibatalkan 🚫',
+            pesan:
+                'Penugasan investigasi pengaduan ${pData['nomor_pengaduan']} telah dialihkan.',
+            pengaduanId: pengaduanId,
+          );
+        }
+      }
+    } catch (_) {}
+
     final statusBaru = PengaduanStatus.investigasiBerjalan.name;
-    final divisi = divisiKadiv != null
-        ? DivisiKadiv.values.firstWhere((e) => e.name == divisiKadiv)
-        : null;
+    final infoEksekutorLabel = executors.length == 1
+        ? executors.first.ringkas
+        : '${executors.length} Eksekutor ($executorNames)';
+
+    // 2. Update status pengaduan & simpan executor_id & petugas_investigasi
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutor.name,
       statusBaru: statusBaru,
       oleh: oleh,
       role: UserRole.kspi,
-      aksi: 'Review & memilih eksekutor: '
-          '${eksekutor == 'kadiv' ? divisi?.label ?? 'Kadiv Kategori' : 'TPDPK'}',
+      aksi: 'Review & menetapkan eksekutor: $infoEksekutorLabel',
       catatan: catatan,
       kolomTambahan: {
-        'eksekutor': eksekutor,
-        'eksekutor_divisi_kadiv': divisiKadiv,
-        'petugas_investigasi': petugas,
+        'executor_id': primaryExecutorId,
+        'eksekutor': _resolveEksekutorCategory(
+          eksekutorCategory,
+          executors.first.role,
+        ),
+        'eksekutor_divisi_kadiv': divisiKadiv ?? executors.first.divisiKadiv,
+        'petugas_investigasi': executorNames,
       },
     );
 
-    if (eksekutor == 'kadiv' && divisi != null) {
-      await NotificationService.kirimKeKadivDivisi(
-        divisi: divisi,
-        judul: 'Penugasan investigasi baru',
-        pesan: 'Silakan lakukan investigasi & kirim hasilnya.',
+    // 3. Otomatis buat task baru untuk SETIAP eksekutor yang dipilih (Status awal: Menunggu)
+    for (final executor in executors) {
+      final taskTitle =
+          'Investigasi: ${pData['judul']} (${pData['nomor_pengaduan']})';
+      final taskDesc =
+          'Anda ditunjuk sebagai eksekutor oleh $oleh (KSPI).\nTim Eksekutor: $executorNames\nKategori: ${pData['kategori']}\nCatatan: ${catatan ?? '-'}';
+
+      int? createdTaskId;
+      try {
+        final existingTask = await _client
+            .from('tasks')
+            .select('id')
+            .eq('pengaduan_id', pengaduanId)
+            .eq('assigned_to', executor.id)
+            .eq('is_active', true)
+            .maybeSingle();
+
+        if (existingTask != null) {
+          createdTaskId = (existingTask['id'] as num).toInt();
+        } else {
+          final insertedTask = await _client.from('tasks').insert({
+            'pengaduan_id': pengaduanId,
+            'assigned_to': executor.id,
+            'assigned_by': kspiUserId,
+            'assigned_by_name': oleh,
+            'title': taskTitle,
+            'category': pData['kategori'],
+            'description': taskDesc,
+            'status': 'Menunggu',
+            'is_active': true,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          }).select('id').single();
+
+          createdTaskId = (insertedTask['id'] as num).toInt();
+        }
+      } catch (_) {}
+
+      // 4. Kirim notifikasi ke masing-masing eksekutor
+      await NotificationService.kirimKePegawai(
+        pegawaiId: executor.id,
+        judul: 'Penugasan Investigasi Baru 📋',
+        pesan:
+            'Pengaduan: ${pData['judul']} | Tim: $executorNames | Ditugaskan oleh: $oleh',
         pengaduanId: pengaduanId,
-      );
-    } else {
-      await NotificationService.kirimKeRole(
-        role: UserRole.tpdpk,
-        judul: 'Penugasan investigasi baru',
-        pesan: 'Silakan lakukan investigasi & kirim hasilnya.',
-        pengaduanId: pengaduanId,
+        taskId: createdTaskId,
       );
     }
   }
@@ -678,11 +797,27 @@ class PengaduanService {
     String? catatan,
     Map<String, dynamic> kolomTambahan = const {},
   }) async {
-    await _client.from('pengaduan_pegawai').update({
+    final updateData = <String, dynamic>{
       'status': statusBaru,
       'updated_at': DateTime.now().toIso8601String(),
       ...kolomTambahan,
-    }).eq('id', pengaduanId);
+    };
+
+    try {
+      await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
+    } on PostgrestException catch (e) {
+      if ((e.message.contains('executor_id') || e.code == '42703') &&
+          updateData.containsKey('executor_id')) {
+        updateData.remove('executor_id');
+        await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
+      } else if ((e.code == '23514' || e.message.contains('pengaduan_pegawai_eksekutor_check')) &&
+          updateData.containsKey('eksekutor')) {
+        updateData['eksekutor'] = 'tpdpk';
+        await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
+      } else {
+        rethrow;
+      }
+    }
 
     await _client.from('riwayat_status_pengaduan').insert({
       'pengaduan_id': pengaduanId,
@@ -1173,8 +1308,8 @@ class PengaduanService {
         nominalPenurunanGaji > 0;
     if (adaPenurunan) {
       await turunkanGajiPayroll(
-        nik: nikTerlapor!.trim(),
-        nominal: nominalPenurunanGaji!,
+        nik: nikTerlapor.trim(),
+        nominal: nominalPenurunanGaji,
         pengaduanId: pengaduanId,
       );
     }
@@ -1187,7 +1322,7 @@ class PengaduanService {
       role: UserRole.sdm,
       aksi: adaPenurunan
           ? 'Menyelesaikan tindak lanjut administratif — penurunan gaji '
-              'Rp${_formatRibuan(nominalPenurunanGaji!)} (NIK ${nikTerlapor!.trim()})'
+              'Rp${_formatRibuan(nominalPenurunanGaji)} (NIK ${nikTerlapor.trim()})'
           : 'Menyelesaikan tindak lanjut administratif',
       catatan: catatan,
       kolomTambahan: {'catatan_sdm': catatan},
@@ -1296,6 +1431,7 @@ class NotificationService {
     required String pesan,
     int? pengaduanId,
     int? pengumumanId,
+    int? taskId,
   }) async {
     await _client.from('notifikasi').insert({
       'untuk_pegawai_id': pegawaiId,
@@ -1303,6 +1439,7 @@ class NotificationService {
       'pesan': pesan,
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
       if (pengumumanId != null) 'pengumuman_id': pengumumanId,
+      if (taskId != null) 'task_id': taskId,
     });
   }
 
