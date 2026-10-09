@@ -88,6 +88,7 @@ Pengaduan pengaduanFromRow(
     petugasInvestigasi: row['petugas_investigasi'] as String?,
     eksekutorDivisiKadiv:
         parseDivisiKadiv(row['eksekutor_divisi_kadiv'] as String?),
+    kesimpulanInvestigasi: row['kesimpulan_investigasi'] as String?,
     hasilInvestigasi: row['hasil_investigasi'] as String?,
     suratRekomendasi: row['surat_rekomendasi'] as String?,
     tanggalHasilInvestigasi: row['tanggal_hasil_investigasi'] != null
@@ -102,6 +103,12 @@ Pengaduan pengaduanFromRow(
         row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?),
     catatanTindakLanjutSelesai: row['catatan_tindak_lanjut_selesai'] as String?,
     catatanSdm: row['catatan_sdm'] as String?,
+    nomorSuratPutusan: row['nomor_surat_putusan'] as String?,
+    jenisSanksi: row['jenis_sanksi'] as String?,
+    fileSuratPutusan: row['file_surat_putusan'] as String?,
+    tanggalSuratPutusan: row['tanggal_surat_putusan'] != null
+        ? DateTime.parse(row['tanggal_surat_putusan'] as String)
+        : null,
     arsipPadaTahap: row['arsip_pada_tahap'] as String?,
     alasanArsip: row['alasan_arsip'] as String?,
   );
@@ -144,8 +151,7 @@ class PengaduanService {
   static String _resolveEksekutorCategory(String? category, String? role) {
     final candidate = (category ?? role ?? '').toLowerCase();
     if (candidate == 'kadiv' || candidate == 'kadivkategori') return 'kadiv';
-    if (candidate == 'kspi') return 'kspi';
-    if (candidate == 'tpdpk') return 'tpdpk';
+    if (candidate == 'tpdpk' || candidate == 'kspi') return 'tpdpk';
     return 'tpdpk';
   }
 
@@ -630,6 +636,19 @@ class PengaduanService {
         .order('tanggal_pengaduan', ascending: false);
     final semua = List<Map<String, dynamic>>.from(rows as List);
 
+    if (role == UserRole.sdm) {
+      // SDM HANYA bisa melihat pengaduan yang terbukti pada tahap menungguSdm atau selesai
+      return semua.where((row) {
+        final status = row['status'] as String?;
+        final kesimpulan =
+            (row['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
+        final isTerbukti = kesimpulan == 'terbukti';
+        return isTerbukti &&
+            (status == PengaduanStatus.menungguSdm.name ||
+                status == PengaduanStatus.selesai.name);
+      }).toList();
+    }
+
     if (role != UserRole.kadivKategori || divisiKadiv == null) {
       return semua;
     }
@@ -1032,21 +1051,21 @@ class PengaduanService {
   }
 
   /// EKSEKUTOR (Kadiv/TPDPK) — kirim hasil investigasi & surat
-  /// rekomendasi, otomatis diteruskan ke Direksi (tahap 2).
+  /// rekomendasi, otomatis diteruskan langsung ke Direktur Utama (tahap 2).
   static Future<void> kirimHasilInvestigasi({
     required int pengaduanId,
     required String oleh,
     required UserRole role,
     required String hasil,
     required String rekomendasi,
+    String kesimpulanInvestigasi = 'terbukti', // 'terbukti' | 'tidak_terbukti'
     List<String> foto = const [],
     List<String> video = const [],
     List<String> voice = const [],
     List<String> dokumen = const [],
   }) async {
-    // Kolom media hanya ditulis bila ada isinya, agar update tidak gagal
-    // ketika kolom array media belum tersedia di skema tabel.
     final kolom = <String, dynamic>{
+      'kesimpulan_investigasi': kesimpulanInvestigasi,
       'hasil_investigasi': hasil,
       'surat_rekomendasi': rekomendasi,
       'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
@@ -1056,33 +1075,47 @@ class PengaduanService {
     if (voice.isNotEmpty) kolom['investigasi_voice'] = voice;
     if (dokumen.isNotEmpty) kolom['investigasi_dokumen'] = dokumen;
 
+    final kesimpulanLabel =
+        kesimpulanInvestigasi == 'terbukti' ? 'TERBUKTI' : 'TIDAK TERBUKTI';
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.investigasiBerjalan.name,
       statusBaru: PengaduanStatus.menungguDirutTahap2.name,
       oleh: oleh,
       role: role,
-      aksi: 'Mengirim hasil investigasi & surat rekomendasi, '
-          'diteruskan langsung ke Dirut',
+      aksi: 'Menyelesaikan investigasi (Kesimpulan: $kesimpulanLabel) & surat rekomendasi, diteruskan langsung ke Dirut',
       kolomTambahan: kolom,
     );
 
+    // Update status tasks milik pengaduan ini menjadi Selesai
+    try {
+      await _client.from('tasks').update({
+        'status': 'Selesai',
+        'notes': 'Investigasi selesai: Kesimpulan $kesimpulanLabel',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('pengaduan_id', pengaduanId).eq('is_active', true);
+    } catch (_) {}
+
     await NotificationService.kirimKeRole(
       role: UserRole.direktur,
-      judul: 'Hasil investigasi menunggu persetujuan',
-      pesan: 'Hasil investigasi & surat rekomendasi telah masuk.',
+      judul: 'Hasil investigasi & rekomendasi masuk ($kesimpulanLabel)',
+      pesan: 'Hasil investigasi & surat rekomendasi telah masuk langsung ke Dirut.',
       pengaduanId: pengaduanId,
     );
   }
 
-  /// DIREKSI (akun Dirut) — approval tahap 2 (hasil investigasi
-  /// diterima?). Tolak -> arsip (pelapor diberi notifikasi template
-  /// otomatis). Terima -> menunggu pilih eksekutor tindak lanjut.
+  /// DIREKSI (akun Dirut) — approval tahap 2 (hasil investigasi diterima?).
+  /// Tolak -> arsip.
+  /// Terima:
+  ///   - Tidak Terbukti -> arsip & pulihkan nama baik terlapor.
+  ///   - Terbukti -> menungguSdm untuk penetapan Surat Putusan Sanksi.
   static Future<void> direksiTahap2Aksi({
     required int pengaduanId,
     required String oleh,
     required Keputusan keputusan,
     String? catatan,
+    String? kesimpulanInvestigasi,
   }) async {
     if (keputusan == Keputusan.tolak) {
       await _ubahStatus(
@@ -1100,43 +1133,67 @@ class PengaduanService {
           'alasan_arsip': catatan,
         },
       );
+      return;
+    }
 
-      // Pelapor diberi tahu dengan pesan template otomatis, agar mereka
-      // tahu pengaduannya sudah diproses tuntas meski hasilnya diarsipkan.
+    // Ambil data pengaduan untuk cek kesimpulan jika belum di-pass
+    var kesimpulan = kesimpulanInvestigasi?.toLowerCase();
+    if (kesimpulan == null) {
+      final row = await detail(pengaduanId);
+      kesimpulan = (row?['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
+    }
+
+    if (kesimpulan == 'tidak_terbukti') {
+      // Tidak terbukti -> Diarsipkan dan selesai
+      await _ubahStatus(
+        pengaduanId: pengaduanId,
+        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusBaru: PengaduanStatus.arsip.name,
+        oleh: oleh,
+        role: UserRole.direktur,
+        aksi: 'Menerima hasil investigasi: TIDAK TERBUKTI (Diarsipkan & nama baik terlapor dipulihkan)',
+        catatan: catatan,
+        kolomTambahan: {
+          'keputusan_dirut_tahap2': keputusan.name,
+          'catatan_dirut_tahap2': catatan,
+          'arsip_pada_tahap': 'dirutTahap2',
+          'alasan_arsip': catatan ?? 'Hasil investigasi menyatakan tidak terbukti dan diarsipkan.',
+        },
+      );
+
       final row = await detail(pengaduanId);
       final pelaporId = row?['pelapor_id'] as String?;
       if (pelaporId != null) {
         await NotificationService.kirimKePegawai(
           pegawaiId: pelaporId,
-          judul: 'Pengaduan telah ditindaklanjuti',
-          pesan: 'Terimakasih, pengaduan Anda '
-              '(${row?['nomor_pengaduan']}) sudah kami tindaklanjuti.',
+          judul: 'Pengaduan selesai (Tidak Terbukti)',
+          pesan: 'Pengaduan (${row?['nomor_pengaduan']}) telah selesai ditindaklanjuti dan dinyatakan tidak terbukti.',
           pengaduanId: pengaduanId,
         );
       }
-      return;
+    } else {
+      // Terbukti -> Diteruskan ke SDM
+      await _ubahStatus(
+        pengaduanId: pengaduanId,
+        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusBaru: PengaduanStatus.menungguSdm.name,
+        oleh: oleh,
+        role: UserRole.direktur,
+        aksi: 'Menerima hasil investigasi: TERBUKTI, diteruskan ke SDM untuk surat putusan sanksi',
+        catatan: catatan,
+        kolomTambahan: {
+          'keputusan_dirut_tahap2': keputusan.name,
+          'catatan_dirut_tahap2': catatan,
+        },
+      );
+
+      await NotificationService.kirimKeRole(
+        role: UserRole.sdm,
+        judul: 'Menunggu Surat Putusan Sanksi',
+        pesan: 'Pengaduan terbukti telah disetujui Direktur Utama. Menunggu penetapan sanksi SDM.',
+        pengaduanId: pengaduanId,
+      );
     }
-
-    await _ubahStatus(
-      pengaduanId: pengaduanId,
-      statusLama: PengaduanStatus.menungguDirutTahap2.name,
-      statusBaru: PengaduanStatus.menungguSdm.name,
-      oleh: oleh,
-      role: UserRole.direktur,
-      aksi: 'Menerima hasil investigasi, diteruskan langsung ke SDM',
-      catatan: catatan,
-      kolomTambahan: {
-        'keputusan_dirut_tahap2': keputusan.name,
-        'catatan_dirut_tahap2': catatan,
-      },
-    );
-
-    await NotificationService.kirimKeRole(
-      role: UserRole.sdm,
-      judul: 'Menunggu tindak lanjut administratif',
-      pesan: 'Ada pengaduan yang perlu ditindaklanjuti (penurunan gaji).',
-      pengaduanId: pengaduanId,
-    );
   }
 
   /// DIREKSI (akun Dirut) — tahap 2: minta peninjauan kembali. Hasil
@@ -1336,6 +1393,46 @@ class PengaduanService {
         judul: 'Pengaduan selesai',
         pesan: 'Pengaduan Anda (${row?['nomor_pengaduan']}) telah selesai '
             'ditindaklanjuti.',
+        pengaduanId: pengaduanId,
+      );
+    }
+  }
+
+  /// SDM — Menerbitkan Surat Putusan Sanksi Resmi (Nomor Surat, Jenis Sanksi, Berkas Surat).
+  /// Pengaduan otomatis ditandai Selesai.
+  static Future<void> sdmPutusanSanksi({
+    required int pengaduanId,
+    required String oleh,
+    required String nomorSuratPutusan,
+    required String jenisSanksi,
+    required String fileSuratPutusan,
+    String? catatan,
+  }) async {
+    await _ubahStatus(
+      pengaduanId: pengaduanId,
+      statusLama: PengaduanStatus.menungguSdm.name,
+      statusBaru: PengaduanStatus.selesai.name,
+      oleh: oleh,
+      role: UserRole.sdm,
+      aksi: 'Menerbitkan Surat Putusan Sanksi No. $nomorSuratPutusan ($jenisSanksi)',
+      catatan: catatan,
+      kolomTambahan: {
+        'nomor_surat_putusan': nomorSuratPutusan,
+        'jenis_sanksi': jenisSanksi,
+        'file_surat_putusan': fileSuratPutusan,
+        'tanggal_surat_putusan': DateTime.now().toIso8601String(),
+        'catatan_sdm': catatan,
+      },
+    );
+
+    final row = await detail(pengaduanId);
+    final pelaporId = row?['pelapor_id'] as String?;
+    if (pelaporId != null) {
+      await NotificationService.kirimKePegawai(
+        pegawaiId: pelaporId,
+        judul: 'Surat Putusan Sanksi Diterbitkan ✅',
+        pesan:
+            'Pengaduan Anda (${row?['nomor_pengaduan']}) telah selesai dengan diterbitkannya Surat Putusan No. $nomorSuratPutusan ($jenisSanksi).',
         pengaduanId: pengaduanId,
       );
     }

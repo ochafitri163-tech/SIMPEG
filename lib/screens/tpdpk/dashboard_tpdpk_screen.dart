@@ -188,6 +188,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
     final rekomendasiController =
         TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
+    String kesimpulanInvestigasi = p.kesimpulanInvestigasi ?? 'terbukti';
     // Lampiran hasil investigasi berupa media (foto/video/voice/dokumen),
     // bukan lagi teks bebas. Saat revisi, lampiran sebelumnya (jika ada)
     // dimuat ulang agar eksekutor bisa melengkapi, bukan mulai dari nol.
@@ -216,6 +217,101 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               const SizedBox(height: 14),
             ],
             Text(
+              'Kesimpulan Pemeriksaan *',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setSheetState(() => kesimpulanInvestigasi = 'terbukti'),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: kesimpulanInvestigasi == 'terbukti'
+                            ? const Color(0xFFE74C3C).withOpacity(0.1)
+                            : AppColors.surfaceMuted(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: kesimpulanInvestigasi == 'terbukti'
+                              ? const Color(0xFFE74C3C)
+                              : AppColors.divider(context),
+                          width: kesimpulanInvestigasi == 'terbukti' ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.gavel_rounded,
+                              size: 16,
+                              color: kesimpulanInvestigasi == 'terbukti'
+                                  ? const Color(0xFFE74C3C)
+                                  : AppColors.textSecondary(context)),
+                          const SizedBox(width: 6),
+                          Text('⚖️ Terbukti',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: kesimpulanInvestigasi == 'terbukti'
+                                    ? const Color(0xFFE74C3C)
+                                    : AppColors.textPrimary(context),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setSheetState(() => kesimpulanInvestigasi = 'tidak_terbukti'),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: kesimpulanInvestigasi == 'tidak_terbukti'
+                            ? const Color(0xFF0284C7).withOpacity(0.1)
+                            : AppColors.surfaceMuted(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: kesimpulanInvestigasi == 'tidak_terbukti'
+                              ? const Color(0xFF0284C7)
+                              : AppColors.divider(context),
+                          width: kesimpulanInvestigasi == 'tidak_terbukti' ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.verified_user_rounded,
+                              size: 16,
+                              color: kesimpulanInvestigasi == 'tidak_terbukti'
+                                  ? const Color(0xFF0284C7)
+                                  : AppColors.textSecondary(context)),
+                          const SizedBox(width: 6),
+                          Text('🛡️ Tidak Terbukti',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: kesimpulanInvestigasi == 'tidak_terbukti'
+                                    ? const Color(0xFF0284C7)
+                                    : AppColors.textPrimary(context),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
               'Hasil Investigasi (Foto / Video / Voice Note / Dokumen)',
               style: TextStyle(
                 fontSize: 12.5,
@@ -234,17 +330,53 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               controller: hasilController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Catatan hasil investigasi (opsional)',
+                labelText: 'Catatan temuan investigasi / fakta lapangan',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Surat Rekomendasi *',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary(context),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    setSheetState(() {
+                      if (kesimpulanInvestigasi == 'terbukti') {
+                        rekomendasiController.text =
+                            'Berdasarkan hasil investigasi dan bukti-bukti yang diperoleh di lapangan, terlapor terbukti melakukan pelanggaran sebagaimana diadukan. Direkomendasikan kepada Direktur Utama untuk meneruskan berkas ini kepada Bagian SDM guna penetapan Surat Putusan Sanksi disiplin sesuai peraturan kepegawaian yang berlaku.';
+                      } else {
+                        rekomendasiController.text =
+                            'Berdasarkan hasil investigasi mendalam dan verifikasi bukti-bukti di lapangan, terlapor dinyatakan TIDAK TERBUKTI melakukan pelanggaran yang diadukan. Direkomendasikan kepada Direktur Utama untuk menerima hasil ini, mengarsipkan berkas pengaduan, dan memulihkan nama baik terlapor.';
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.description_outlined, size: 14),
+                  label: const Text('Template',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF0284C7),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: rekomendasiController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Surat rekomendasi',
+                labelText: 'Surat rekomendasi ke Dirut',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -309,6 +441,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           role: UserRole.tpdpk,
           hasil: hasilController.text.trim(),
           rekomendasi: rekomendasiController.text.trim(),
+          kesimpulanInvestigasi: kesimpulanInvestigasi,
           foto: mediaController.foto,
           video: mediaController.video,
           voice: mediaController.voice,

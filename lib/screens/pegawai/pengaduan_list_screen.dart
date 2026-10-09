@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
-import 'pengaduan_detail_screen.dart';
+import '../shared/detail_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 
 /// Dashboard "kotak masuk" pengaduan, dipakai oleh SEMUA role.

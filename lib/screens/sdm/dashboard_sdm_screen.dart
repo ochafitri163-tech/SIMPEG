@@ -698,6 +698,22 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                           fontWeight: FontWeight.w700,
                           color: _accent)),
                 ),
+                if (p.isTerbukti) ...[
+                  Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.withOpacity(0.25)),
+                    ),
+                    child: const Text('⚖️ Terbukti',
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red)),
+                  ),
+                ],
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -54,8 +54,22 @@ class PegawaiOption {
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 
+  /// Label peran khusus untuk eksekutor pengaduan
+  String get badgeLabel {
+    if (nik == '1711161' || name.toLowerCase().contains('dodi sudrajat')) {
+      return 'TPDPK (Dodi Sudrajat)';
+    }
+    if (nik == '1711251') {
+      return 'Kadiv SPI Teknik';
+    }
+    if (nik == '1711571') {
+      return 'Kadiv SPI Admin';
+    }
+    return jabatan;
+  }
+
   /// Ringkasan format "Nama · NIK · Jabatan"
-  String get ringkas => '$name ($jabatan - NIK: $nik)';
+  String get ringkas => '$name ($badgeLabel - NIK: $nik)';
 }
 
 /// Status tugas eksekutor
