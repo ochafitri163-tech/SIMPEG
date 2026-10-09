@@ -1458,96 +1458,11 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           },
         );
       } else if (p.status == PengaduanStatus.menungguDirutTahap2) {
-        panel = _panelTerimaTolak(
-          judul: 'Persetujuan Tahap 2 — Hasil Investigasi Diterima?',
-          onTerima: () => _jalankan(
-            () => PengaduanService.direksiTahap2Aksi(
-              pengaduanId: p.supabaseId!,
-              oleh: oleh,
-              keputusan: Keputusan.terima,
-            ),
-            sukses: 'Hasil investigasi diterima, diteruskan ke SDM.',
-          ),
-          onTolak: () async {
-            final res = await _dialogCatatan(
-              judul: 'Alasan Menolak',
-              wajib: true,
-              labelTombol: 'Tolak & Arsipkan',
-              warnaTombol: red,
-            );
-            if (!res.isConfirmed) return;
-            await _jalankan(
-              () => PengaduanService.direksiTahap2Aksi(
-                pengaduanId: p.supabaseId!,
-                oleh: oleh,
-                keputusan: Keputusan.tolak,
-                catatan: res.text,
-              ),
-              sukses: 'Hasil investigasi ditolak, pengaduan diarsipkan.',
-            );
-          },
-        );
+        panel = _panelDirutTahap2(p, oleh);
       }
     } else if (role == UserRole.sdm) {
       if (p.status == PengaduanStatus.menungguSdm) {
-        panel = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Tindak Lanjut SDM — Terbitkan SK Sanksi'),
-            const SizedBox(height: 6),
-            Text(
-              'SK Sanksi memuat penurunan jabatan/golongan, potongan gaji, '
-              'dan 4 dokumen wajib. Pengaduan otomatis ditandai selesai '
-              'setelah SK diterbitkan.',
-              style: TextStyle(fontSize: 12.5, color: hintGrey, height: 1.45),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _isProcessing ? null : () => _bukaTerbitkanSk(p),
-                icon: const Icon(Icons.description_rounded),
-                label: const Text('Terbitkan SK Sanksi'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-// Opsi lama: selesaikan tanpa SK (hanya catatan penurunan gaji).
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: TextButton.icon(
-                onPressed: _isProcessing
-                    ? null
-                    : () async {
-                        final res = await _dialogCatatan(
-                          judul: 'Catatan Penurunan Gaji',
-                          hint:
-                              'Contoh: gaji diturunkan/dipotong 10% selama 3 bulan.',
-                        );
-                        if (!res.isConfirmed) return;
-                        await _jalankan(
-                          () => PengaduanService.sdmSelesaikan(
-                            pengaduanId: p.supabaseId!,
-                            oleh: oleh,
-                            catatan: res.text,
-                          ),
-                          sukses: 'Penurunan gaji dicatat, pengaduan selesai.',
-                        );
-                      },
-                icon: const Icon(Icons.trending_down_rounded, size: 18),
-                label: const Text('Selesaikan tanpa SK (catatan saja)'),
-                style: TextButton.styleFrom(foregroundColor: hintGrey),
-              ),
-            ),
-          ],
-        );
+        panel = _panelSdmPutusanSanksi(p, oleh);
       }
     }
 
@@ -1556,8 +1471,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         p.status == PengaduanStatus.investigasiBerjalan &&
         (widget.user.nik == '1711161' ||
             widget.user.nik == '1711251' ||
-            widget.user.nik == '1711571' ||
-            p.eksekutorPegawaiId == widget.user.id)) {
+            widget.user.nik == '1711571')) {
       final r = widget.user.nik == '1711161'
           ? UserRole.tpdpk
           : UserRole.kadivKategori;
@@ -1755,19 +1669,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   onPressed: _isProcessing
                       ? null
                       : () async {
-                          final catatan = await _dialogCatatan(
+                          final res = await _dialogCatatan(
                             judul: 'Catatan Peninjauan Kembali (Tinjau Ulang)',
                             wajib: true,
                             labelTombol: 'Kirim ke KSPI',
                             hint:
                                 'Jelaskan poin yang perlu diinvestigasi ulang oleh KSPI/Eksekutor...',
                           );
-                          if (catatan == null) return;
+                          if (!res.isConfirmed) return;
                           await _jalankan(
                             () => PengaduanService.direksiTahap2PeninjauanKembali(
                               pengaduanId: p.supabaseId!,
                               oleh: oleh,
-                              catatan: catatan,
+                              catatan: res.text,
                             ),
                             sukses:
                                 'Dikembalikan ke KSPI untuk investigasi ulang.',
@@ -2064,7 +1978,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                             ],
                             eksekutorCategory: item['category'],
                             divisiKadiv: item['divisi'],
-                            catatan: catatan,
+                            catatan: catatan.text,
                           ),
                           sukses:
                               'Eksekutor ${item['nama']} berhasil ditugaskan.',
@@ -2104,7 +2018,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                         selectedExecutors: [picked],
                         eksekutorCategory: picked.role,
                         divisiKadiv: picked.divisiKadiv,
-                        catatan: catatan,
+                        catatan: catatan.text,
                       ),
                       sukses: 'Eksekutor ${picked.name} berhasil ditugaskan.',
                     );
