@@ -5,6 +5,7 @@ import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -74,50 +75,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   }
 
   /// Dialog input catatan (opsional/wajib) sebelum konfirmasi aksi.
-  Future<String?> _dialogCatatan({
+  Future<CatatanResult> _dialogCatatan({
     required String judul,
     String hint = 'Tambahkan catatan (opsional)...',
     bool wajib = false,
     String labelTombol = 'Konfirmasi',
     Color warnaTombol = accent,
   }) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
+    return showDialogCatatan(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(judul,
-              style:
-                  const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold)),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: hint,
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: warnaTombol),
-              onPressed: () {
-                final text = controller.text.trim();
-                if (wajib && text.isEmpty) return;
-                Navigator.pop(context, text.isEmpty ? null : text);
-              },
-              child: Text(labelTombol,
-                  style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+      judul: judul,
+      hint: hint,
+      wajib: wajib,
+      labelTombol: labelTombol,
+      warnaTombol: warnaTombol,
     );
   }
 
@@ -727,19 +698,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             sukses: 'Pengaduan diterima, diteruskan ke Dirut.',
           ),
           onTolak: () async {
-            final catatan = await _dialogCatatan(
+            final res = await _dialogCatatan(
               judul: 'Alasan Menolak',
               wajib: true,
               labelTombol: 'Tolak & Arsipkan',
               warnaTombol: red,
             );
-            if (catatan == null) return;
+            if (!res.isConfirmed) return;
             await _jalankan(
               () => PengaduanService.kadivAksi(
                 pengaduanId: p.supabaseId!,
                 oleh: oleh,
                 keputusan: Keputusan.tolak,
-                catatan: catatan,
+                catatan: res.text,
               ),
               sukses: 'Pengaduan ditolak & diarsipkan.',
             );
@@ -766,17 +737,18 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       title: 'Pilih Tim Eksekutor Investigasi',
                     );
                     if (selectedList == null || selectedList.isEmpty) return;
-                    final catatan = await _dialogCatatan(
+                    final res = await _dialogCatatan(
                       judul: 'Catatan Penugasan (opsional)',
                       hint: 'Catatan untuk para eksekutor...',
                     );
+                    if (!res.isConfirmed) return;
                     final names = selectedList.map((e) => e.name).join(', ');
                     await _jalankan(
                       () => PengaduanService.reviewDanPilihEksekutor(
                         pengaduanId: p.supabaseId!,
                         oleh: oleh,
                         selectedExecutors: selectedList,
-                        catatan: catatan,
+                        catatan: res.text,
                       ),
                       sukses:
                           'Eksekutor investigasi ditentukan: $names.',
@@ -817,19 +789,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             sukses: 'Disetujui, dikembalikan ke KSPI untuk pilih eksekutor.',
           ),
           onTolak: () async {
-            final catatan = await _dialogCatatan(
+            final res = await _dialogCatatan(
               judul: 'Alasan Menolak',
               wajib: true,
               labelTombol: 'Tolak & Arsipkan',
               warnaTombol: red,
             );
-            if (catatan == null) return;
+            if (!res.isConfirmed) return;
             await _jalankan(
               () => PengaduanService.dirutTahap1Aksi(
                 pengaduanId: p.supabaseId!,
                 oleh: oleh,
                 keputusan: Keputusan.tolak,
-                catatan: catatan,
+                catatan: res.text,
               ),
               sukses: 'Pengaduan ditolak & diarsipkan.',
             );
@@ -848,19 +820,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 'Hasil investigasi diterima, silakan pilih eksekutor tindak lanjut.',
           ),
           onTolak: () async {
-            final catatan = await _dialogCatatan(
+            final res = await _dialogCatatan(
               judul: 'Alasan Menolak',
               wajib: true,
               labelTombol: 'Tolak & Arsipkan',
               warnaTombol: red,
             );
-            if (catatan == null) return;
+            if (!res.isConfirmed) return;
             await _jalankan(
               () => PengaduanService.direksiTahap2Aksi(
                 pengaduanId: p.supabaseId!,
                 oleh: oleh,
                 keputusan: Keputusan.tolak,
-                catatan: catatan,
+                catatan: res.text,
               ),
               sukses: 'Hasil investigasi ditolak, pengaduan diarsipkan.',
             );
@@ -895,14 +867,15 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 onPressed: _isProcessing
                     ? null
                     : () async {
-                        final catatan = await _dialogCatatan(
+                        final res = await _dialogCatatan(
                           judul: 'Catatan Penyelesaian (opsional)',
                         );
+                        if (!res.isConfirmed) return;
                         await _jalankan(
                           () => PengaduanService.sdmSelesaikan(
                             pengaduanId: p.supabaseId!,
                             oleh: oleh,
-                            catatan: catatan,
+                            catatan: res.text,
                           ),
                           sukses: 'Pengaduan dinyatakan selesai.',
                         );
@@ -940,6 +913,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     required String judul,
     required VoidCallback onTerima,
     required VoidCallback onTolak,
+    String? nomorPengaduan,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,7 +926,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               child: SizedBox(
                 height: 48,
                 child: OutlinedButton.icon(
-                  onPressed: _isProcessing ? null : onTolak,
+                  onPressed: _isProcessing
+                      ? null
+                      : () async {
+                          final setuju = await showKonfirmasiDialog(
+                            context: context,
+                            judul: 'Konfirmasi Keputusan Tolak',
+                            pesan:
+                                'Apakah Anda yakin ingin MENOLAK pengaduan ${nomorPengaduan != null ? "No. $nomorPengaduan " : ""}ini?',
+                            labelKonfirmasi: 'Ya, Tolak',
+                            warnaKonfirmasi: red,
+                            iconHeader: Icons.cancel_outlined,
+                          );
+                          if (setuju) onTolak();
+                        },
                   icon: const Icon(Icons.close_rounded, size: 18),
                   label: const Text('Tolak'),
                   style: OutlinedButton.styleFrom(
@@ -969,7 +956,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : onTerima,
+                  onPressed: _isProcessing
+                      ? null
+                      : () async {
+                          final setuju = await showKonfirmasiDialog(
+                            context: context,
+                            judul: 'Konfirmasi Keputusan Terima',
+                            pesan:
+                                'Apakah Anda yakin ingin MENERIMA pengaduan ${nomorPengaduan != null ? "No. $nomorPengaduan " : ""}ini?',
+                            labelKonfirmasi: 'Ya, Terima',
+                            warnaKonfirmasi: green,
+                            iconHeader: Icons.check_circle_outline,
+                          );
+                          if (setuju) onTerima();
+                        },
                   icon: const Icon(Icons.check_rounded, size: 18),
                   label: const Text('Terima'),
                   style: ElevatedButton.styleFrom(
@@ -1078,16 +1078,17 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             onPressed: _isProcessing
                 ? null
                 : () async {
-                    final catatan = await _dialogCatatan(
+                    final res = await _dialogCatatan(
                       judul: 'Catatan Tindak Lanjut',
                       hint: 'Jelaskan tindak lanjut yang sudah dijalankan...',
                     );
+                    if (!res.isConfirmed) return;
                     await _jalankan(
                       () => PengaduanService.selesaikanTindakLanjut(
                         pengaduanId: p.supabaseId!,
                         oleh: oleh,
                         role: role,
-                        catatan: catatan,
+                        catatan: res.text,
                       ),
                       sukses: 'Tindak lanjut selesai, diteruskan ke SDM.',
                     );

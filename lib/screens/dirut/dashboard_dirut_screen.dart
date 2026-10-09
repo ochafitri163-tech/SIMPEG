@@ -10,6 +10,7 @@ import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../services/theme_controller.dart';
 import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
@@ -246,6 +247,17 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     final id = p.supabaseId;
     if (id == null) return;
 
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Keputusan ${keputusan.label}',
+      pesan:
+          'Apakah Anda yakin ingin ${keputusan == Keputusan.terima ? "MENERIMA" : "MENOLAK"} pengaduan No. ${p.nomorPengaduan} ini?',
+      labelKonfirmasi: 'Ya, ${keputusan.label}',
+      warnaKonfirmasi: keputusan == Keputusan.terima ? _green : _red,
+      iconHeader: keputusan == Keputusan.terima ? Icons.check_circle_outline : Icons.cancel_outlined,
+    );
+    if (!setuju) return;
+
     try {
       await PengaduanService.dirutTahap1Aksi(
         pengaduanId: id,
@@ -414,6 +426,17 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           : catatanController.text.trim();
 
       if (pilihan == 'peninjauan') {
+        final setuju = await showKonfirmasiDialog(
+          context: context,
+          judul: 'Konfirmasi Peninjauan Kembali',
+          pesan:
+              'Apakah Anda yakin ingin MENGEMBALIKAN pengaduan No. ${p.nomorPengaduan} ini ke KSPI untuk peninjauan kembali?',
+          labelKonfirmasi: 'Ya, Tinjau Kembali',
+          warnaKonfirmasi: const Color(0xFF8E44AD),
+          iconHeader: Icons.replay_rounded,
+        );
+        if (!setuju) return;
+
         await PengaduanService.direksiTahap2PeninjauanKembali(
           pengaduanId: id,
           oleh: widget.user.name,
@@ -427,6 +450,18 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       } else {
         final keputusan =
             pilihan == 'terima' ? Keputusan.terima : Keputusan.tolak;
+
+        final setuju = await showKonfirmasiDialog(
+          context: context,
+          judul: 'Konfirmasi Keputusan ${keputusan.label}',
+          pesan:
+              'Apakah Anda yakin ingin ${keputusan == Keputusan.terima ? "MENERIMA" : "MENOLAK"} pengaduan No. ${p.nomorPengaduan} ini?',
+          labelKonfirmasi: 'Ya, ${keputusan.label}',
+          warnaKonfirmasi: keputusan == Keputusan.terima ? _green : _red,
+          iconHeader: keputusan == Keputusan.terima ? Icons.check_circle_outline : Icons.cancel_outlined,
+        );
+        if (!setuju) return;
+
         await PengaduanService.direksiTahap2Aksi(
           pengaduanId: id,
           oleh: widget.user.name,
