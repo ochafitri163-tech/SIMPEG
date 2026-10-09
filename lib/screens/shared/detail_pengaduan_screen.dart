@@ -3,9 +3,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/sk_sanksi_service.dart';
+import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../widgets/konfirmasi_dialog.dart';
+import '../../widgets/pegawai_picker_sheet.dart';
 import '../../theme/app_colors.dart';
 import '../sdm/terbitkan_sk_screen.dart';
 
@@ -36,10 +38,44 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   late Future<Pengaduan?> _future;
   bool _isProcessing = false;
 
-  // Dipakai panel investigasi TPDPK.
+  // Dipakai panel investigasi SPI / TPDPK.
+  String _kesimpulanInvestigasi = 'terbukti';
   final MediaLampiranController _investigasiMedia = MediaLampiranController();
   final TextEditingController _hasilController = TextEditingController();
   final TextEditingController _rekomendasiController = TextEditingController();
+
+  // Dipakai panel putusan sanksi SDM.
+  final TextEditingController _nomorSuratController = TextEditingController();
+  final TextEditingController _catatanSdmController = TextEditingController();
+  String _selectedJenisSanksi = 'Teguran Tertulis';
+  final MediaLampiranController _putusanMedia = MediaLampiranController();
+
+  void _isiTemplateRekomendasi(Pengaduan p) {
+    final nomor = p.nomorPengaduan;
+    final terlapor = p.pihakTerlapor ?? 'Pihak Terlapor';
+    final kategori = p.kategori;
+    if (_kesimpulanInvestigasi == 'terbukti') {
+      _rekomendasiController.text =
+          'SURAT REKOMENDASI HASIL INVESTIGASI\n'
+          'Nomor: REK/SPI/${DateTime.now().year}/${nomor.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0')}\n\n'
+          'Berdasarkan hasil investigasi atas $nomor ($kategori) mengenai Sdr/i $terlapor, '
+          'Tim Pemeriksa menyimpulkan bahwa dugaan pelanggaran TERBUKTI secara sah dan meyakinkan.\n\n'
+          'REKOMENDASI:\n'
+          '1. Menjatuhkan sanksi disiplin kepada Sdr/i $terlapor sesuai peraturan perusahaan.\n'
+          '2. Meneruskan berkas perkara ke Bagian SDM untuk penetapan Surat Putusan Sanksi.\n'
+          '3. Melakukan evaluasi berkala di unit kerja terkait.';
+    } else {
+      _rekomendasiController.text =
+          'SURAT REKOMENDASI HASIL INVESTIGASI\n'
+          'Nomor: REK/SPI/${DateTime.now().year}/${nomor.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0')}\n\n'
+          'Berdasarkan hasil investigasi atas $nomor ($kategori) mengenai Sdr/i $terlapor, '
+          'Tim Pemeriksa menyimpulkan bahwa dugaan pelanggaran TIDAK TERBUKTI dan tidak ditemukan bukti yang cukup.\n\n'
+          'REKOMENDASI:\n'
+          '1. Menghentikan proses pemeriksaan dan mengarsipkan pengaduan ini.\n'
+          '2. Merehabilitasi dan memulihkan nama baik Sdr/i $terlapor.\n'
+          '3. Menjaga kerahasiaan proses pengaduan.';
+    }
+  }
 
   @override
   void initState() {
@@ -57,6 +93,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   void dispose() {
     _hasilController.dispose();
     _rekomendasiController.dispose();
+    _nomorSuratController.dispose();
+    _catatanSdmController.dispose();
     super.dispose();
   }
 
@@ -264,6 +302,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     ],
                     _buildLampiranLain(p),
                     _buildHasilInvestigasi(p),
+                    _buildSuratPutusanSdm(p),
                     _buildSectionTitle('Riwayat Status'),
                     const SizedBox(height: 8),
                     _buildTimeline(p),
@@ -683,7 +722,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         p.investigasiVideo.isNotEmpty ||
         p.investigasiVoice.isNotEmpty ||
         p.investigasiDokumen.isNotEmpty;
-    if (!punyaHasil && !punyaMedia) return const SizedBox.shrink();
+    if (!punyaHasil && !punyaMedia && !p.isTerbukti && !p.isTidakTerbukti) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -698,9 +737,78 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (p.isTerbukti || p.isTidakTerbukti) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: p.isTerbukti
+                        ? red.withOpacity(0.08)
+                        : const Color(0xFF0284C7).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: p.isTerbukti
+                          ? red.withOpacity(0.3)
+                          : const Color(0xFF0284C7).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: p.isTerbukti
+                              ? red.withOpacity(0.12)
+                              : const Color(0xFF0284C7).withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          p.isTerbukti
+                              ? Icons.gavel_rounded
+                              : Icons.verified_user_rounded,
+                          size: 20,
+                          color: p.isTerbukti ? red : const Color(0xFF0284C7),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.isTerbukti
+                                  ? 'KESIMPULAN: TERBUKTI'
+                                  : 'KESIMPULAN: TIDAK TERBUKTI',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: p.isTerbukti
+                                    ? red
+                                    : const Color(0xFF0284C7),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              p.isTerbukti
+                                  ? 'Dugaan pelanggaran terbukti sah berdasarkan hasil investigasi & diteruskan ke SDM.'
+                                  : 'Tidak ditemukan bukti yang cukup atas dugaan pelanggaran.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: hintGrey,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (p.hasilInvestigasi != null &&
                   p.hasilInvestigasi!.isNotEmpty) ...[
-                Text('Temuan',
+                Text('Temuan / Fakta Lapangan',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -736,6 +844,154 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               if (p.investigasiDokumen.isNotEmpty)
                 _buildLampiranLinks(
                     'Dokumen', p.investigasiDokumen, Icons.attach_file_rounded),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildSuratPutusanSdm(Pengaduan p) {
+    if (!p.adaPutusanSdm) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Surat Putusan Sanksi SDM'),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF0284C7).withOpacity(0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0284C7).withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.assignment_turned_in_rounded,
+                            size: 16, color: Color(0xFF0284C7)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Keputusan Resmi SDM',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (p.nomorSuratPutusan != null &&
+                  p.nomorSuratPutusan!.isNotEmpty) ...[
+                Text('Nomor Surat Putusan',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: hintGrey)),
+                const SizedBox(height: 3),
+                Text(
+                  p.nomorSuratPutusan!,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: labelDark),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (p.jenisSanksi != null && p.jenisSanksi!.isNotEmpty) ...[
+                Text('Jenis Sanksi yang Dikenakan',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: hintGrey)),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: red.withOpacity(0.2)),
+                  ),
+                  child: Text(
+                    p.jenisSanksi!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: red,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (p.tanggalSuratPutusan != null) ...[
+                Text('Tanggal Penetapan',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: hintGrey)),
+                const SizedBox(height: 3),
+                Text(
+                  formatTanggalJam(p.tanggalSuratPutusan!),
+                  style: TextStyle(fontSize: 12.5, color: labelDark),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (p.catatanSdm != null && p.catatanSdm!.isNotEmpty) ...[
+                Text('Catatan / Diktum SDM',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: hintGrey)),
+                const SizedBox(height: 3),
+                Text(
+                  p.catatanSdm!,
+                  style: TextStyle(fontSize: 12.5, color: labelDark, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (p.fileSuratPutusan != null &&
+                  p.fileSuratPutusan!.isNotEmpty) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _bukaUrl(p.fileSuratPutusan!),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Unduh / Buka Dokumen Putusan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1141,14 +1397,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   Widget _buildActionPanel(Pengaduan p) {
     final role = widget.user.role;
     final oleh = widget.user.name;
-
     Widget? panel;
 
     if (role == UserRole.kadivKategori) {
       if (p.status == PengaduanStatus.menungguKadiv) {
         panel = _panelVerifikasiKadiv(p, oleh);
-      } else if (p.status == PengaduanStatus.investigasiBerjalan &&
-          p.eksekutor == Eksekutor.kadiv) {
+      } else if (p.status == PengaduanStatus.investigasiBerjalan) {
         panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.kadivKategori);
       } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
           p.eksekutorTindakLanjut == Eksekutor.kadiv) {
@@ -1157,6 +1411,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     } else if (role == UserRole.kspi) {
       if (p.status == PengaduanStatus.reviewKspi) {
         panel = _panelTeruskanKeDirut(p, oleh);
+      } else if (p.status == PengaduanStatus.menungguPilihEksekutor) {
+        panel = _panelKspiPilihEksekutor(p, oleh);
+      } else if (p.status == PengaduanStatus.investigasiBerjalan &&
+          (widget.user.nik == '1711161' ||
+              widget.user.name.toLowerCase().contains('dodi'))) {
+        panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.tpdpk);
       } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
           p.eksekutorTindakLanjut == Eksekutor.kspi) {
         panel = _panelSelesaikanTindakLanjut(p, oleh, UserRole.kspi);
@@ -1176,7 +1436,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               oleh: oleh,
               keputusan: Keputusan.terima,
             ),
-            sukses: 'Disetujui, diteruskan ke TPDPK untuk investigasi.',
+            sukses: 'Disetujui, diteruskan ke KSPI untuk penunjukan eksekutor.',
           ),
           onTolak: () async {
             final res = await _dialogCatatan(
@@ -1289,6 +1549,19 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ],
         );
       }
+    }
+
+    // Fail-safe untuk eksekutor resmi investigasi (Nurkhuliyah, Ghani Rashid, Dodi Sudrajat)
+    if (panel == null &&
+        p.status == PengaduanStatus.investigasiBerjalan &&
+        (widget.user.nik == '1711161' ||
+            widget.user.nik == '1711251' ||
+            widget.user.nik == '1711571' ||
+            p.eksekutorPegawaiId == widget.user.id)) {
+      final r = widget.user.nik == '1711161'
+          ? UserRole.tpdpk
+          : UserRole.kadivKategori;
+      panel = _panelKirimHasilInvestigasi(p, oleh, r);
     }
 
     if (panel == null) return const SizedBox.shrink();
@@ -1436,6 +1709,420 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
+  Widget _panelDirutTahap2(Pengaduan p, String oleh) {
+    final isTerbukti = p.isTerbukti;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Persetujuan Direktur Utama (Tahap 2)'),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: (isTerbukti ? red : const Color(0xFF0284C7)).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (isTerbukti ? red : const Color(0xFF0284C7)).withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isTerbukti ? Icons.gavel_rounded : Icons.verified_user_rounded,
+                color: isTerbukti ? red : const Color(0xFF0284C7),
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isTerbukti
+                      ? 'Hasil Investigasi: TERBUKTI.\nBila disetujui, pengaduan akan diteruskan ke Bagian SDM untuk pembuatan Surat Putusan Sanksi resmi.'
+                      : 'Hasil Investigasi: TIDAK TERBUKTI.\nBila disetujui, pengaduan akan langsung diarsipkan dan nama baik terlapor dipulihkan.',
+                  style: TextStyle(fontSize: 12, color: labelDark, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () async {
+                          final catatan = await _dialogCatatan(
+                            judul: 'Catatan Peninjauan Kembali (Tinjau Ulang)',
+                            wajib: true,
+                            labelTombol: 'Kirim ke KSPI',
+                            hint:
+                                'Jelaskan poin yang perlu diinvestigasi ulang oleh KSPI/Eksekutor...',
+                          );
+                          if (catatan == null) return;
+                          await _jalankan(
+                            () => PengaduanService.direksiTahap2PeninjauanKembali(
+                              pengaduanId: p.supabaseId!,
+                              oleh: oleh,
+                              catatan: catatan,
+                            ),
+                            sukses:
+                                'Dikembalikan ke KSPI untuk investigasi ulang.',
+                          );
+                        },
+                  icon: const Icon(Icons.replay_rounded, size: 18),
+                  label: const Text('Tinjau Ulang'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0284C7),
+                    side: const BorderSide(color: Color(0xFF0284C7)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _jalankan(
+                            () => PengaduanService.direksiTahap2Aksi(
+                              pengaduanId: p.supabaseId!,
+                              oleh: oleh,
+                              keputusan: Keputusan.terima,
+                              kesimpulanInvestigasi: p.kesimpulanInvestigasi,
+                            ),
+                            sukses: isTerbukti
+                                ? 'Hasil diterima & diteruskan ke SDM.'
+                                : 'Hasil diterima & pengaduan diarsipkan.',
+                          ),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Terima Hasil'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _panelSdmPutusanSanksi(Pengaduan p, String oleh) {
+    const listJenisSanksi = [
+      'Teguran Lisan',
+      'Teguran Tertulis',
+      'Penundaan Kenaikan Gaji Berkala',
+      'Penurunan Pangkat / Golongan',
+      'Pemotongan Gaji',
+      'Pembebasan Dari Jabatan',
+      'Pemberhentian Dengan Hormat',
+      'Pemberhentian Tidak Dengan Hormat (PHK)',
+      'Sanksi Disiplin Lainnya',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Penerbitan Surat Putusan Sanksi SDM'),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: red.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: red.withOpacity(0.2)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.gavel_rounded, size: 18, color: red),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pengaduan ini telah terbukti bersalah berdasarkan investigasi dan disetujui Direktur Utama. Bagian SDM berwenang menetapkan Surat Putusan Sanksi resmi.',
+                  style:
+                      TextStyle(fontSize: 11.5, color: labelDark, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Nomor Surat Putusan Sanksi *',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _nomorSuratController,
+          decoration: InputDecoration(
+            hintText: 'Contoh: SP/SDM/2026/014',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Jenis Sanksi yang Dikenakan *',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: _selectedJenisSanksi,
+          items: listJenisSanksi
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) setState(() => _selectedJenisSanksi = val);
+          },
+          decoration: InputDecoration(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Catatan / Diktum Putusan (Opsional)',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _catatanSdmController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Uraikan isi sanksi atau dasar pertimbangan putusan...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('Unggah Dokumen Surat Putusan (PDF / Scan)',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 6),
+        MediaLampiranPicker(
+          controller: _putusanMedia,
+          prefix: 'putusan_${p.nomorPengaduan}',
+          includeFoto: true,
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () async {
+                    final nomor = _nomorSuratController.text.trim();
+                    if (nomor.isEmpty) {
+                      _showSnack('Nomor Surat Putusan wajib diisi.', red);
+                      return;
+                    }
+                    final file = _putusanMedia.dokumen.isNotEmpty
+                        ? _putusanMedia.dokumen.first
+                        : (_putusanMedia.foto.isNotEmpty
+                            ? _putusanMedia.foto.first
+                            : '');
+                    await _jalankan(
+                      () => PengaduanService.sdmPutusanSanksi(
+                        pengaduanId: p.supabaseId!,
+                        oleh: oleh,
+                        nomorSuratPutusan: nomor,
+                        jenisSanksi: _selectedJenisSanksi,
+                        fileSuratPutusan: file,
+                        catatan: _catatanSdmController.text.trim().isEmpty
+                            ? null
+                            : _catatanSdmController.text.trim(),
+                      ),
+                      sukses:
+                          'Surat Putusan Sanksi berhasil diterbitkan. Pengaduan selesai.',
+                    );
+                  },
+            icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
+            label: const Text('Tetapkan Sanksi & Selesaikan Pengaduan'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 42,
+          child: OutlinedButton.icon(
+            onPressed: _isProcessing ? null : () => _bukaTerbitkanSk(p),
+            icon: const Icon(Icons.description_outlined, size: 16),
+            label: const Text('Buka Form SK Sanksi Lengkap (Opsi Lanjutan)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0284C7),
+              side: const BorderSide(color: Color(0xFF0284C7)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _panelKspiPilihEksekutor(Pengaduan p, String oleh) {
+    final listOfficial = [
+      {
+        'nik': '1711251',
+        'nama': 'Nurkhuliyah',
+        'jabatan': 'Kepala Divisi SPI (Teknik)',
+        'category': 'kadiv',
+        'divisi': 'Teknik',
+      },
+      {
+        'nik': '1711571',
+        'nama': 'Ghani Rashid',
+        'jabatan': 'Kepala Divisi SPI (Administrasi & Keuangan)',
+        'category': 'kadiv',
+        'divisi': 'Administrasi',
+      },
+      {
+        'nik': '1711161',
+        'nama': 'Dodi Sudrajat',
+        'jabatan': 'TPDPK / Anggota Tim SPI',
+        'category': 'tpdpk',
+        'divisi': null,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Pilih Tim Eksekutor Investigasi'),
+        const SizedBox(height: 6),
+        Text(
+          'Direktur Utama telah menyetujui investigasi. Pilih salah satu eksekutor resmi di bawah atau cari dari daftar pegawai:',
+          style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        for (final item in listOfficial) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: const Color(0xFF0284C7).withOpacity(0.25)),
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFF0284C7).withOpacity(0.12),
+                child: const Icon(Icons.person_rounded,
+                    color: Color(0xFF0284C7), size: 20),
+              ),
+              title: Text(
+                item['nama']!,
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: labelDark),
+              ),
+              subtitle: Text(
+                '${item['jabatan']} • NIK ${item['nik']}',
+                style: TextStyle(fontSize: 11, color: hintGrey),
+              ),
+              trailing: ElevatedButton(
+                onPressed: _isProcessing
+                    ? null
+                    : () async {
+                        final catatan = await _dialogCatatan(
+                          judul: 'Catatan Penugasan Investigasi (Opsional)',
+                          hint: 'Instruksi khusus kepada ${item['nama']}...',
+                        );
+                        await _jalankan(
+                          () => PengaduanService.reviewDanPilihEksekutor(
+                            pengaduanId: p.supabaseId!,
+                            oleh: oleh,
+                            selectedExecutors: [
+                              PegawaiOption(
+                                id: item['nik']!,
+                                name: item['nama']!,
+                                nik: item['nik']!,
+                                jabatan: item['jabatan']!,
+                                unitKerja: 'SPI',
+                                role: item['category']!,
+                                divisiKadiv: item['divisi'],
+                              ),
+                            ],
+                            eksekutorCategory: item['category'],
+                            divisiKadiv: item['divisi'],
+                            catatan: catatan,
+                          ),
+                          sukses:
+                              'Eksekutor ${item['nama']} berhasil ditugaskan.',
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text('Tugaskan', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: _isProcessing
+                ? null
+                : () async {
+                    final picked =
+                        await showPegawaiPickerSheet(context: context);
+                    if (picked == null) return;
+                    final catatan = await _dialogCatatan(
+                      judul: 'Catatan Penugasan Investigasi (Opsional)',
+                      hint: 'Instruksi khusus kepada ${picked.name}...',
+                    );
+                    await _jalankan(
+                      () => PengaduanService.reviewDanPilihEksekutor(
+                        pengaduanId: p.supabaseId!,
+                        oleh: oleh,
+                        selectedExecutors: [picked],
+                        eksekutorCategory: picked.role,
+                        divisiKadiv: picked.divisiKadiv,
+                        catatan: catatan,
+                      ),
+                      sukses: 'Eksekutor ${picked.name} berhasil ditugaskan.',
+                    );
+                  },
+            icon: const Icon(Icons.people_outline_rounded, size: 18),
+            label: const Text('Pilih dari Daftar Pegawai Lainnya'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0284C7),
+              side: const BorderSide(color: Color(0xFF0284C7)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _panelKirimHasilInvestigasi(Pengaduan p, String oleh, UserRole role) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1443,13 +2130,116 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         _buildSectionTitle('Kirim Hasil Investigasi'),
         const SizedBox(height: 6),
         Text(
-          'Isi temuan investigasi & surat rekomendasi (mis. usulan sanksi: '
-          'gaji dipotong), lampirkan bukti bila ada, lalu kirim langsung ke '
-          'Dirut.',
+          'Tentukan kesimpulan pemeriksaan, uraikan temuan fakta lapangan, buat surat rekomendasi, serta lampirkan bukti investigasi. Berkas langsung masuk ke Direktur Utama.',
           style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
         ),
-        const SizedBox(height: 12),
-        Text('Temuan / Hasil Investigasi',
+        const SizedBox(height: 14),
+        Text('Kesimpulan Investigasi *',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _kesimpulanInvestigasi = 'terbukti';
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: _kesimpulanInvestigasi == 'terbukti'
+                        ? red.withOpacity(0.08)
+                        : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _kesimpulanInvestigasi == 'terbukti'
+                          ? red
+                          : AppColors.divider(context),
+                      width: _kesimpulanInvestigasi == 'terbukti' ? 1.8 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.gavel_rounded,
+                          size: 18,
+                          color: _kesimpulanInvestigasi == 'terbukti'
+                              ? red
+                              : hintGrey),
+                      const SizedBox(width: 6),
+                      Text(
+                        '⚖️ Terbukti',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _kesimpulanInvestigasi == 'terbukti'
+                              ? red
+                              : labelDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _kesimpulanInvestigasi = 'tidak_terbukti';
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: _kesimpulanInvestigasi == 'tidak_terbukti'
+                        ? const Color(0xFF0284C7).withOpacity(0.08)
+                        : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _kesimpulanInvestigasi == 'tidak_terbukti'
+                          ? const Color(0xFF0284C7)
+                          : AppColors.divider(context),
+                      width:
+                          _kesimpulanInvestigasi == 'tidak_terbukti' ? 1.8 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_user_rounded,
+                          size: 18,
+                          color: _kesimpulanInvestigasi == 'tidak_terbukti'
+                              ? const Color(0xFF0284C7)
+                              : hintGrey),
+                      const SizedBox(width: 6),
+                      Text(
+                        '🛡️ Tidak Terbukti',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _kesimpulanInvestigasi == 'tidak_terbukti'
+                              ? const Color(0xFF0284C7)
+                              : labelDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text('Temuan / Fakta Investigasi *',
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
         const SizedBox(height: 6),
@@ -1457,25 +2247,46 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           controller: _hasilController,
           maxLines: 3,
           decoration: InputDecoration(
-            hintText: 'Uraikan hasil investigasi...',
+            hintText: 'Uraikan hasil investigasi dan temuan fakta di lapangan...',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
-        const SizedBox(height: 12),
-        Text('Surat Rekomendasi',
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Surat Rekomendasi *',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: labelDark)),
+            TextButton.icon(
+              onPressed: () => setState(() => _isiTemplateRekomendasi(p)),
+              icon: const Icon(Icons.description_outlined, size: 15),
+              label: const Text('Gunakan Template',
+                  style:
+                      TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF0284C7),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _rekomendasiController,
-          maxLines: 3,
+          maxLines: 4,
           decoration: InputDecoration(
-            hintText: 'Contoh: gaji dipotong 10% selama 3 bulan.',
+            hintText:
+                'Ketik surat rekomendasi atau gunakan tombol template di atas...',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
-        const SizedBox(height: 12),
-        Text('Lampiran (Foto, Video, Voice Note, Dokumen)',
+        const SizedBox(height: 14),
+        Text('Unggah Bukti (Foto, Video, Voice Note, Dokumen BAP)',
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
         const SizedBox(height: 6),
@@ -1483,7 +2294,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           controller: _investigasiMedia,
           prefix: 'inv_${p.nomorPengaduan}',
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           height: 48,
@@ -1506,18 +2317,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                         role: role,
                         hasil: hasil,
                         rekomendasi: rekomendasi,
+                        kesimpulanInvestigasi: _kesimpulanInvestigasi,
                         foto: _investigasiMedia.foto,
                         video: _investigasiMedia.video,
                         voice: _investigasiMedia.voice,
                         dokumen: _investigasiMedia.dokumen,
                       ),
-                      sukses: 'Hasil investigasi dikirim ke Dirut.',
+                      sukses:
+                          'Hasil investigasi dikirim langsung ke Direktur Utama.',
                     );
                   },
             icon: const Icon(Icons.send_rounded, size: 18),
-            label: const Text('Kirim Hasil Investigasi'),
+            label: const Text('Kirim Hasil Investigasi ke Dirut'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: accent,
+              backgroundColor: const Color(0xFF0284C7),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),

@@ -283,12 +283,11 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
 
   // ---------- Approval Tahap 2: hasil investigasi diterima? ----------
   Future<void> _bukaKeputusanTahap2(Pengaduan p) async {
-    // Tiga pilihan keputusan khusus tahap 2: Terima (lanjut SDM), Tolak
-    // (arsip, pelapor diberi notifikasi otomatis), atau Peninjauan
-    // Kembali (dikembalikan ke KSPI, alurnya sama seperti siklus
-    // investigasi pertama: KSPI pilih eksekutor lagi).
+    // Dua pilihan keputusan tahap 2: Terima (lanjut SDM jika terbukti / arsip jika tidak terbukti)
+    // atau Tinjau Ulang (dikembalikan ke KSPI untuk investigasi ulang).
     String pilihan = 'terima';
     final catatanController = TextEditingController();
+    final isTerbukti = p.isTerbukti;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -297,28 +296,69 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            const Text('Persetujuan Tahap 2',
+            const Text('Persetujuan Tahap 2 (Direktur Utama)',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text('Apakah hasil investigasi ini diterima?',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))),
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
+            const SizedBox(height: 12),
+            // Banner Kesimpulan
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: (isTerbukti ? _red : _accent).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: (isTerbukti ? _red : _accent).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isTerbukti ? Icons.gavel_rounded : Icons.verified_user_rounded,
+                    color: isTerbukti ? _red : _accent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isTerbukti
+                          ? 'Hasil Investigasi: TERBUKTI.\nJika diterima, diteruskan ke SDM untuk surat putusan sanksi.'
+                          : 'Hasil Investigasi: TIDAK TERBUKTI.\nJika diterima, otomatis diarsipkan & nama baik dipulihkan.',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textPrimary(context),
+                          height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 14),
             _infoBlok('Hasil Investigasi', p.hasilInvestigasi ?? '-'),
             _infoBlok('Surat Rekomendasi', p.suratRekomendasi ?? '-'),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: ChoiceChip(
-                    label: Text('Terima',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: pilihan == 'terima'
-                                ? Colors.white
-                                : AppColors.textPrimary(context))),
+                    label: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_rounded, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          isTerbukti ? 'Terima & SDM' : 'Terima & Arsip',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: pilihan == 'terima'
+                                  ? Colors.white
+                                  : AppColors.textPrimary(context)),
+                        ),
+                      ],
+                    ),
                     selected: pilihan == 'terima',
                     selectedColor: _green,
                     onSelected: (_) => setSheetState(() => pilihan = 'terima'),
@@ -327,63 +367,45 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ChoiceChip(
-                    label: Text('Tolak',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: pilihan == 'tolak'
-                                ? Colors.white
-                                : AppColors.textPrimary(context))),
-                    selected: pilihan == 'tolak',
-                    selectedColor: _red,
-                    onSelected: (_) => setSheetState(() => pilihan = 'tolak'),
+                    label: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.replay_rounded, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tinjau Ulang',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: pilihan == 'peninjauan'
+                                  ? Colors.white
+                                  : AppColors.textPrimary(context)),
+                        ),
+                      ],
+                    ),
+                    selected: pilihan == 'peninjauan',
+                    selectedColor: _accent,
+                    onSelected: (_) => setSheetState(() => pilihan = 'peninjauan'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            ChoiceChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.replay_rounded,
-                      size: 15,
-                      color: pilihan == 'peninjauan'
-                          ? Colors.white
-                          : const Color(0xFF8E44AD)),
-                  const SizedBox(width: 6),
-                  Text('Peninjauan Kembali',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: pilihan == 'peninjauan'
-                              ? Colors.white
-                              : AppColors.textPrimary(context))),
-                ],
-              ),
-              selected: pilihan == 'peninjauan',
-              selectedColor: const Color(0xFF8E44AD),
-              onSelected: (_) => setSheetState(() => pilihan = 'peninjauan'),
-            ),
             if (pilihan == 'peninjauan') ...[
               const SizedBox(height: 8),
               Text(
-                'Pengaduan akan dikembalikan ke KSPI untuk memilih '
-                'eksekutor investigasi ulang.',
+                'Pengaduan akan dikembalikan ke KSPI untuk menugaskan tim eksekutor investigasi ulang.',
                 style: TextStyle(
                     fontSize: 11.5, color: AppColors.textSecondary(context)),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             TextField(
               controller: catatanController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: pilihan == 'tolak'
-                    ? 'Alasan penolakan (wajib)'
-                    : pilihan == 'peninjauan'
-                        ? 'Catatan peninjauan kembali (opsional)'
-                        : 'Catatan (opsional)',
+                labelText: pilihan == 'peninjauan'
+                    ? 'Catatan arahan tinjau ulang untuk KSPI (wajib)'
+                    : 'Catatan arahan Dirut (opsional)',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -393,9 +415,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  if (pilihan == 'tolak' &&
+                  if (pilihan == 'peninjauan' &&
                       catatanController.text.trim().isEmpty) {
-                    _showSnack('Alasan penolakan wajib diisi.', _red);
+                    _showSnack('Catatan arahan tinjau ulang wajib diisi.', _red);
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -444,8 +466,8 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
         );
         if (!mounted) return;
         _showSnack(
-          '${p.nomorPengaduan} dikembalikan ke KSPI untuk peninjauan kembali.',
-          const Color(0xFF8E44AD),
+          '${p.nomorPengaduan} dikembalikan ke KSPI untuk investigasi ulang.',
+          _accent,
         );
       } else {
         final keputusan =
@@ -461,20 +483,20 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           iconHeader: keputusan == Keputusan.terima ? Icons.check_circle_outline : Icons.cancel_outlined,
         );
         if (!setuju) return;
-
         await PengaduanService.direksiTahap2Aksi(
           pengaduanId: id,
           oleh: widget.user.name,
-          keputusan: keputusan,
+          keputusan: Keputusan.terima,
           catatan: catatan,
+          kesimpulanInvestigasi: p.kesimpulanInvestigasi,
         );
 
         if (!mounted) return;
         _showSnack(
-          keputusan == Keputusan.terima
+          isTerbukti
               ? '${p.nomorPengaduan} diterima & diteruskan ke SDM.'
-              : '${p.nomorPengaduan} ditolak & diarsipkan.',
-          keputusan == Keputusan.terima ? _green : _red,
+              : '${p.nomorPengaduan} diterima & diarsipkan (nama baik dipulihkan).',
+          _green,
         );
       }
 
