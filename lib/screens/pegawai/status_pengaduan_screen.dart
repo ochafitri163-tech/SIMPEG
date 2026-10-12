@@ -11,7 +11,6 @@ import '../kadiv/dashboard_kadiv_screen.dart';
 import '../kspi/dashboard_kspi_screen.dart';
 import '../tpdpk/dashboard_tpdpk_screen.dart';
 import '../sdm/dashboard_sdm_screen.dart';
-import 'tugas_saya_screen.dart';
 import '../../theme/app_colors.dart';
 
 class StatusPengaduanScreen extends StatefulWidget {
@@ -66,10 +65,16 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
         if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
           return DashboardTpdpkScreen(user: user, showBackButton: true);
         }
-        if (user.nik == '1711251' || user.nik == '1711571') {
+        if (user.nik == '1711251' || user.nik == '1711571' ||
+            user.name.toLowerCase().contains('ghani') ||
+            user.name.toLowerCase().contains('nurkhuliyah') ||
+            user.name.toLowerCase().contains('nukhuliyah')) {
           return DashboardKadivScreen(user: user, showBackButton: true);
         }
-        return DashboardKspiScreen(user: user, showBackButton: true);
+        if (user.name.toLowerCase().contains('hedy')) {
+          return DashboardSdmScreen(user: user, showBackButton: true);
+        }
+        return StatusPengaduanScreen(user: user, showBackButton: true);
     }
   }
 
@@ -913,6 +918,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 ),
               ),
               if (_isAuthorizedUser(widget.user)) ...[
+                const SizedBox(width: 8),
                 actionButton(
                   icon: Icons.fact_check_rounded,
                   tooltip: 'Tugas',
@@ -923,7 +929,6 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
               ],
               const SizedBox(width: 8),
               actionButton(

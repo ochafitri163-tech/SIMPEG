@@ -23,7 +23,6 @@ import 'profile_detail_screen.dart';
 import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
-import 'tugas_saya_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -135,7 +134,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         if (user.name.toLowerCase().contains('hedy')) {
           return DashboardSdmScreen(user: user, showBackButton: true);
         }
-        return DashboardKspiScreen(user: user, showBackButton: true);
+        return StatusPengaduanScreen(user: user, showBackButton: true);
     }
   }
 

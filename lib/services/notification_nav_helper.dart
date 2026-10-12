@@ -10,7 +10,8 @@ import '../screens/pegawai/payroll_screen.dart';
 import '../screens/pegawai/pengajuan_cuti_screen.dart';
 import '../screens/pegawai/status_pengaduan_screen.dart';
 import '../screens/pegawai/thr_screen.dart';
-import '../screens/pegawai/tugas_saya_screen.dart';
+import '../screens/kadiv/dashboard_kadiv_screen.dart';
+import '../screens/tpdpk/dashboard_tpdpk_screen.dart';
 import '../screens/shared/detail_pengaduan_screen.dart';
 import '../screens/shared/pengumuman_list_screen.dart';
 import '../screens/shared/persetujuan_cuti_screen.dart';
@@ -262,7 +263,7 @@ class NotificationNavHelper {
     }
   }
 
-  /// Navigasi ke Tugas Saya untuk Eksekutor
+  /// Navigasi ke Tugas Saya untuk Eksekutor (Kadiv SPI & TPDPK)
   static Future<void> openTugasSaya() async {
     await Future.delayed(const Duration(milliseconds: 300));
     final navState = navigatorKey.currentState;
@@ -270,7 +271,13 @@ class NotificationNavHelper {
 
     final user = await _getActiveUser();
     if (user != null) {
-      navState.push(MaterialPageRoute(builder: (_) => TugasSayaScreen(user: user)));
+      if (user.role == UserRole.kadivKategori) {
+        navState.push(MaterialPageRoute(builder: (_) => DashboardKadivScreen(user: user, showBackButton: true)));
+      } else if (user.role == UserRole.tpdpk) {
+        navState.push(MaterialPageRoute(builder: (_) => DashboardTpdpkScreen(user: user, showBackButton: true)));
+      } else {
+        navState.push(MaterialPageRoute(builder: (_) => StatusPengaduanScreen(user: user)));
+      }
     }
   }
 }
