@@ -210,7 +210,7 @@ class TaskService {
       // Kirim notifikasi ke KSPI bahwa hasil investigasi sudah dikirim
       await NotificationService.kirimKeRole(
         role: UserRole.kspi,
-        judul: 'Hasil Investigasi Selesai 🚀',
+        judul: 'Hasil Investigasi Selesai',
         pesan: 'Tugas investigasi telah diselesaikan oleh ${user.name}. Silakan review hasilnya.',
         pengaduanId: pengaduanId,
       );

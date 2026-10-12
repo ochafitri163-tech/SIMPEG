@@ -147,7 +147,7 @@ class CutiService {
       try {
         await notif.NotificationService.kirimKeRole(
           role: r,
-          judul: '📝 Pengajuan ${jenis.label} Baru',
+          judul: 'Pengajuan ${jenis.label} Baru',
           pesan: '$namaPegawai mengajukan ${jenis.label.toLowerCase()} '
               '(${_tgl(mulai)} s/d ${_tgl(selesai)}).',
         );
@@ -206,8 +206,8 @@ class CutiService {
       await notif.NotificationService.kirimKePegawai(
         pegawaiId: pengajuan.pegawaiId,
         judul: keputusan == StatusCuti.disetujui
-            ? '✅ ${pengajuan.jenis.label} Disetujui'
-            : '❌ ${pengajuan.jenis.label} Ditolak',
+            ? '${pengajuan.jenis.label} Disetujui'
+            : '${pengajuan.jenis.label} Ditolak',
         pesan: 'Pengajuan ${pengajuan.jenis.label.toLowerCase()} Anda '
             '(${_tgl(pengajuan.tanggalMulai)} s/d ${_tgl(pengajuan.tanggalSelesai)}) '
             '${keputusan.label.toLowerCase()} oleh $namaApprover.',

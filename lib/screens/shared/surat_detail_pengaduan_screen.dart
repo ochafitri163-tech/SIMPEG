@@ -161,6 +161,43 @@ class _SuratDetailPengaduanScreenState
     return url;
   }
 
+  /// Membersihkan teks dari karakter Unicode yang tidak didukung oleh font
+  /// Helvetica bawaan paket PDF (seperti bullet •, middle dot ·, dash khusus,
+  /// smart quotes, dan simbol non-ASCII/Latin-1 lainnya) agar TIDAK muncul
+  /// kotak silang/tofu (missing glyph).
+  String _sanitizePdfText(String? input, {String defaultValue = ''}) {
+    if (input == null || input.trim().isEmpty) return defaultValue;
+    final sanitized = input
+        .replaceAll('•', '-')
+        .replaceAll('·', '-')
+        .replaceAll('●', '-')
+        .replaceAll('○', '-')
+        .replaceAll('■', '-')
+        .replaceAll('–', '-') // en-dash
+        .replaceAll('—', '-') // em-dash
+        .replaceAll('“', '"') // left double quote
+        .replaceAll('”', '"') // right double quote
+        .replaceAll('„', '"')
+        .replaceAll('«', '"')
+        .replaceAll('»', '"')
+        .replaceAll('‘', "'") // left single quote
+        .replaceAll('’', "'") // right single quote
+        .replaceAll('‚', "'")
+        .replaceAll('`', "'")
+        .replaceAll('…', '...')
+        .replaceAll('\u00A0', ' ') // non-breaking space
+        .replaceAll('\u200B', '') // zero-width space
+        .replaceAll('✓', '[V]')
+        .replaceAll('✔', '[V]')
+        .replaceAll('✗', '[X]')
+        .replaceAll('✘', '[X]')
+        .replaceAll('★', '*')
+        .replaceAll('☆', '*')
+        .replaceAll(RegExp(r'[^\x00-\x7F\u00A0-\u00FF]'), ' ')
+        .trim();
+    return sanitized.isEmpty ? defaultValue : sanitized;
+  }
+
   List<_LampiranItem> _kumpulkanLampiran(Pengaduan p) {
     final list = <_LampiranItem>[];
     int counter = 1;
@@ -341,7 +378,7 @@ class _SuratDetailPengaduanScreenState
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    'Nomor: ${p.nomorPengaduan}',
+                    'Nomor: ${_sanitizePdfText(p.nomorPengaduan)}',
                     style: const pw.TextStyle(fontSize: 10, color: pdfGrey),
                   ),
                 ],
@@ -422,16 +459,22 @@ class _SuratDetailPengaduanScreenState
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('Nama: ${p.namaPegawai}',
-                              style: const pw.TextStyle(fontSize: 9)),
-                          pw.Text('NIK: ${p.nik}',
-                              style: const pw.TextStyle(fontSize: 9)),
                           pw.Text(
-                              'Golongan: ${p.golongan.isNotEmpty ? p.golongan : "-"}',
-                              style: const pw.TextStyle(fontSize: 9)),
+                            'Nama: ${_sanitizePdfText(p.namaPegawai)}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
                           pw.Text(
-                              'Divisi/Unit: ${p.cabang.isNotEmpty ? p.cabang : "-"}',
-                              style: const pw.TextStyle(fontSize: 9)),
+                            'NIK: ${_sanitizePdfText(p.nik)}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                          pw.Text(
+                            'Golongan: ${_sanitizePdfText(p.golongan, defaultValue: "-")}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                          pw.Text(
+                            'Divisi/Unit: ${_sanitizePdfText(p.cabang, defaultValue: "-")}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
                         ],
                       ),
                     ),
@@ -440,12 +483,18 @@ class _SuratDetailPengaduanScreenState
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('Nama: ${p.pihakTerlapor ?? "-"}',
-                              style: const pw.TextStyle(fontSize: 9)),
-                          pw.Text('NIK: ${p.nikPelaku ?? "-"}',
-                              style: const pw.TextStyle(fontSize: 9)),
-                          pw.Text('Jabatan: ${p.jabatanPelaku ?? "-"}',
-                              style: const pw.TextStyle(fontSize: 9)),
+                          pw.Text(
+                            'Nama: ${_sanitizePdfText(p.pihakTerlapor, defaultValue: "-")}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                          pw.Text(
+                            'NIK: ${_sanitizePdfText(p.nikPelaku, defaultValue: "-")}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
+                          pw.Text(
+                            'Jabatan: ${_sanitizePdfText(p.jabatanPelaku, defaultValue: "-")}',
+                            style: const pw.TextStyle(fontSize: 9),
+                          ),
                         ],
                       ),
                     ),
@@ -476,7 +525,7 @@ class _SuratDetailPengaduanScreenState
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    p.judul,
+                    _sanitizePdfText(p.judul),
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
@@ -485,7 +534,7 @@ class _SuratDetailPengaduanScreenState
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    p.deskripsi,
+                    _sanitizePdfText(p.deskripsi),
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                 ],
@@ -528,12 +577,20 @@ class _SuratDetailPengaduanScreenState
                   ...p.riwayatStatus.map((h) {
                     final petugas =
                         '${h.oleh}${h.role != null ? " (${h.role!.label})" : ""}';
+                    final bool isPelakuAuto = h.keterangan != null &&
+                        h.keterangan!.trim().startsWith('Pelaku diadukan:');
+                    final ket = isPelakuAuto
+                        ? '-'
+                        : (h.keterangan != null &&
+                                h.keterangan!.trim().isNotEmpty
+                            ? h.keterangan!
+                            : '-');
                     return pw.TableRow(
                       children: [
                         _pdfSelTabel(formatTanggalJam(h.tanggal)),
                         _pdfSelTabel(h.aksi),
                         _pdfSelTabel(petugas),
-                        _pdfSelTabel(h.keterangan ?? '-'),
+                        _pdfSelTabel(ket),
                       ],
                     );
                   }),
@@ -580,7 +637,7 @@ class _SuratDetailPengaduanScreenState
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Lampiran #${item.nomor}: ${item.label}',
+                        _sanitizePdfText('Lampiran #${item.nomor}: ${item.label}'),
                         style: pw.TextStyle(
                           fontSize: 9.5,
                           fontWeight: pw.FontWeight.bold,
@@ -589,7 +646,7 @@ class _SuratDetailPengaduanScreenState
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        'Folder: ${item.folderLabel} | Berkas: ${item.fileName}',
+                        _sanitizePdfText('Folder: ${item.folderLabel} | Berkas: ${item.fileName}'),
                         style: const pw.TextStyle(fontSize: 8.5, color: pdfGrey),
                       ),
                       pw.SizedBox(height: 6),
@@ -608,7 +665,7 @@ class _SuratDetailPengaduanScreenState
                             alignment: pw.Alignment.center,
                             color: pdfLightBg,
                             child: pw.Text(
-                              'Gambar gagal dimuat: ${item.fileName}',
+                              _sanitizePdfText('Gambar gagal dimuat: ${item.fileName}'),
                               style: const pw.TextStyle(
                                 fontSize: 8.5,
                                 color: pdfGrey,
@@ -623,7 +680,7 @@ class _SuratDetailPengaduanScreenState
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
                               pw.Text(
-                                'Berkas (${item.jenis.name.toUpperCase()}): ${item.fileName}',
+                                _sanitizePdfText('Berkas (${item.jenis.name.toUpperCase()}): ${item.fileName}'),
                                 style: pw.TextStyle(
                                   fontSize: 8.5,
                                   fontWeight: pw.FontWeight.bold,
@@ -632,7 +689,7 @@ class _SuratDetailPengaduanScreenState
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
-                                'Tautan: ${item.url}',
+                                _sanitizePdfText('Tautan: ${item.url}'),
                                 style: const pw.TextStyle(
                                   fontSize: 8,
                                   color: pdfGrey,
@@ -661,7 +718,7 @@ class _SuratDetailPengaduanScreenState
           pw.SizedBox(
             width: 120,
             child: pw.Text(
-              label,
+              _sanitizePdfText(label),
               style: const pw.TextStyle(
                 fontSize: 9,
                 color: PdfColor.fromInt(0xFF64748B),
@@ -671,7 +728,7 @@ class _SuratDetailPengaduanScreenState
           pw.Text(': ', style: const pw.TextStyle(fontSize: 9)),
           pw.Expanded(
             child: pw.Text(
-              value,
+              _sanitizePdfText(value),
               style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
             ),
           ),
@@ -684,7 +741,7 @@ class _SuratDetailPengaduanScreenState
     return pw.Padding(
       padding: const pw.EdgeInsets.all(5),
       child: pw.Text(
-        text,
+        _sanitizePdfText(text),
         style: pw.TextStyle(
           fontSize: 8.5,
           fontWeight: pw.FontWeight.bold,
@@ -697,7 +754,7 @@ class _SuratDetailPengaduanScreenState
   pw.Widget _pdfSelTabel(String text) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(text, style: const pw.TextStyle(fontSize: 8)),
+      child: pw.Text(_sanitizePdfText(text), style: const pw.TextStyle(fontSize: 8)),
     );
   }
 
@@ -1065,7 +1122,7 @@ class _SuratDetailPengaduanScreenState
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              h.aksi,
+                              _sanitizePdfText(h.aksi),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1073,14 +1130,43 @@ class _SuratDetailPengaduanScreenState
                               ),
                             ),
                             if (h.keterangan != null &&
-                                h.keterangan!.trim().isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                'Catatan: ${h.keterangan}',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontStyle: FontStyle.italic,
-                                  color: AppColors.textSecondary(context),
+                                h.keterangan!.trim().isNotEmpty &&
+                                !h.keterangan!.trim().startsWith('Pelaku diadukan:')) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.card(context),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: AppColors.divider(context),
+                                    width: 0.7,
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.comment_outlined,
+                                      size: 13,
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Catatan: ${_sanitizePdfText(h.keterangan)}',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontStyle: FontStyle.italic,
+                                          color: AppColors.textSecondary(context),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

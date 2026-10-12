@@ -3,13 +3,15 @@ import '../models/task_model.dart';
 import '../models/pengaduan_service.dart';
 import '../theme/app_colors.dart';
 
-/// Modal Bottom Sheet modern untuk memilih eksekutor (pegawai) oleh KSPI.
+/// Modal Bottom Sheet modern untuk memilih eksekutor investigasi oleh KSPI.
 ///
 /// Fitur:
 /// - Memilih 1 (single) atau lebih dari 1 (multi-select) eksekutor pegawai.
-/// - Pencarian real-time berdasarkan Nama, NIK, Jabatan, & Divisi.
-/// - Filter cepat role (Semua / Kadiv / TPDPK / Pegawai).
-/// - Setiap item menampilkan Nama lengkap, Jabatan/Divisi, & NIK.
+/// - Eksekutor investigasi resmi hanya 3 orang:
+///   1. Kadiv SPI Administrasi: Ghani Rashid (NIK: 1711571)
+///   2. Kadiv SPI Teknik: Nurkhuliyah (NIK: 1711251)
+///   3. TPDPK: Dodi Sudrajat (NIK: 1711161)
+/// - Tab filter: Kadiv SPI & TPDPK.
 
 /// Picker single pegawai
 Future<PegawaiOption?> showPegawaiPickerSheet({
@@ -51,6 +53,74 @@ Future<List<PegawaiOption>?> showPegawaiMultiPickerSheet({
   );
 }
 
+/// Helper untuk memastikan hanya 3 eksekutor investigasi resmi yang tampil:
+/// - Kadiv Administrasi Ghani (NIK: 1711571)
+/// - Kadiv Teknik Nukhuliyah (NIK: 1711251)
+/// - TPDPK Dodi Sudrajat (NIK: 1711161)
+List<PegawaiOption> _getOfficialExecutors(List<PegawaiOption> allPegawai) {
+  // 1. Kadiv Administrasi Ghani
+  PegawaiOption ghani = allPegawai.firstWhere(
+    (p) =>
+        p.nik == '1711571' ||
+        p.name.toLowerCase().contains('ghani'),
+    orElse: () => const PegawaiOption(
+      id: '1711571',
+      nik: '1711571',
+      name: 'Ghani Rashid',
+      jabatan: 'Kepala Divisi SPI (Administrasi & Keuangan)',
+      unitKerja: 'Kantor Pusat',
+      role: 'kadiv',
+      divisiKadiv: 'Administrasi',
+    ),
+  );
+  ghani = ghani.copyWith(
+    role: 'kadiv',
+    divisiKadiv: ghani.divisiKadiv ?? 'Administrasi',
+  );
+
+  // 2. Kadiv Teknik Nukhuliyah
+  PegawaiOption nukhuliyah = allPegawai.firstWhere(
+    (p) =>
+        p.nik == '1711251' ||
+        p.name.toLowerCase().contains('nurkhuliyah') ||
+        p.name.toLowerCase().contains('nukhuliyah'),
+    orElse: () => const PegawaiOption(
+      id: '1711251',
+      nik: '1711251',
+      name: 'Nurkhuliyah',
+      jabatan: 'Kepala Divisi SPI (Teknik)',
+      unitKerja: 'Kantor Pusat',
+      role: 'kadiv',
+      divisiKadiv: 'Teknik',
+    ),
+  );
+  nukhuliyah = nukhuliyah.copyWith(
+    role: 'kadiv',
+    divisiKadiv: nukhuliyah.divisiKadiv ?? 'Teknik',
+  );
+
+  // 3. TPDPK Dodi Sudrajat
+  PegawaiOption dodi = allPegawai.firstWhere(
+    (p) =>
+        p.nik == '1711161' ||
+        p.name.toLowerCase().contains('dodi sudrajat'),
+    orElse: () => const PegawaiOption(
+      id: '1711161',
+      nik: '1711161',
+      name: 'Dodi Sudrajat',
+      jabatan: 'TPDPK / Anggota Tim SPI',
+      unitKerja: 'Kantor Pusat',
+      role: 'tpdpk',
+      divisiKadiv: null,
+    ),
+  );
+  dodi = dodi.copyWith(
+    role: 'tpdpk',
+  );
+
+  return [ghani, nukhuliyah, dodi];
+}
+
 class _PegawaiPickerContent extends StatefulWidget {
   final PegawaiOption? selectedPegawai;
   final String title;
@@ -72,7 +142,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
   late Future<List<PegawaiOption>> _futurePegawai;
 
   String _searchQuery = '';
-  String _roleFilter = 'EKSEKUTOR'; // 'EKSEKUTOR', 'TPDPK', 'KADIV', 'ALL', 'PEGAWAI'
+  String _roleFilter = 'KADIV'; // 'KADIV', 'TPDPK'
 
   @override
   void initState() {
@@ -87,39 +157,35 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
   }
 
   List<PegawaiOption> _applyFilter(List<PegawaiOption> list) {
-    return list.where((p) {
-      // 1. Query filter (nama, nik, jabatan, unit kerja)
-      final q = _searchQuery.trim().toLowerCase();
-      final matchQuery = q.isEmpty ||
-          p.name.toLowerCase().contains(q) ||
-          p.nik.toLowerCase().contains(q) ||
-          p.jabatan.toLowerCase().contains(q) ||
-          p.unitKerja.toLowerCase().contains(q);
+    final eksekutors = _getOfficialExecutors(list);
 
-      // 2. Role filter
-      bool matchRole = true;
-      if (_roleFilter == 'EKSEKUTOR') {
-        matchRole = p.nik == '1711161' ||
+    return eksekutors.where((p) {
+      // 1. Role filter (hanya Kadiv SPI dan TPDPK)
+      if (_roleFilter == 'KADIV') {
+        final isKadiv = p.nik == '1711571' ||
             p.nik == '1711251' ||
-            p.nik == '1711571' ||
-            p.name.toLowerCase().contains('dodi sudrajat') ||
-            (p.role ?? '').toLowerCase().contains('kadiv');
-      } else if (_roleFilter == 'KADIV') {
-        matchRole = (p.role ?? '').toLowerCase().contains('kadiv') ||
-            p.nik == '1711251' ||
-            p.nik == '1711571';
+            p.name.toLowerCase().contains('ghani') ||
+            p.name.toLowerCase().contains('nurkhuliyah') ||
+            p.name.toLowerCase().contains('nukhuliyah');
+        if (!isKadiv) return false;
       } else if (_roleFilter == 'TPDPK') {
-        matchRole = p.nik == '1711161' ||
-            p.name.toLowerCase().contains('dodi sudrajat') ||
-            (p.role ?? '').toLowerCase() == 'tpdpk';
-      } else if (_roleFilter == 'PEGAWAI') {
-        matchRole = (p.role ?? '').toLowerCase() == 'pegawai' &&
-            p.nik != '1711161' &&
-            p.nik != '1711251' &&
-            p.nik != '1711571';
+        final isTpdpk = p.nik == '1711161' ||
+            p.name.toLowerCase().contains('dodi sudrajat');
+        if (!isTpdpk) return false;
       }
 
-      return matchQuery && matchRole;
+      // 2. Query filter (nama, nik, jabatan, unit kerja, badgeLabel)
+      final q = _searchQuery.trim().toLowerCase();
+      if (q.isNotEmpty) {
+        final matchQuery = p.name.toLowerCase().contains(q) ||
+            p.nik.toLowerCase().contains(q) ||
+            p.jabatan.toLowerCase().contains(q) ||
+            p.unitKerja.toLowerCase().contains(q) ||
+            p.badgeLabel.toLowerCase().contains(q);
+        if (!matchQuery) return false;
+      }
+
+      return true;
     }).toList();
   }
 
@@ -212,15 +278,9 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip('Eksekutor Resmi (3)', 'EKSEKUTOR', isDark),
+                  _buildFilterChip('Kadiv SPI', 'KADIV', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterChip('TPDPK (Dodi Sudrajat)', 'TPDPK', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Kadiv SPI (2)', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Semua Pegawai', 'ALL', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Pegawai Lainnya', 'PEGAWAI', isDark),
+                  _buildFilterChip('TPDPK', 'TPDPK', isDark),
                 ],
               ),
             ),
@@ -238,13 +298,8 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                   }
 
                   if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Gagal memuat data pegawai: ${snapshot.error}',
-                        style: const TextStyle(color: Colors.red, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
+                    debugPrint(
+                        'Gagal memuat data pegawai: ${snapshot.error}');
                   }
 
                   final allPegawai = snapshot.data ?? [];
@@ -277,7 +332,8 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                     itemBuilder: (context, index) {
                       final item = filteredList[index];
                       final isSelected = widget.selectedPegawai?.id == item.id ||
-                          widget.selectedPegawai?.nik == item.nik;
+                          (widget.selectedPegawai?.nik.isNotEmpty == true &&
+                              widget.selectedPegawai?.nik == item.nik);
 
                       return Material(
                         color: isSelected
@@ -455,7 +511,7 @@ class _PegawaiMultiPickerContentState
   final List<PegawaiOption> _selectedList = [];
 
   String _searchQuery = '';
-  String _roleFilter = 'EKSEKUTOR';
+  String _roleFilter = 'KADIV';
 
   @override
   void initState() {
@@ -472,7 +528,8 @@ class _PegawaiMultiPickerContentState
 
   void _toggleSelection(PegawaiOption item) {
     setState(() {
-      final index = _selectedList.indexWhere((p) => p.id == item.id);
+      final index = _selectedList.indexWhere((p) =>
+          p.id == item.id || (p.nik.isNotEmpty && p.nik == item.nik));
       if (index >= 0) {
         _selectedList.removeAt(index);
       } else {
@@ -482,37 +539,35 @@ class _PegawaiMultiPickerContentState
   }
 
   List<PegawaiOption> _applyFilter(List<PegawaiOption> list) {
-    return list.where((p) {
-      final q = _searchQuery.trim().toLowerCase();
-      final matchQuery = q.isEmpty ||
-          p.name.toLowerCase().contains(q) ||
-          p.nik.toLowerCase().contains(q) ||
-          p.jabatan.toLowerCase().contains(q) ||
-          p.unitKerja.toLowerCase().contains(q);
+    final eksekutors = _getOfficialExecutors(list);
 
-      bool matchRole = true;
-      if (_roleFilter == 'EKSEKUTOR') {
-        matchRole = p.nik == '1711161' ||
+    return eksekutors.where((p) {
+      // 1. Role filter (hanya Kadiv SPI dan TPDPK)
+      if (_roleFilter == 'KADIV') {
+        final isKadiv = p.nik == '1711571' ||
             p.nik == '1711251' ||
-            p.nik == '1711571' ||
-            p.name.toLowerCase().contains('dodi sudrajat') ||
-            (p.role ?? '').toLowerCase().contains('kadiv');
-      } else if (_roleFilter == 'KADIV') {
-        matchRole = (p.role ?? '').toLowerCase().contains('kadiv') ||
-            p.nik == '1711251' ||
-            p.nik == '1711571';
+            p.name.toLowerCase().contains('ghani') ||
+            p.name.toLowerCase().contains('nurkhuliyah') ||
+            p.name.toLowerCase().contains('nukhuliyah');
+        if (!isKadiv) return false;
       } else if (_roleFilter == 'TPDPK') {
-        matchRole = p.nik == '1711161' ||
-            p.name.toLowerCase().contains('dodi sudrajat') ||
-            (p.role ?? '').toLowerCase() == 'tpdpk';
-      } else if (_roleFilter == 'PEGAWAI') {
-        matchRole = (p.role ?? '').toLowerCase() == 'pegawai' &&
-            p.nik != '1711161' &&
-            p.nik != '1711251' &&
-            p.nik != '1711571';
+        final isTpdpk = p.nik == '1711161' ||
+            p.name.toLowerCase().contains('dodi sudrajat');
+        if (!isTpdpk) return false;
       }
 
-      return matchQuery && matchRole;
+      // 2. Query filter (nama, nik, jabatan, unit kerja, badgeLabel)
+      final q = _searchQuery.trim().toLowerCase();
+      if (q.isNotEmpty) {
+        final matchQuery = p.name.toLowerCase().contains(q) ||
+            p.nik.toLowerCase().contains(q) ||
+            p.jabatan.toLowerCase().contains(q) ||
+            p.unitKerja.toLowerCase().contains(q) ||
+            p.badgeLabel.toLowerCase().contains(q);
+        if (!matchQuery) return false;
+      }
+
+      return true;
     }).toList();
   }
 
@@ -614,15 +669,9 @@ class _PegawaiMultiPickerContentState
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildChip('Eksekutor Resmi (3)', 'EKSEKUTOR', isDark),
+                  _buildChip('Kadiv SPI', 'KADIV', isDark),
                   const SizedBox(width: 8),
-                  _buildChip('TPDPK (Dodi Sudrajat)', 'TPDPK', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('Kadiv SPI (2)', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('Semua Pegawai', 'ALL', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('Pegawai Lainnya', 'PEGAWAI', isDark),
+                  _buildChip('TPDPK', 'TPDPK', isDark),
                 ],
               ),
             ),
@@ -638,13 +687,8 @@ class _PegawaiMultiPickerContentState
                   }
 
                   if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Gagal memuat data pegawai: ${snapshot.error}',
-                        style: const TextStyle(color: Colors.red, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
+                    debugPrint(
+                        'Gagal memuat data pegawai: ${snapshot.error}');
                   }
 
                   final allPegawai = snapshot.data ?? [];
@@ -676,8 +720,9 @@ class _PegawaiMultiPickerContentState
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final item = filteredList[index];
-                      final isSelected =
-                          _selectedList.any((p) => p.id == item.id);
+                      final isSelected = _selectedList.any((p) =>
+                          p.id == item.id ||
+                          (p.nik.isNotEmpty && p.nik == item.nik));
 
                       return Material(
                         color: isSelected

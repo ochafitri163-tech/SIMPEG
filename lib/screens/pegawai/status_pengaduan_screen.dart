@@ -33,6 +33,23 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   Color get labelDark => AppColors.textPrimary(context);
   Color get hintGrey => AppColors.textSecondary(context);
 
+  bool _isAuthorizedUser(AppUser user) {
+    if (user.role == UserRole.direktur ||
+        user.role == UserRole.kspi ||
+        user.role == UserRole.tpdpk ||
+        user.role == UserRole.kadivKategori ||
+        user.role == UserRole.sdm) {
+      return true;
+    }
+    final nik = user.nik.trim();
+    final name = user.name.toLowerCase();
+    if (nik == '1711161' || name.contains('dodi')) return true;
+    if (nik == '1711251' || name.contains('nurkhuliyah') || name.contains('nukhuliyah')) return true;
+    if (nik == '1711571' || name.contains('ghani')) return true;
+    if (name.contains('hedy')) return true;
+    return false;
+  }
+
   Widget _getRoleTasksPage(AppUser user) {
     switch (user.role) {
       case UserRole.kadivKategori:
@@ -46,7 +63,13 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case UserRole.sdm:
         return DashboardSdmScreen(user: user, showBackButton: true);
       default:
-        return TugasSayaScreen(user: user, showBackButton: true);
+        if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
+          return DashboardTpdpkScreen(user: user, showBackButton: true);
+        }
+        if (user.nik == '1711251' || user.nik == '1711571') {
+          return DashboardKadivScreen(user: user, showBackButton: true);
+        }
+        return DashboardKspiScreen(user: user, showBackButton: true);
     }
   }
 
@@ -889,17 +912,19 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              actionButton(
-                icon: Icons.fact_check_rounded,
-                tooltip: 'Tasks',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => _getRoleTasksPage(widget.user),
+              if (_isAuthorizedUser(widget.user)) ...[
+                actionButton(
+                  icon: Icons.fact_check_rounded,
+                  tooltip: 'Tugas',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _getRoleTasksPage(widget.user),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+              ],
               const SizedBox(width: 8),
               actionButton(
                 icon: Icons.history_rounded,

@@ -10,6 +10,9 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
+import '../tpdpk/dashboard_tpdpk_screen.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -137,6 +140,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penyelesaian Tindak Lanjut',
+      pesan:
+          'Apakah Anda yakin tindak lanjut pengaduan No. ${p.nomorPengaduan} ini telah selesai dan siap diteruskan ke SDM?',
+      labelKonfirmasi: 'Ya, Selesaikan',
+      warnaKonfirmasi: const Color(0xFF27AE60),
+      iconHeader: Icons.task_alt_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.selesaikanTindakLanjut(
@@ -282,6 +297,20 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (aksi == null) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final bool isTolak = aksi == 'tolak';
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: isTolak ? 'Konfirmasi Penolakan KSPI' : 'Konfirmasi Teruskan ke Dirut',
+      pesan: isTolak
+          ? 'Apakah Anda yakin ingin MENOLAK pengaduan No. ${p.nomorPengaduan} ini dan mengarsipkannya?'
+          : 'Apakah Anda yakin ingin MENERUSKAN pengaduan No. ${p.nomorPengaduan} ini ke Direktur Utama?',
+      labelKonfirmasi: isTolak ? 'Ya, Tolak' : 'Ya, Teruskan',
+      warnaKonfirmasi: isTolak ? const Color(0xFFE74C3C) : const Color(0xFF27AE60),
+      iconHeader: isTolak ? Icons.cancel_outlined : Icons.send_rounded,
+    );
+    if (!setuju) return;
 
     try {
       if (aksi == 'tolak') {
@@ -401,7 +430,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Pilih 1 atau beberapa pegawai SIMPEG sebagai tim eksekutor investigasi.',
+              'Pilih tim eksekutor investigasi (Kadiv SPI / TPDPK).',
               style: TextStyle(fontSize: 11.5, color: Colors.grey),
             ),
             const SizedBox(height: 10),
@@ -441,7 +470,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Pilih Pegawai Eksekutor',
+                          'Pilih Tim Eksekutor',
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
@@ -588,6 +617,19 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (ok != true || selectedExecutors.isEmpty) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final names = selectedExecutors.map((e) => e.name).join(', ');
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penugasan Eksekutor',
+      pesan:
+          'Apakah Anda yakin ingin menugaskan $names sebagai eksekutor investigasi pengaduan No. ${p.nomorPengaduan}?',
+      labelKonfirmasi: 'Ya, Tugaskan',
+      warnaKonfirmasi: _navy,
+      iconHeader: Icons.person_add_alt_1_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.reviewDanPilihEksekutor(
@@ -622,7 +664,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            _judulSheet('Review Hasil Investigasi', p),
+            _judulSheet('Tinjau Hasil Investigasi', p),
             _infoBlok('Hasil Investigasi', p.hasilInvestigasi ?? '-'),
             const SizedBox(height: 10),
             _infoBlok('Surat Rekomendasi', p.suratRekomendasi ?? '-'),
@@ -703,6 +745,19 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: sesuai ? 'Konfirmasi Hasil Sesuai' : 'Konfirmasi Kembalikan Revisi',
+      pesan: sesuai
+          ? 'Apakah Anda yakin hasil investigasi pengaduan No. ${p.nomorPengaduan} sudah sesuai dan siap diteruskan ke Direktur Utama?'
+          : 'Apakah Anda yakin ingin mengembalikan hasil investigasi pengaduan No. ${p.nomorPengaduan} ke eksekutor untuk direvisi?',
+      labelKonfirmasi: sesuai ? 'Ya, Teruskan ke Dirut' : 'Ya, Kembalikan',
+      warnaKonfirmasi: sesuai ? const Color(0xFF27AE60) : const Color(0xFFE74C3C),
+      iconHeader: sesuai ? Icons.check_circle_outline : Icons.replay_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.reviewHasilInvestigasi(
@@ -791,6 +846,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Kirim Ulang ke Direktur',
+      pesan:
+          'Apakah Anda yakin ingin mengirim ulang pengaduan No. ${p.nomorPengaduan} yang telah direvisi ini ke Direktur Utama?',
+      labelKonfirmasi: 'Ya, Kirim Ulang',
+      warnaKonfirmasi: const Color(0xFF27AE60),
+      iconHeader: Icons.send_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.kirimUlangSetelahRevisiKspi(
@@ -861,6 +928,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Investigasi Ulang',
+      pesan:
+          'Apakah Anda yakin ingin mengirim pengaduan No. ${p.nomorPengaduan} ini untuk dilakukan investigasi ulang?',
+      labelKonfirmasi: 'Ya, Kirim Ulang',
+      warnaKonfirmasi: const Color(0xFF8E44AD),
+      iconHeader: Icons.search_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.kirimUntukInvestigasiUlang(
@@ -1008,11 +1087,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       'Belum ada pengaduan siap ditugaskan.',
                       'Pilih Eksekutor'),
                   _buildSection(
-                      'REVIEW HASIL INVESTIGASI',
+                      'TINJAU HASIL INVESTIGASI',
                       reviewHasil,
                       _bukaReviewHasil,
                       'Belum ada hasil investigasi masuk.',
-                      'Review Hasil'),
+                      'Tinjau Hasil'),
                   _buildSection(
                       'TINDAK LANJUT DITUGASKAN',
                       ditolak,
@@ -1053,6 +1132,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                             child: _buildProfileCard(
                                 snapshot.data?.length ?? 0),
                           ),
+                          _buildDuaTombolTugasKspiDanTpdpk(),
                           const SizedBox(height: 18),
                           content,
                         ],
@@ -1108,7 +1188,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               ],
               Expanded(
                 child: Text(
-                  'Tasks Penetapan Eksekutor',
+                  'Tugas Penetapan Eksekutor',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -1147,7 +1227,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 onPressed: _refresh,
               ),
               IconTheme(
-                data: IconThemeData(color: Colors.white),
+                data: const IconThemeData(color: Colors.white),
                 child: NotificationBell(role: UserRole.kspi, user: widget.user),
               ),
               IconButton(
@@ -1159,7 +1239,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pilih eksekutor & review hasil investigasi',
+            'Pilih eksekutor & tinjau hasil investigasi',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.75),
               fontSize: isSmallScreen ? 11.0 : 12.5,
@@ -1275,6 +1355,85 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         fontWeight: FontWeight.w600,
                         color: _accent)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDuaTombolTugasKspiDanTpdpk() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _accent.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_turned_in_rounded,
+                      color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Tugas KSPI',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DashboardTpdpkScreen(
+                    user: widget.user,
+                    showBackButton: true,
+                  ),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                alignment: Alignment.center,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.fact_check_rounded,
+                        color: _accent, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Tugas TPDPK',
+                      style: TextStyle(
+                        color: _accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1411,13 +1570,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
+                          builder: (_) => SuratDetailPengaduanScreen(
+                            user: widget.user,
+                            pengaduanId: id,
+                            initialPengaduan: p,
+                          ),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Detail', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
@@ -1429,20 +1591,46 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => onAksi(p),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _navy,
-                      foregroundColor: Colors.white,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy,
+                      side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9)),
                     ),
-                    child:
-                        Text(tombolLabel, style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => onAksi(p),
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                ),
+              ),
             ),
           ],
         ),

@@ -67,7 +67,7 @@ class RealtimeNotificationService {
                   newRecord['judul'] as String? ?? 'Pengumuman Baru';
               final isi = newRecord['isi'] as String? ??
                   'Ada pengumuman terbaru dari PDAM.';
-              final title = '📢 Pengumuman Baru';
+              final title = 'Pengumuman Baru';
               final body = judul.isNotEmpty ? judul : isi;
 
               final terbitStr = newRecord['terbit_pada'] as String?;
@@ -138,7 +138,7 @@ class RealtimeNotificationService {
       final status = (newRecord['status'] as String? ?? '').toUpperCase();
       if (status == 'DITERBITKAN') {
         _showNotification(
-          title: '💰 Gaji Masuk!',
+          title: 'Gaji Masuk!',
           body:
               'Slip gaji periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
         );
@@ -148,7 +148,7 @@ class RealtimeNotificationService {
     // 3. Supabase Realtime Listener untuk THR Masuk
     _subscribeTable('thr', PostgresChangeEvent.insert, (newRecord) {
       _showNotification(
-        title: '🎉 THR Masuk!',
+        title: 'THR Masuk!',
         body:
             'THR periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
       );
@@ -157,7 +157,7 @@ class RealtimeNotificationService {
     // 4. Supabase Realtime Listener untuk Gaji 13
     _subscribeTable('gaji_13', PostgresChangeEvent.insert, (newRecord) {
       _showNotification(
-        title: '📚 Tunjangan Pendidikan Masuk!',
+        title: 'Tunjangan Pendidikan Masuk!',
         body: 'Gaji ke-13 / Tunjangan Pendidikan telah diterbitkan.',
       );
     });
@@ -165,7 +165,7 @@ class RealtimeNotificationService {
     // 5. Supabase Realtime Listener untuk Insentif
     _subscribeTable('insentif', PostgresChangeEvent.insert, (newRecord) {
       _showNotification(
-        title: '💵 Insentif Masuk!',
+        title: 'Insentif Masuk!',
         body:
             'Slip insentif periode ${newRecord['periode'] ?? '-'} telah diterbitkan.',
       );
@@ -177,7 +177,7 @@ class RealtimeNotificationService {
       final status = newRecord['status'] as String? ?? '';
       final judul = newRecord['judul'] as String? ?? 'pengaduan';
       _showNotification(
-        title: '📋 Update Pengaduan',
+        title: 'Update Pengaduan',
         body: 'Pengaduan "$judul" sekarang berstatus: $status',
       );
     });
@@ -187,7 +187,7 @@ class RealtimeNotificationService {
         (newRecord) {
       final status = newRecord['status'] as String? ?? '';
       _showNotification(
-        title: '📝 Update Pengajuan Cuti',
+        title: 'Update Pengajuan Cuti',
         body: 'Pengajuan cuti Anda sekarang berstatus: $status',
       );
     });
@@ -196,7 +196,7 @@ class RealtimeNotificationService {
     _subscribeTable('lembur', PostgresChangeEvent.insert, (newRecord) {
       final bulan = newRecord['bulan'] as String? ?? '-';
       _showNotification(
-        title: '⏰ Data Lembur',
+        title: 'Data Lembur',
         body: 'Data lembur bulan $bulan telah dicatat.',
       );
     });
@@ -206,7 +206,7 @@ class RealtimeNotificationService {
         (newRecord) {
       final judul = newRecord['judul'] as String? ?? 'Dokumen Baru';
       _showNotification(
-        title: '📄 Dokumen Baru',
+        title: 'Dokumen Baru',
         body: 'Dokumen "$judul" telah diunggah oleh SDM.',
       );
     });

@@ -8,6 +8,7 @@ import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../widgets/konfirmasi_dialog.dart';
@@ -246,6 +247,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
 
     final setuju = await showKonfirmasiDialog(
       context: context,
@@ -441,6 +443,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
 
     try {
       final catatan = catatanController.text.trim().isEmpty
@@ -486,7 +489,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
         await PengaduanService.direksiTahap2Aksi(
           pengaduanId: id,
           oleh: widget.user.name,
-          keputusan: Keputusan.terima,
+          keputusan: keputusan,
           catatan: catatan,
           kesimpulanInvestigasi: p.kesimpulanInvestigasi,
         );
@@ -567,6 +570,18 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penetapan Eksekutor',
+      pesan:
+          'Apakah Anda yakin ingin menetapkan ${eksekutorDipilih.label} sebagai eksekutor tindak lanjut untuk pengaduan No. ${p.nomorPengaduan}?',
+      labelKonfirmasi: 'Ya, Tetapkan',
+      warnaKonfirmasi: _navy,
+      iconHeader: Icons.flag_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.pilihEksekutorTindakLanjut(
@@ -604,13 +619,13 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   String _labelAksi(Pengaduan p) {
     switch (p.status) {
       case PengaduanStatus.menungguDirutTahap1:
-        return 'Putuskan (Tahap 1)';
+        return 'Tinjau & Verifikasi';
       case PengaduanStatus.menungguDirutTahap2:
-        return 'Putuskan (Tahap 2)';
+        return 'Tinjau & Verifikasi (Tahap 2)';
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
         return 'Pilih Eksekutor';
       default:
-        return 'Proses';
+        return 'Tinjau & Verifikasi';
     }
   }
 
@@ -759,7 +774,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               ],
               Expanded(
                 child: Text(
-                  'Tasks Persetujuan Direktur',
+                  'Tugas Persetujuan Direktur',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -798,7 +813,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 onPressed: _refreshSemua,
               ),
               IconTheme(
-                data: IconThemeData(color: Colors.white),
+                data: const IconThemeData(color: Colors.white),
                 child: NotificationBell(role: UserRole.direktur, user: widget.user),
               ),
               IconButton(
@@ -999,13 +1014,16 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
+                          builder: (_) => SuratDetailPengaduanScreen(
+                            user: widget.user,
+                            pengaduanId: id,
+                            initialPengaduan: p,
+                          ),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Detail', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
@@ -1017,14 +1035,23 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: aksi,
-                    icon: const Icon(Icons.gavel_rounded, size: 16),
-                    label: Text(_labelAksi(p),
-                        style: const TextStyle(fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _navy,
-                      foregroundColor: Colors.white,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy,
+                      side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9)),
@@ -1032,6 +1059,23 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: aksi,
+                icon: const Icon(Icons.gavel_rounded, size: 16),
+                label: Text(_labelAksi(p),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                ),
+              ),
             ),
           ],
         ),
@@ -1093,6 +1137,63 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     color: p.status.color)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final id = p.supabaseId;
+                    if (id == null) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SuratDetailPengaduanScreen(
+                          user: widget.user,
+                          pengaduanId: id,
+                          initialPengaduan: p,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.description_outlined, size: 16),
+                  label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _navy,
+                    side: const BorderSide(color: _navy),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final id = p.supabaseId;
+                    if (id == null) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PengaduanDetailScreen(
+                            user: widget.user, pengaduanId: id),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _navy,
+                    side: const BorderSide(color: _navy),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

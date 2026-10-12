@@ -123,7 +123,19 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       case UserRole.sdm:
         return DashboardSdmScreen(user: user, showBackButton: true);
       default:
-        return TugasSayaScreen(user: user, showBackButton: true);
+        if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
+          return DashboardTpdpkScreen(user: user, showBackButton: true);
+        }
+        if (user.nik == '1711251' || user.nik == '1711571' ||
+            user.name.toLowerCase().contains('ghani') ||
+            user.name.toLowerCase().contains('nurkhuliyah') ||
+            user.name.toLowerCase().contains('nukhuliyah')) {
+          return DashboardKadivScreen(user: user, showBackButton: true);
+        }
+        if (user.name.toLowerCase().contains('hedy')) {
+          return DashboardSdmScreen(user: user, showBackButton: true);
+        }
+        return DashboardKspiScreen(user: user, showBackButton: true);
     }
   }
 
@@ -206,11 +218,64 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     final isSmallScreen = screenWidth < 400;
     const crossAxisCount = 3;
 
+    final isDirut = widget.user.role == UserRole.direktur;
+    final isKspi = widget.user.role == UserRole.kspi;
+    final isTpdpk = widget.user.role == UserRole.tpdpk ||
+        widget.user.nik == '1711161' ||
+        widget.user.name.toLowerCase().contains('dodi');
+    final isKadiv = widget.user.role == UserRole.kadivKategori ||
+        widget.user.nik == '1711251' ||
+        widget.user.nik == '1711571' ||
+        widget.user.name.toLowerCase().contains('ghani') ||
+        widget.user.name.toLowerCase().contains('nurkhuliyah') ||
+        widget.user.name.toLowerCase().contains('nukhuliyah');
+    final isSdm = widget.user.role == UserRole.sdm ||
+        widget.user.name.toLowerCase().contains('hedy');
+
     final menuItems = <_QuickMenuItem>[
-      _QuickMenuItem(
-          label: 'Tugas Saya',
+      // Menu Tugas hanya untuk yang berkepentingan dan memiliki wewenang:
+      // 1. KSPI: Dipisah menjadi 2 tugas (Tugas KSPI & Tugas TPDPK)
+      if (isKspi) ...[
+        _QuickMenuItem(
+          label: 'Tugas KSPI',
           icon: Icons.assignment_turned_in_rounded,
-          builder: (_) => _getRoleTasksPage(widget.user)),
+          builder: (_) => DashboardKspiScreen(user: widget.user, showBackButton: true),
+        ),
+        _QuickMenuItem(
+          label: 'Tugas TPDPK',
+          icon: Icons.fact_check_rounded,
+          builder: (_) => DashboardTpdpkScreen(user: widget.user, showBackButton: true),
+        ),
+      ]
+      // 2. Direktur (Dirut)
+      else if (isDirut)
+        _QuickMenuItem(
+          label: 'Tugas Direktur',
+          icon: Icons.assignment_turned_in_rounded,
+          builder: (_) => DashboardDirutScreen(user: widget.user, showBackButton: true),
+        )
+      // 3. TPDPK (Dodi Sudrajat)
+      else if (isTpdpk)
+        _QuickMenuItem(
+          label: 'Tugas TPDPK',
+          icon: Icons.assignment_turned_in_rounded,
+          builder: (_) => DashboardTpdpkScreen(user: widget.user, showBackButton: true),
+        )
+      // 4. Kadiv Teknik & Kadiv Administrasi
+      else if (isKadiv)
+        _QuickMenuItem(
+          label: 'Tugas Kadiv',
+          icon: Icons.assignment_turned_in_rounded,
+          builder: (_) => DashboardKadivScreen(user: widget.user, showBackButton: true),
+        )
+      // 5. Manajer SDM (Hedy Kelana)
+      else if (isSdm)
+        _QuickMenuItem(
+          label: 'Tugas SDM',
+          icon: Icons.assignment_turned_in_rounded,
+          builder: (_) => DashboardSdmScreen(user: widget.user, showBackButton: true),
+        ),
+      // (Pegawai biasa: menu tugas dihapus)
       _QuickMenuItem(
           label: 'Payroll',
           icon: Icons.description_rounded,
@@ -1194,7 +1259,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'Kehadiranmu sudah baik, pertahankan terus! ✨',
+                      'Kehadiranmu sudah baik, pertahankan terus!',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,

@@ -33,7 +33,19 @@ class RoleGuard extends StatelessWidget {
     required this.child,
   });
 
-  bool get _diizinkan => allowedRoles.contains(user.role);
+  bool get _diizinkan {
+    if (allowedRoles.contains(user.role)) return true;
+    // Akses khusus eksekutor resmi investigasi SPI
+    if (allowedRoles.contains(UserRole.tpdpk) &&
+        (user.nik == '1711161' || user.role == UserRole.kspi)) {
+      return true;
+    }
+    if (allowedRoles.contains(UserRole.kadivKategori) &&
+        (user.nik == '1711251' || user.nik == '1711571')) {
+      return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {

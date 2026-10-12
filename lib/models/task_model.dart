@@ -47,6 +47,28 @@ class PegawaiOption {
         'foto_url': fotoUrl,
       };
 
+  PegawaiOption copyWith({
+    String? id,
+    String? nik,
+    String? name,
+    String? jabatan,
+    String? unitKerja,
+    String? role,
+    String? divisiKadiv,
+    String? fotoUrl,
+  }) {
+    return PegawaiOption(
+      id: id ?? this.id,
+      nik: nik ?? this.nik,
+      name: name ?? this.name,
+      jabatan: jabatan ?? this.jabatan,
+      unitKerja: unitKerja ?? this.unitKerja,
+      role: role ?? this.role,
+      divisiKadiv: divisiKadiv ?? this.divisiKadiv,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
+    );
+  }
+
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '';
@@ -57,13 +79,15 @@ class PegawaiOption {
   /// Label peran khusus untuk eksekutor pengaduan
   String get badgeLabel {
     if (nik == '1711161' || name.toLowerCase().contains('dodi sudrajat')) {
-      return 'TPDPK (Dodi Sudrajat)';
+      return 'TPDPK';
     }
-    if (nik == '1711251') {
+    if (nik == '1711251' ||
+        name.toLowerCase().contains('nurkhuliyah') ||
+        name.toLowerCase().contains('nukhuliyah')) {
       return 'Kadiv SPI Teknik';
     }
-    if (nik == '1711571') {
-      return 'Kadiv SPI Admin';
+    if (nik == '1711571' || name.toLowerCase().contains('ghani')) {
+      return 'Kadiv SPI Administrasi';
     }
     return jabatan;
   }

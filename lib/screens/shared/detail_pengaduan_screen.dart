@@ -17,10 +17,12 @@ import '../sdm/terbitkan_sk_screen.dart';
 class PengaduanDetailScreen extends StatefulWidget {
   final AppUser user;
   final int pengaduanId;
+  final bool showAction;
   const PengaduanDetailScreen({
     super.key,
     required this.user,
     required this.pengaduanId,
+    this.showAction = false,
   });
 
   @override
@@ -308,8 +310,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     _buildTimeline(p),
                     const SizedBox(height: 16),
                     _buildKartuSk(p),
-                    const SizedBox(height: 20),
-                    _buildActionPanel(p),
+                    if (widget.showAction) ...[
+                      const SizedBox(height: 20),
+                      _buildActionPanel(p),
+                    ],
                   ],
                 );
               },
@@ -1063,23 +1067,22 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: red.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(20),
+        color: red.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: red.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 34,
+                height: 34,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: red.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(11),
+                  color: red.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.report_gmailerrorred_rounded,
@@ -1089,15 +1092,25 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               ),
               const SizedBox(width: 10),
               const Expanded(
-                child: Text(
-                  'Pelaku / Pihak yang Diadukan',
-                  softWrap: true,
-                  style: TextStyle(
-                    color: red,
-                    fontSize: 14,
-                    height: 1.3,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pihak Terlapor (Yang Diadukan)',
+                      style: TextStyle(
+                        color: red,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Data pegawai yang dilaporkan dalam pengaduan ini',
+                      style: TextStyle(
+                        color: Color(0xFF9E4040),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1253,7 +1266,6 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             _buildTimelineItem(
               p.riwayatStatus[i],
               isLast: i == p.riwayatStatus.length - 1,
-              pelakuLabel: p.adaDataPelaku ? p.infoPelakuLabel : null,
             ),
         ],
       ),
@@ -1263,8 +1275,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   Widget _buildTimelineItem(
     StatusHistoryEntry h, {
     required bool isLast,
-    String? pelakuLabel,
   }) {
+    final String cleanAksi = h.aksi.replaceAll('•', '-').replaceAll('·', '-');
     return Stack(
       children: [
         if (!isLast)
@@ -1303,7 +1315,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      h.aksi,
+                      cleanAksi,
                       softWrap: true,
                       style: TextStyle(
                         color: labelDark,
@@ -1333,8 +1345,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                           ),
                         ),
                         Text(
-                          '•',
-                          style: TextStyle(color: hintGrey, fontSize: 11),
+                          '·',
+                          style: TextStyle(
+                            color: hintGrey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           formatTanggalJam(h.tanggal),
@@ -1347,37 +1363,49 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                         ),
                       ],
                     ),
-                    if (pelakuLabel != null) ...[
+                    if (h.keterangan != null &&
+                        h.keterangan!.trim().isNotEmpty &&
+                        !h.keterangan!.trim().startsWith('Pelaku diadukan:')) ...[
                       const SizedBox(height: 8),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: red.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        child: Text(
-                          pelakuLabel,
-                          softWrap: true,
-                          style: const TextStyle(
-                            color: red,
-                            fontSize: 11.5,
-                            height: 1.4,
-                            fontWeight: FontWeight.w600,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.divider(context),
+                            width: 0.8,
                           ),
                         ),
-                      ),
-                    ],
-                    if (h.keterangan != null &&
-                        h.keterangan!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        h.keterangan!.trim(),
-                        softWrap: true,
-                        style: TextStyle(
-                          color: labelDark,
-                          fontSize: 12,
-                          height: 1.45,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.comment_outlined,
+                              size: 14,
+                              color: hintGrey,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                h.keterangan!
+                                    .trim()
+                                    .replaceAll('•', '-')
+                                    .replaceAll('·', '-'),
+                                softWrap: true,
+                                style: TextStyle(
+                                  color: labelDark,
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1588,40 +1616,6 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  Widget _panelPilihEksekutor({
-    required String judul,
-    required void Function(Eksekutor) onPilih,
-    List<Eksekutor> opsi = const [Eksekutor.kadiv, Eksekutor.tpdpk],
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle(judul),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: _isProcessing
-                ? null
-                : () async {
-                    final e =
-                        await _dialogPilihEksekutor(judul: judul, opsi: opsi);
-                    if (e != null) onPilih(e);
-                  },
-            icon: const Icon(Icons.person_search_rounded, size: 18),
-            label: const Text('Pilih Eksekutor'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _panelDirutTahap2(Pengaduan p, String oleh) {
     final isTerbukti = p.isTerbukti;
@@ -1895,18 +1889,18 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   Widget _panelKspiPilihEksekutor(Pengaduan p, String oleh) {
     final listOfficial = [
       {
-        'nik': '1711251',
-        'nama': 'Nurkhuliyah',
-        'jabatan': 'Kepala Divisi SPI (Teknik)',
-        'category': 'kadiv',
-        'divisi': 'Teknik',
-      },
-      {
         'nik': '1711571',
         'nama': 'Ghani Rashid',
         'jabatan': 'Kepala Divisi SPI (Administrasi & Keuangan)',
         'category': 'kadiv',
         'divisi': 'Administrasi',
+      },
+      {
+        'nik': '1711251',
+        'nama': 'Nurkhuliyah',
+        'jabatan': 'Kepala Divisi SPI (Teknik)',
+        'category': 'kadiv',
+        'divisi': 'Teknik',
       },
       {
         'nik': '1711161',
@@ -1923,7 +1917,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         _buildSectionTitle('Pilih Tim Eksekutor Investigasi'),
         const SizedBox(height: 6),
         Text(
-          'Direktur Utama telah menyetujui investigasi. Pilih salah satu eksekutor resmi di bawah atau cari dari daftar pegawai:',
+          'Direktur Utama telah menyetujui investigasi. Pilih salah satu eksekutor investigasi di bawah:',
           style: TextStyle(fontSize: 11.5, color: hintGrey, height: 1.4),
         ),
         const SizedBox(height: 12),
@@ -2087,7 +2081,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                               : hintGrey),
                       const SizedBox(width: 6),
                       Text(
-                        '⚖️ Terbukti',
+                        'Terbukti',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -2136,7 +2130,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                               : hintGrey),
                       const SizedBox(width: 6),
                       Text(
-                        '🛡️ Tidak Terbukti',
+                        'Tidak Terbukti',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,

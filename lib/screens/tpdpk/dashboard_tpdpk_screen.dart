@@ -8,9 +8,11 @@ import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../services/onesignal_service.dart';
 /// Dashboard untuk role TPDPK — Tahap 3 & Tahap 4 (fungsional).
@@ -165,6 +167,18 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penetapan Petugas',
+      pesan:
+          'Apakah Anda yakin ingin menetapkan ${petugasController.text.trim()} sebagai petugas investigasi pengaduan No. ${p.nomorPengaduan}?',
+      labelKonfirmasi: 'Ya, Tetapkan',
+      warnaKonfirmasi: _navy,
+      iconHeader: Icons.badge_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.tpdpkPilihPetugas(
@@ -254,7 +268,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                                   ? const Color(0xFFE74C3C)
                                   : AppColors.textSecondary(context)),
                           const SizedBox(width: 6),
-                          Text('⚖️ Terbukti',
+                          Text('Terbukti',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -295,7 +309,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                                   ? const Color(0xFF0284C7)
                                   : AppColors.textSecondary(context)),
                           const SizedBox(width: 6),
-                          Text('🛡️ Tidak Terbukti',
+                          Text('Tidak Terbukti',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -414,6 +428,19 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     if (ok != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: revisi ? 'Konfirmasi Kirim Revisi' : 'Konfirmasi Kirim Hasil Investigasi',
+      pesan: revisi
+          ? 'Apakah Anda yakin ingin mengirim revisi hasil investigasi pengaduan No. ${p.nomorPengaduan} ke KSPI?'
+          : 'Apakah Anda yakin ingin mengirim hasil investigasi (Kesimpulan: ${kesimpulanInvestigasi == "terbukti" ? "TERBUKTI" : "TIDAK TERBUKTI"}) pengaduan No. ${p.nomorPengaduan} ini ke Direktur Utama?',
+      labelKonfirmasi: revisi ? 'Ya, Kirim Revisi' : 'Ya, Kirim ke Dirut',
+      warnaKonfirmasi: _navy,
+      iconHeader: Icons.send_rounded,
+    );
+    if (!setuju) return;
 
     try {
       if (revisi) {
@@ -575,6 +602,18 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     if (konfirmasi != true) return;
     final id = p.supabaseId;
     if (id == null) return;
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penyelesaian Tindak Lanjut',
+      pesan:
+          'Apakah Anda yakin tindak lanjut pengaduan No. ${p.nomorPengaduan} ini telah selesai dilaksanakan?',
+      labelKonfirmasi: 'Ya, Selesaikan',
+      warnaKonfirmasi: const Color(0xFF1E8449),
+      iconHeader: Icons.task_alt_rounded,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.selesaikanTindakLanjut(
@@ -611,7 +650,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   Widget build(BuildContext context) {
     return RoleGuard(
       user: widget.user,
-      allowedRoles: const [UserRole.tpdpk],
+      allowedRoles: const [UserRole.tpdpk, UserRole.kspi],
       child: Scaffold(
         backgroundColor: AppColors.pageBackground(context),
         // Header & kartu profil sekarang ikut discroll dalam satu ListView
@@ -716,6 +755,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                             child: _buildProfileCard(
                                 snapshot.data?.length ?? 0),
                           ),
+                          if (widget.user.role == UserRole.kspi)
+                            _buildSwitcherKspiDanTpdpk(),
                           const SizedBox(height: 18),
                           content,
                         ],
@@ -771,7 +812,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               ],
               Expanded(
                 child: Text(
-                  'Tasks Investigasi TPDPK',
+                  'Tugas Investigasi TPDPK',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -810,7 +851,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 onPressed: _refresh,
               ),
               IconTheme(
-                data: IconThemeData(color: Colors.white),
+                data: const IconThemeData(color: Colors.white),
                 child: NotificationBell(role: UserRole.tpdpk, user: widget.user),
               ),
               IconButton(
@@ -826,6 +867,79 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.75),
               fontSize: isSmallScreen ? 11.0 : 12.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitcherKspiDanTpdpk() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _accent.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                Navigator.maybePop(context);
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                alignment: Alignment.center,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.assignment_turned_in_rounded,
+                        color: _accent, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Tugas KSPI',
+                      style: TextStyle(
+                        color: _accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.fact_check_rounded,
+                      color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Tugas TPDPK',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1036,13 +1150,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
+                          builder: (_) => SuratDetailPengaduanScreen(
+                            user: widget.user,
+                            pengaduanId: id,
+                            initialPengaduan: p,
+                          ),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Detail', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
@@ -1054,20 +1171,46 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => onAksi(p),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _navy,
-                      foregroundColor: Colors.white,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy,
+                      side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9)),
                     ),
-                    child:
-                        Text(tombolLabel, style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => onAksi(p),
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                ),
+              ),
             ),
           ],
         ),
