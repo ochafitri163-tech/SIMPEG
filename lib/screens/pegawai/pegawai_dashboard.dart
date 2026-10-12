@@ -23,7 +23,6 @@ import 'profile_detail_screen.dart';
 import 'profile_screen.dart';
 import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
-import 'tugas_saya_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -123,7 +122,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
       case UserRole.sdm:
         return DashboardSdmScreen(user: user, showBackButton: true);
       default:
-        return TugasSayaScreen(user: user, showBackButton: true);
+        return StatusPengaduanScreen(user: user, showBackButton: true);
     }
   }
 
@@ -206,11 +205,15 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     final isSmallScreen = screenWidth < 400;
     const crossAxisCount = 3;
 
+    final isEksekutor = widget.user.role == UserRole.tpdpk ||
+        widget.user.role == UserRole.kadivKategori;
+
     final menuItems = <_QuickMenuItem>[
-      _QuickMenuItem(
-          label: 'Tugas Saya',
-          icon: Icons.assignment_turned_in_rounded,
-          builder: (_) => _getRoleTasksPage(widget.user)),
+      if (isEksekutor)
+        _QuickMenuItem(
+            label: 'Tugas Saya',
+            icon: Icons.assignment_turned_in_rounded,
+            builder: (_) => _getRoleTasksPage(widget.user)),
       _QuickMenuItem(
           label: 'Payroll',
           icon: Icons.description_rounded,

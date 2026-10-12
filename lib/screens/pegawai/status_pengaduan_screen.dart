@@ -11,7 +11,6 @@ import '../kadiv/dashboard_kadiv_screen.dart';
 import '../kspi/dashboard_kspi_screen.dart';
 import '../tpdpk/dashboard_tpdpk_screen.dart';
 import '../sdm/dashboard_sdm_screen.dart';
-import 'tugas_saya_screen.dart';
 import '../../theme/app_colors.dart';
 
 class StatusPengaduanScreen extends StatefulWidget {
@@ -46,7 +45,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case UserRole.sdm:
         return DashboardSdmScreen(user: user, showBackButton: true);
       default:
-        return TugasSayaScreen(user: user, showBackButton: true);
+        return StatusPengaduanScreen(user: user, showBackButton: true);
     }
   }
 
@@ -889,17 +888,20 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              actionButton(
-                icon: Icons.fact_check_rounded,
-                tooltip: 'Tasks',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => _getRoleTasksPage(widget.user),
+              if (widget.user.role == UserRole.tpdpk ||
+                  widget.user.role == UserRole.kadivKategori) ...[
+                const SizedBox(width: 8),
+                actionButton(
+                  icon: Icons.fact_check_rounded,
+                  tooltip: 'Tugas Saya',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _getRoleTasksPage(widget.user),
+                    ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(width: 8),
               actionButton(
                 icon: Icons.history_rounded,
