@@ -9,11 +9,10 @@ class OneSignalService {
   OneSignalService._();
   static final OneSignalService instance = OneSignalService._();
 
-  static const String appId = 'b7556b90-2f97-44f2-93e2-bd94abe8229e';
+  static const String appId = 'be392c07-5e8e-4f89-9129-e1cbf6503bea';
 
   /// REST API Key dari OneSignal Dashboard > Settings > Keys & IDs
-  /// Ganti dengan REST API Key project OneSignal Anda.
-  static const String _restApiKey = 'os_v2_app_w5kwxebps5cpfe7cxwkkx2bctyt34xy5qooehvv63djfl4za6mlx266vbxeborrxadrxpw2t67lhtljxszzsaphrkivaqqeqmrl5pxa';
+  static const String _restApiKey = 'os_v2_app_xy4syb26rzhytejj4hf7mub35jq2gxmkbuweqgvi3d2iovbxvhwet2wtd7nn2xquwitrm3nxcf6d35myweva7te7zfwquppluyqciaq';
 
   bool _initialized = false;
 
@@ -26,18 +25,18 @@ class OneSignalService {
     if (!_isSupportedPlatform || _initialized) return;
 
     try {
-      // 1. Set Level Log (hanya aktif saat debug)
       if (kDebugMode) {
         OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
       }
 
-      // 2. Inisialisasi OneSignal dengan App ID
       OneSignal.initialize(appId);
-
-      // 3. Minta izin notifikasi (Pop-up permission Android 13+ & iOS)
       await OneSignal.Notifications.requestPermission(true);
 
-      // 4. Listener saat notifikasi diklik user (Navigasi ke fitur terkait)
+      // Pastikan Push Subscription aktif
+      try {
+        OneSignal.User.pushSubscription.optIn();
+      } catch (_) {}
+
       OneSignal.Notifications.addClickListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Diklik: ${event.notification.title}');
@@ -46,18 +45,18 @@ class OneSignalService {
         NotificationNavHelper.handleNotificationClick(data);
       });
 
-      // 5. Listener saat notifikasi masuk di Foreground
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Masuk di Foreground: ${event.notification.title}');
         }
-        // Biarkan notifikasi tetap tampil di status bar
         event.notification.display();
       });
 
       _initialized = true;
       if (kDebugMode) {
         print('OneSignal Berhasil Diinisialisasi.');
+        print('OneSignal Push Subscribed: ${OneSignal.User.pushSubscription.optedIn}');
+        print('OneSignal Subscription ID: ${OneSignal.User.pushSubscription.id}');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -66,11 +65,14 @@ class OneSignalService {
     }
   }
 
-  /// Pasang Tag Role pengguna saat login agar bisa menerima notifikasi sesuai target role
+  /// Pasang Tag Role pengguna saat login
   Future<void> setUserRoleTag(String role) async {
     if (!_isSupportedPlatform) return;
     try {
       await OneSignal.User.addTagWithKey('role', role.toLowerCase().trim());
+      if (kDebugMode) {
+        print('OneSignal Tag role="${role.toLowerCase().trim()}" berhasil dipasang.');
+      }
     } catch (e) {
       if (kDebugMode) {
         print('OneSignal set tag error: $e');
@@ -78,13 +80,44 @@ class OneSignalService {
     }
   }
 
-  /// Login user NIK ke OneSignal
-  Future<void> loginUser(String nik, {String? role}) async {
+  /// Pasang Tag Divisi Kadiv (administrasi / teknik)
+  Future<void> setDivisiKadivTag(String divisi) async {
     if (!_isSupportedPlatform) return;
     try {
-      await OneSignal.login(nik);
+      await OneSignal.User.addTagWithKey(
+        'divisi_kadiv',
+        divisi.toLowerCase().trim(),
+      );
+      if (kDebugMode) {
+        print('OneSignal Tag divisi_kadiv="${divisi.toLowerCase().trim()}" berhasil dipasang.');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('OneSignal set divisi tag error: $e');
+      }
+    }
+  }
+
+  /// Login user NIK ke OneSignal sebagai External ID
+  Future<void> loginUser(
+    String nik, {
+    String? role,
+    String? divisiKadiv,
+  }) async {
+    if (!_isSupportedPlatform) return;
+    try {
+      await OneSignal.login(nik.trim());
+      try {
+        OneSignal.User.pushSubscription.optIn();
+      } catch (_) {}
+      if (kDebugMode) {
+        print('OneSignal login berhasil. External ID = "${nik.trim()}"');
+      }
       if (role != null) {
         await setUserRoleTag(role);
+      }
+      if (divisiKadiv != null && divisiKadiv.trim().isNotEmpty) {
+        await setDivisiKadivTag(divisiKadiv);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -102,42 +135,185 @@ class OneSignalService {
   }
 
   /// Mengirimkan Push Notification Broadcast ke SEMUA subscriber OneSignal.
-  /// Ini menggantikan FcmService.sendBroadcastNotification() yang sudah dihapus.
-  ///
-  /// Menggunakan OneSignal REST API (Create Notification):
-  /// https://documentation.onesignal.com/reference/create-notification
   static Future<void> sendBroadcastNotification({
     required String title,
     required String body,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final url = Uri.parse('https://onesignal.com/api/v1/notifications');
-
-      final payload = {
+    await _sendNotificationApi(
+      payload: {
         'app_id': appId,
         'included_segments': ['All'],
-        'headings': {'en': title},
-        'contents': {'en': body},
+        'headings': {'en': title, 'id': title},
+        'contents': {'en': body, 'id': body},
         if (data != null) 'data': data,
-      };
+      },
+      logLabel: 'Broadcast',
+    );
+  }
 
-      await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Basic $_restApiKey',
+  /// Mengirim Push Notification ke User Spesifik berdasarkan NIK / External ID.
+  ///
+  /// Menggunakan `include_aliases` (OneSignal API format terbaru) agar
+  /// kompatibel dengan os_v2_app key.
+  static Future<void> sendNotificationToUser({
+    required String userNikOrId,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    final cleanId = userNikOrId.trim();
+    if (cleanId.isEmpty) return;
+
+    await _sendNotificationApi(
+      payload: {
+        'app_id': appId,
+        'include_external_user_ids': [cleanId],
+        'include_aliases': {
+          'external_id': [cleanId],
         },
-        body: jsonEncode(payload),
-      );
+        'target_channel': 'push',
+        'headings': {'en': title, 'id': title},
+        'contents': {'en': body, 'id': body},
+        if (data != null) 'data': data,
+      },
+      logLabel: 'User: $cleanId',
+    );
+  }
 
-      if (kDebugMode) {
-        print('OneSignal broadcast sent: $title');
+  /// Mengirim Push Notification ke Semua User dengan Role Tertentu.
+  static Future<void> sendNotificationToRole({
+    required String role,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    final cleanRole = role.toLowerCase().trim();
+    if (cleanRole.isEmpty) return;
+
+    await _sendNotificationApi(
+      payload: {
+        'app_id': appId,
+        'filters': [
+          {'field': 'tag', 'key': 'role', 'relation': '=', 'value': cleanRole},
+        ],
+        'headings': {'en': title, 'id': title},
+        'contents': {'en': body, 'id': body},
+        if (data != null) 'data': data,
+      },
+      logLabel: 'Role: $cleanRole',
+    );
+  }
+
+  /// Mengirim Push Notification khusus ke Kadiv pada Divisi tertentu.
+  static Future<void> sendNotificationToKadivDivisi({
+    required String divisi,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    final cleanDivisi = divisi.toLowerCase().trim();
+    if (cleanDivisi.isEmpty) return;
+
+    await _sendNotificationApi(
+      payload: {
+        'app_id': appId,
+        'filters': [
+          {
+            'field': 'tag',
+            'key': 'role',
+            'relation': '=',
+            'value': 'kadivkategori',
+          },
+          {'operator': 'AND'},
+          {
+            'field': 'tag',
+            'key': 'divisi_kadiv',
+            'relation': '=',
+            'value': cleanDivisi,
+          },
+        ],
+        'headings': {'en': title, 'id': title},
+        'contents': {'en': body, 'id': body},
+        if (data != null) 'data': data,
+      },
+      logLabel: 'Kadiv Divisi: $cleanDivisi',
+    );
+  }
+
+  /// Helper: kirim request HTTP POST ke OneSignal REST API.
+  ///
+  /// Menggunakan endpoint `https://api.onesignal.com/notifications`
+  /// yang kompatibel dengan API Key format `os_v2_app_*`.
+  ///
+  /// CATATAN: pada platform Web (Chrome), REST API OneSignal tidak bisa
+  /// dipanggil langsung karena pembatasan keamanan CORS browser.
+  /// Push notification hanya bisa dikirim dari app mobile (Android/iOS).
+  static Future<void> _sendNotificationApi({
+    required Map<String, dynamic> payload,
+    required String logLabel,
+  }) async {
+    try {
+      final endpoints = kIsWeb
+          ? [
+              'https://corsproxy.io/?https://onesignal.com/api/v1/notifications',
+              'https://corsproxy.io/?https://api.onesignal.com/notifications',
+              'https://onesignal.com/api/v1/notifications',
+            ]
+          : [
+              'https://onesignal.com/api/v1/notifications',
+              'https://api.onesignal.com/notifications',
+            ];
+      final authPrefixes = ['Basic', 'Key', 'Bearer'];
+
+      http.Response? lastResponse;
+      String? successfulPrefix;
+      String? successfulEndpoint;
+
+      for (final endpoint in endpoints) {
+        final url = Uri.parse(endpoint);
+        for (final prefix in authPrefixes) {
+          try {
+            final res = await http.post(
+              url,
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Authorization': '$prefix $_restApiKey',
+              },
+              body: jsonEncode(payload),
+            );
+
+            lastResponse = res;
+            if (res.statusCode == 200 || res.statusCode == 202) {
+              successfulPrefix = prefix;
+              successfulEndpoint = endpoint;
+              break;
+            }
+          } catch (_) {
+            // Lanjutkan ke proxy / endpoint berikutnya jika browser memblokir CORS
+            continue;
+          }
+        }
+        if (successfulPrefix != null) break;
+      }
+
+      if (kDebugMode && lastResponse != null) {
+        print('═══ OneSignal Push [$logLabel] ═══');
+        if (successfulPrefix != null) {
+          print('  Endpoint: $successfulEndpoint');
+          print('  Auth    : $successfulPrefix');
+        }
+        print('  Status  : ${lastResponse.statusCode}');
+        print('  Body    : ${lastResponse.body}');
+        print('═══════════════════════════════════');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error sending OneSignal broadcast: $e');
+        print('═══ OneSignal Push ERROR [$logLabel] ═══');
+        print('  Exception: $e');
+        print('════════════════════════════════════════');
       }
     }
   }
 }
+

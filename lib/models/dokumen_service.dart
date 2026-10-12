@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
+import 'pengaduan_service.dart' as notif;
 
 /// =============================================================
 /// B9 — MANAJEMEN DOKUMEN KEPEGAWAIAN
@@ -220,6 +221,22 @@ class DokumenService {
         module: 'Dokumen',
         description: 'Mengunggah dokumen "${judul.trim()}" (kategori: $kategori, file: $fileNama)',
       );
+
+      try {
+        if (pegawaiId != null && pegawaiId.trim().isNotEmpty) {
+          await notif.NotificationService.kirimKePegawai(
+            pegawaiId: pegawaiId,
+            judul: '📄 Dokumen Kepegawaian Baru',
+            pesan: 'Dokumen "${judul.trim()}" ($kategori) telah diterbitkan oleh SDM.',
+          );
+        } else {
+          await notif.NotificationService.kirimKeBanyakRole(
+            roles: const [],
+            judul: '📄 Dokumen Kepegawaian Umum',
+            pesan: 'Dokumen umum "${judul.trim()}" ($kategori) tersedia di aplikasi.',
+          );
+        }
+      } catch (_) {}
     } catch (_) {
       // Data tetap aman di memory local cache
     }

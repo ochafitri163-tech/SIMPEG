@@ -140,8 +140,12 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.setString('user_nama', user.name);
     await prefs.setString('user_jabatan', user.jabatan);
 
-    // Registrasi User NIK & Role ke OneSignal untuk Target Push Notification
-    await OneSignalService.instance.loginUser(user.nik, role: user.role.name);
+    // Registrasi User NIK, Role & Divisi ke OneSignal untuk Target Push Notification
+    await OneSignalService.instance.loginUser(
+      user.nik,
+      role: user.role.name,
+      divisiKadiv: user.divisiKadiv?.name,
+    );
 
     // Catat log aktivitas login secara silent ke Supabase
     AuditLogService.logAction(

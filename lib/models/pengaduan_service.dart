@@ -3,6 +3,7 @@ import 'user_role.dart';
 import 'pengaduan_model.dart';
 import 'task_model.dart';
 import '../services/audit_log_service.dart';
+import '../services/onesignal_service.dart';
 
 /// Mengubah satu baris hasil query Supabase (Map) menjadi object
 /// [Pengaduan], supaya UI yang sudah ada (getter status.label/.color/.icon,
@@ -578,13 +579,12 @@ class PengaduanService {
     final kadivList = await kadivQuery;
 
     for (final kadiv in (kadivList as List)) {
-      await _client.from('notifikasi').insert({
-        'untuk_pegawai_id': kadiv['id'],
-        'judul': 'Pengaduan baru masuk',
-        'pesan':
-            '${user.name} membuat pengaduan baru ($nomor).', // ignore: unnecessary_brace_in_string_interps
-        'pengaduan_id': pengaduanId,
-      });
+      await NotificationService.kirimKePegawai(
+        pegawaiId: kadiv['id'],
+        judul: 'Pengaduan baru masuk',
+        pesan: '${user.name} membuat pengaduan baru ($nomor).',
+        pengaduanId: pengaduanId,
+      );
     }
   }
 
@@ -1399,6 +1399,19 @@ class NotificationService {
         if (pengaduanId != null) 'pengaduan_id': pengaduanId,
       });
     }
+
+    try {
+      final payloadData = <String, dynamic>{
+        'type': 'pengaduan',
+        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      };
+      await OneSignalService.sendNotificationToRole(
+        role: role.name,
+        title: judul,
+        body: pesan,
+        data: payloadData,
+      );
+    } catch (_) {}
   }
 
   /// Mengirim notifikasi HANYA ke Kadiv pada divisi tertentu
@@ -1423,6 +1436,19 @@ class NotificationService {
         if (pengaduanId != null) 'pengaduan_id': pengaduanId,
       });
     }
+
+    try {
+      final payloadData = <String, dynamic>{
+        'type': 'pengaduan',
+        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      };
+      await OneSignalService.sendNotificationToKadivDivisi(
+        divisi: divisi.name,
+        title: judul,
+        body: pesan,
+        data: payloadData,
+      );
+    } catch (_) {}
   }
 
   static Future<void> kirimKePegawai({
@@ -1441,6 +1467,39 @@ class NotificationService {
       if (pengumumanId != null) 'pengumuman_id': pengumumanId,
       if (taskId != null) 'task_id': taskId,
     });
+
+    try {
+      String targetId = pegawaiId;
+      if (pegawaiId.contains('-') && pegawaiId.length >= 32) {
+        final row = await _client
+            .from('pegawai')
+            .select('nik')
+            .eq('id', pegawaiId)
+            .maybeSingle();
+        if (row != null && row['nik'] != null) {
+          targetId = row['nik'].toString();
+        }
+      }
+
+      final payloadData = <String, dynamic>{
+        if (pengaduanId != null) ...{
+          'type': 'pengaduan',
+          'pengaduan_id': pengaduanId
+        },
+        if (pengumumanId != null) ...{
+          'type': 'pengumuman',
+          'pengumuman_id': pengumumanId
+        },
+        if (taskId != null) ...{'type': 'task', 'task_id': taskId},
+      };
+
+      await OneSignalService.sendNotificationToUser(
+        userNikOrId: targetId,
+        title: judul,
+        body: pesan,
+        data: payloadData,
+      );
+    } catch (_) {}
   }
 
   /// Mengirim notifikasi in-app ke SEMUA pegawai pada satu atau lebih role
@@ -1449,13 +1508,6 @@ class NotificationService {
   /// Tujuan"). Kalau [roles] kosong, notifikasi dikirim ke SEMUA pegawai
   /// tanpa memandang role (dipakai saat pengumuman tanpa target spesifik /
   /// "semua role").
-  ///
-  /// [pengumumanId] diisi supaya notifikasi bisa DIPENCET (di-tap) dan
-  /// langsung membuka pengumuman terkait -- lihat NotificationBell &
-  /// NotificationNavHelper.
-  ///
-  /// Insert dilakukan secara batch (satu request insert banyak baris)
-  /// supaya tidak lambat ketika jumlah pegawai/role banyak.
   static Future<void> kirimKeBanyakRole({
     required List<UserRole> roles,
     required String judul,
@@ -1482,6 +1534,36 @@ class NotificationService {
         .toList();
 
     await _client.from('notifikasi').insert(rows);
+
+    try {
+      final payloadData = <String, dynamic>{
+        if (pengaduanId != null) ...{
+          'type': 'pengaduan',
+          'pengaduan_id': pengaduanId
+        },
+        if (pengumumanId != null) ...{
+          'type': 'pengumuman',
+          'pengumuman_id': pengumumanId
+        },
+      };
+
+      if (roles.isEmpty) {
+        await OneSignalService.sendBroadcastNotification(
+          title: judul,
+          body: pesan,
+          data: payloadData,
+        );
+      } else {
+        for (final r in roles) {
+          await OneSignalService.sendNotificationToRole(
+            role: r.name,
+            title: judul,
+            body: pesan,
+            data: payloadData,
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   /// Menandai SATU notifikasi sebagai sudah dibaca -- dipakai saat user

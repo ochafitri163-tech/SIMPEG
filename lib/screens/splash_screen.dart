@@ -51,7 +51,11 @@ class _SplashScreenState extends State<SplashScreen>
     if (savedSession != null) {
       // Auto-login: langsung ke Dashboard tanpa perlu login ulang
       final user = AppUser.fromJson(savedSession);
-      OneSignalService.instance.loginUser(user.nik, role: user.role.name);
+      OneSignalService.instance.loginUser(
+        user.nik,
+        role: user.role.name,
+        divisiKadiv: user.divisiKadiv?.name,
+      );
       nextScreen = PegawaiDashboard(user: user);
     } else {
       nextScreen = const LoginScreen();
