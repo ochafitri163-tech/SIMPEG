@@ -74,7 +74,7 @@ class AuditLogService {
       debugPrint(' AuditLog tersimpan: [$action] $description ($deviceInfo)');
     } catch (e) {
       // Dibuat silent agar jika ada kendala koneksi, pengguna tidak terganggu
-      debugPrint('⚠️ AuditLogService insert log error: $e');
+      debugPrint('AuditLogService insert log error: $e');
     }
   }
 }

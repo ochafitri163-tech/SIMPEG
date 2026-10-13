@@ -274,7 +274,7 @@ class PengaduanService {
 
           await NotificationService.kirimKePegawai(
             pegawaiId: assignedTo,
-            judul: 'Penugasan Dibatalkan 🚫',
+            judul: 'Penugasan Dibatalkan',
             pesan:
                 'Penugasan investigasi pengaduan ${pData['nomor_pengaduan']} telah dialihkan.',
             pengaduanId: pengaduanId,
@@ -349,7 +349,7 @@ class PengaduanService {
       // 4. Kirim notifikasi ke masing-masing eksekutor
       await NotificationService.kirimKePegawai(
         pegawaiId: executor.id,
-        judul: 'Penugasan Investigasi Baru 📋',
+        judul: 'Penugasan Investigasi Baru',
         pesan:
             'Pengaduan: ${pData['judul']} | Tim: $executorNames | Ditugaskan oleh: $oleh',
         pengaduanId: pengaduanId,
@@ -567,10 +567,7 @@ class PengaduanService {
       'status_lama': null,
       'oleh': 'Sistem',
       'aksi': 'Pengaduan dibuat',
-      // Keterangan awal berisi info pelaku (nama/NIK/jabatan) supaya
-      // langsung terlihat di riwayat paling atas untuk semua role.
-      'keterangan': 'Pelaku diadukan: ${pihakTerlapor.trim()} · '
-          'NIK ${nikPelaku.trim()} · ${jabatanPelaku.trim()}',
+      'keterangan': 'Pengaduan berhasil diajukan oleh pelapor',
     });
 
     // Notifikasi hanya ke Kadiv divisi yang sesuai kategori.
@@ -721,7 +718,7 @@ class PengaduanService {
       oleh: oleh,
       role: UserRole.kadivKategori,
       aksi: 'Jenis pelanggaran diubah ke "$kategoriBaru" '
-          '• dialihkan ke ${divisiBaru.label}',
+          '- dialihkan ke ${divisiBaru.label}',
       catatan: catatan,
       kolomTambahan: {
         'kategori': kategoriBaru,
@@ -888,9 +885,9 @@ class PengaduanService {
       role: UserRole.kadivKategori,
       aksi: keputusan == Keputusan.terima
           ? 'Verifikasi (Terima), diteruskan ke KSPI'
-              '${kategoriBaru != null ? ' • kategori diubah ke $kategoriBaru' : ''}'
+              '${kategoriBaru != null ? ' - kategori diubah ke $kategoriBaru' : ''}'
           : 'Verifikasi (Tolak dicatat), tetap diteruskan ke KSPI'
-              '${kategoriBaru != null ? ' • kategori diubah ke $kategoriBaru' : ''}',
+              '${kategoriBaru != null ? ' - kategori diubah ke $kategoriBaru' : ''}',
       catatan: catatan,
       kolomTambahan: kolom,
     );
@@ -1430,7 +1427,7 @@ class PengaduanService {
     if (pelaporId != null) {
       await NotificationService.kirimKePegawai(
         pegawaiId: pelaporId,
-        judul: 'Surat Putusan Sanksi Diterbitkan ✅',
+        judul: 'Surat Putusan Sanksi Diterbitkan',
         pesan:
             'Pengaduan Anda (${row?['nomor_pengaduan']}) telah selesai dengan diterbitkannya Surat Putusan No. $nomorSuratPutusan ($jenisSanksi).',
         pengaduanId: pengaduanId,

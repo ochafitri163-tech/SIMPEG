@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
-import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
 import '../../widgets/konfirmasi_dialog.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 
 /// Halaman detail satu pengaduan. Panel aksi di bagian bawah BERUBAH
 /// otomatis tergantung role user & status pengaduan saat ini — jadi satu
@@ -13,10 +13,12 @@ import '../../widgets/konfirmasi_dialog.dart';
 class PengaduanDetailScreen extends StatefulWidget {
   final AppUser user;
   final int pengaduanId;
+  final bool showAction;
   const PengaduanDetailScreen({
     super.key,
     required this.user,
     required this.pengaduanId,
+    this.showAction = false,
   });
 
   @override
@@ -252,8 +254,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     _buildSectionTitle('Riwayat Status', isSmallScreen),
                     const SizedBox(height: 10),
                     _buildTimeline(p, isSmallScreen),
-                    const SizedBox(height: 20),
-                    _buildActionPanel(p),
+                    if (widget.showAction) ...[
+                      const SizedBox(height: 20),
+                      _buildActionPanel(p),
+                    ],
                   ],
                 );
               },
@@ -313,6 +317,21 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   fontSize: isSmallScreen ? 15.0 : 17.0,
                   fontWeight: FontWeight.w600),
             ),
+          ),
+          IconButton(
+            tooltip: 'Surat Pengaduan',
+            icon: const Icon(Icons.description_outlined, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SuratDetailPengaduanScreen(
+                    user: widget.user,
+                    pengaduanId: widget.pengaduanId,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -606,17 +625,15 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           for (int i = 0; i < p.riwayatStatus.length; i++)
             _buildTimelineItem(p.riwayatStatus[i],
                 isLast: i == p.riwayatStatus.length - 1,
-                isSmallScreen: isSmallScreen,
-                pelakuLabel: p.adaDataPelaku ? p.infoPelakuLabel : null),
+                isSmallScreen: isSmallScreen),
         ],
       ),
     );
   }
 
   Widget _buildTimelineItem(StatusHistoryEntry h,
-      {required bool isLast,
-      required bool isSmallScreen,
-      String? pelakuLabel}) {
+      {required bool isLast, required bool isSmallScreen}) {
+    final String cleanAksi = h.aksi.replaceAll('•', '-').replaceAll('·', '-');
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,7 +658,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(h.aksi,
+                  Text(cleanAksi,
                       style: TextStyle(
                           fontSize: isSmallScreen ? 12.0 : 12.5,
                           fontWeight: FontWeight.w600,
@@ -652,20 +669,42 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       style: TextStyle(
                           fontSize: isSmallScreen ? 10.5 : 11.0,
                           color: hintGrey)),
-                  if (pelakuLabel != null) ...[
-                    const SizedBox(height: 4),
-                    Text(pelakuLabel,
-                        style: TextStyle(
-                            fontSize: isSmallScreen ? 11.0 : 11.5,
-                            color: red,
-                            fontWeight: FontWeight.w600,
-                            height: 1.4)),
-                  ],
-                  if (h.keterangan != null && h.keterangan!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(h.keterangan!,
-                        style: TextStyle(
-                            fontSize: 12, color: labelDark, height: 1.4)),
+                  if (h.keterangan != null &&
+                      h.keterangan!.trim().isNotEmpty &&
+                      !h.keterangan!.trim().startsWith('Pelaku diadukan:')) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFFE2E8F0), width: 0.8),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.comment_outlined,
+                              size: 13, color: hintGrey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              h.keterangan!
+                                  .trim()
+                                  .replaceAll('•', '-')
+                                  .replaceAll('·', '-'),
+                              style: TextStyle(
+                                  fontSize: isSmallScreen ? 11.0 : 11.5,
+                                  color: labelDark,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.35),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ],
               ),

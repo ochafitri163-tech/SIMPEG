@@ -6,6 +6,7 @@ import '../../widgets/media_lampiran_picker.dart';
 import '../../widgets/notification_bell.dart';
 import '../../services/theme_controller.dart';
 import '../shared/detail_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 
 /// Halaman "Tugas Saya" — Menampilkan daftar penugasan eksekusi pengaduan
@@ -485,7 +486,7 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        task.nomorPengaduan ?? 'PGD-TASK',
+                        task.nomorPengaduan ?? 'PGD-TUGAS',
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
@@ -579,6 +580,50 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SuratDetailPengaduanScreen(
+                                user: widget.user,
+                                pengaduanId: task.pengaduanId,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.description_outlined, size: 16),
+                        label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _navy,
+                          side: const BorderSide(color: _navy),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(9)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openTaskDetailSheet(task),
+                        icon: const Icon(Icons.visibility_outlined, size: 16),
+                        label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(9)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -644,7 +689,7 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Detail Penugasan Task',
+                              'Detail Penugasan Tugas',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
@@ -741,32 +786,62 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Button to View Full Complaint Detail
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PengaduanDetailScreen(
-                                  user: widget.user,
-                                  pengaduanId: task.pengaduanId,
+                      // Buttons to View Letter and Full Complaint Detail
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SuratDetailPengaduanScreen(
+                                      user: widget.user,
+                                      pengaduanId: task.pengaduanId,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.description_outlined, size: 16),
+                              label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _navy,
+                                side: const BorderSide(color: _navy),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.description_rounded, size: 18),
-                          label: const Text('Lihat Detail Pengaduan Lengkap'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _accent,
-                            side: const BorderSide(color: _accent),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PengaduanDetailScreen(
+                                      user: widget.user,
+                                      pengaduanId: task.pengaduanId,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.visibility_outlined, size: 16),
+                              label: const Text('Detail Lengkap', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _accent,
+                                side: const BorderSide(color: _accent),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 18),
 

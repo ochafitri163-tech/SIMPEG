@@ -9,8 +9,10 @@ import '../../widgets/notification_bell.dart';
 import '../pegawai/dokumen_resmi_screen.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 import 'kelola_pengumuman_screen.dart';
 import 'terbitkan_sk_screen.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -129,9 +131,10 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
 
   // ---------- (lama) Selesaikan tanpa SK — tidak lagi dipakai tombol utama,
   // tetap disimpan agar tidak menghapus fitur/logic yang sudah ada. ----------
+  // ignore: unused_element
   Future<void> _bukaSelesaikan(Pengaduan p) async {
     final catatanController = TextEditingController();
-    final nikController = TextEditingController();
+    final nikController = TextEditingController(text: p.nikPelaku ?? '');
     final nominalController = TextEditingController();
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
@@ -248,6 +251,18 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
           Colors.red);
       return;
     }
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penyelesaian Pengaduan',
+      pesan:
+          'Apakah Anda yakin ingin menyelesaikan tindak lanjut pengaduan No. ${p.nomorPengaduan} ini?',
+      labelKonfirmasi: 'Ya, Selesaikan',
+      warnaKonfirmasi: const Color(0xFF27AE60),
+      iconHeader: Icons.check_circle_outline,
+    );
+    if (!setuju) return;
 
     try {
       await PengaduanService.sdmSelesaikan(
@@ -312,7 +327,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   menungguSdm,
                   (p) => _bukaTerbitkanSk(p),
                   'Tidak ada pengaduan yang perlu ditindaklanjuti.',
-                  'Selesaikan',
+                  'Terbitkan SK Sanksi',
                 );
               }
 
@@ -395,7 +410,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               ],
               Expanded(
                 child: Text(
-                  'Tindak Lanjut SDM',
+                  'Tugas Tindak Lanjut SDM',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
@@ -408,7 +423,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               // Aksi lain (pengumuman, SK, riwayat, tema, muat ulang, keluar)
               // dipindah ke menu tiga titik supaya tidak terlihat penuh.
               IconTheme(
-                data: IconThemeData(color: Colors.white),
+                data: const IconThemeData(color: Colors.white),
                 child: NotificationBell(role: UserRole.sdm, user: widget.user),
               ),
               _buildMenuAksi(),
@@ -707,7 +722,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: Colors.red.withOpacity(0.25)),
                     ),
-                    child: const Text('⚖️ Terbukti',
+                    child: const Text('Terbukti',
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -743,13 +758,16 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
+                          builder: (_) => SuratDetailPengaduanScreen(
+                            user: widget.user,
+                            pengaduanId: id,
+                            initialPengaduan: p,
+                          ),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    label: const Text('Detail', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: const Text('Surat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _navy,
                       side: const BorderSide(color: _navy),
@@ -761,20 +779,46 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => onAksi(p),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _navy,
-                      foregroundColor: Colors.white,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy,
+                      side: const BorderSide(color: _navy),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9)),
                     ),
-                    child:
-                        Text(tombolLabel, style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => onAksi(p),
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                ),
+              ),
             ),
           ],
         ),

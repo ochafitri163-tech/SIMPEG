@@ -494,7 +494,7 @@ class PengumumanService {
     if (p.terbitPada != null && p.terbitPada!.isAfter(nowUtc)) {
       NotificationService.instance.schedulePengumuman(
         id: p.id,
-        title: '📢 Pengumuman Baru',
+        title: 'Pengumuman Baru',
         body: p.judul,
         scheduledDate: p.terbitPada!.toLocal(),
       );
@@ -504,7 +504,7 @@ class PengumumanService {
         _activeTimers[p.id] = Timer(delay, () async {
           _activeTimers.remove(p.id);
           NotificationService.instance.showPengumuman(
-            title: '📢 Pengumuman Baru',
+            title: 'Pengumuman Baru',
             body: p.judul,
           );
           await _kirimNotifikasi(
@@ -568,7 +568,7 @@ class PengumumanService {
     // 1) Push notification via OneSignal (best-effort, tidak boleh menggagalkan alur utama).
     try {
       await OneSignalService.sendBroadcastNotification(
-        title: '📢 Pengumuman Baru',
+        title: 'Pengumuman Baru',
         body: judul,
         data: {'type': 'pengumuman', 'pengumuman_id': pengumumanId.toString()},
       );
@@ -583,7 +583,7 @@ class PengumumanService {
       final semuaRole = target.isEmpty || target.length == roleTujuan.length;
       await db_notif.NotificationService.kirimKeBanyakRole(
         roles: semuaRole ? const [] : target,
-        judul: '📢 Pengumuman Baru',
+        judul: 'Pengumuman Baru',
         pesan: judul,
         pengumumanId: pengumumanId,
       );

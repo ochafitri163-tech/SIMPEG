@@ -144,7 +144,7 @@ class NotificationService {
       id: 1,
       hour: 7,
       minute: 30,
-      title: 'Waktunya Absen Masuk 🕖',
+      title: 'Waktunya Absen Masuk',
       body: 'Jangan lupa lakukan absensi masuk hari ini.',
       details: _channelAbsensi,
       payload: '{"type":"absensi"}',
@@ -153,7 +153,7 @@ class NotificationService {
       id: 2,
       hour: 16,
       minute: 30,
-      title: 'Waktunya Absen Pulang 🕟',
+      title: 'Waktunya Absen Pulang',
       body: 'Jangan lupa lakukan absensi pulang sebelum meninggalkan kantor.',
       details: _channelAbsensi,
       payload: '{"type":"absensi"}',
@@ -161,7 +161,7 @@ class NotificationService {
 
     await _plugin.show(
       99,
-      'Pengingat Absensi Diaktifkan ✅',
+      'Pengingat Absensi Diaktifkan',
       'Kamu akan diingatkan absen masuk (07:30) & pulang (16:30) setiap hari kerja.',
       const NotificationDetails(android: _channelAbsensi),
       payload: '{"type":"absensi"}',
@@ -179,7 +179,7 @@ class NotificationService {
 
     await _plugin.show(
       3,
-      'Pengumuman Kantor Diaktifkan 📢',
+      'Pengumuman Kantor Diaktifkan',
       'Kamu akan menerima notifikasi setiap ada info/pengumuman baru dari PDAM.',
       const NotificationDetails(android: _channelPengumuman),
       payload: '{"type":"pengumuman"}',

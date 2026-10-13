@@ -283,6 +283,31 @@ class SkSanksiService {
     );
   }
 
+  /// Mencari pegawai berdasarkan nama terlapor (apabila NIK belum terdata di pengaduan).
+  static Future<PegawaiTerlapor?> cariPegawaiByNama(String nama) async {
+    final clean = nama.trim();
+    if (clean.isEmpty) return null;
+    try {
+      final rows = await _client
+          .from('pegawai')
+          .select('id, name, nik, jabatan, golongan')
+          .ilike('name', '%$clean%')
+          .limit(1);
+      final list = rows as List;
+      if (list.isEmpty) return null;
+      final row = list.first as Map<String, dynamic>;
+      return PegawaiTerlapor(
+        id: row['id'] as String,
+        nik: (row['nik'] ?? '') as String,
+        nama: (row['name'] ?? clean) as String,
+        jabatan: (row['jabatan'] ?? '') as String,
+        golongan: (row['golongan'] ?? '') as String,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ---------------------------------------------------------------
   // Upload berkas
   // ---------------------------------------------------------------

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../models/pengaduan_model.dart';
+import '../../models/pengaduan_service.dart';
 import '../../models/sk_sanksi_service.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/dokumen_sk_picker.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/role_guard.dart';
 
 /// =============================================================
@@ -65,13 +67,39 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
   @override
   void initState() {
     super.initState();
-    final p = widget.pengaduan;
+    _initDataPegawaiTerlapor();
+  }
+
+  Future<void> _initDataPegawaiTerlapor() async {
+    Pengaduan? p = widget.pengaduan;
+    if (p == null && widget.pengaduanId != null) {
+      try {
+        p = await PengaduanService.detailLengkap(widget.pengaduanId!);
+      } catch (_) {}
+    }
+
     if (p != null) {
-      _nikController.text = p.nik;
-      _namaController.text = p.namaPegawai;
-      _golonganLamaController.text = p.golongan;
       _ringkasanController.text = '${p.judul} (${p.nomorPengaduan})';
-      _cariPegawai();
+
+      // Utamakan data pegawai TERLAPOR yang dilaporkan pada pengaduan:
+      final nikTerlapor = (p.nikPelaku ?? '').trim();
+      final namaTerlapor = (p.pihakTerlapor ?? '').trim();
+      final jabatanTerlapor = (p.jabatanPelaku ?? '').trim();
+
+      if (namaTerlapor.isNotEmpty) {
+        _namaController.text = namaTerlapor;
+      }
+      if (jabatanTerlapor.isNotEmpty) {
+        _jabatanLamaController.text = jabatanTerlapor;
+      }
+
+      if (nikTerlapor.isNotEmpty) {
+        _nikController.text = nikTerlapor;
+        await _cariPegawai();
+      } else if (namaTerlapor.isNotEmpty) {
+        // Jika pelapor belum mengisi NIK terlapor, cari NIK dari master pegawai berdasarkan nama terlapor
+        await _cariPegawaiByNama(namaTerlapor);
+      }
     }
   }
 
@@ -102,7 +130,7 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
     );
   }
 
-  /// Mengambil jabatan & golongan pegawai saat ini berdasarkan NIK, supaya
+  /// Mengambil jabatan & golongan pegawai terlapor saat ini berdasarkan NIK, supaya
   /// SDM tinggal mengisi jabatan barunya saja.
   Future<void> _cariPegawai() async {
     final nik = _nikController.text.trim();
@@ -123,9 +151,7 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
         return;
       }
       setState(() {
-        if (_namaController.text.trim().isEmpty) {
-          _namaController.text = pegawai.nama;
-        }
+        _namaController.text = pegawai.nama;
         if (pegawai.jabatan.isNotEmpty) {
           _jabatanLamaController.text = pegawai.jabatan;
         }
@@ -133,6 +159,42 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
           _golonganLamaController.text = pegawai.golongan;
         }
         _pesanPegawai = 'Ditemukan: ${pegawai.nama}';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _pesanPegawai = 'Gagal mencari pegawai: $e');
+    } finally {
+      if (mounted) setState(() => _mencariPegawai = false);
+    }
+  }
+
+  /// Mencari data pegawai dari master pegawai berdasarkan nama terlapor jika NIK di pengaduan kosong.
+  Future<void> _cariPegawaiByNama(String nama) async {
+    final clean = nama.trim();
+    if (clean.isEmpty) return;
+    setState(() {
+      _mencariPegawai = true;
+      _pesanPegawai = null;
+    });
+    try {
+      final pegawai = await SkSanksiService.cariPegawaiByNama(clean);
+      if (!mounted) return;
+      if (pegawai == null) {
+        setState(() => _pesanPegawai =
+            'Pegawai terlapor "$clean" terdata di pengaduan. NIK belum terisi otomatis — silakan masukkan NIK.');
+        return;
+      }
+      setState(() {
+        if (pegawai.nik.isNotEmpty) {
+          _nikController.text = pegawai.nik;
+        }
+        _namaController.text = pegawai.nama;
+        if (pegawai.jabatan.isNotEmpty) {
+          _jabatanLamaController.text = pegawai.jabatan;
+        }
+        if (pegawai.golongan.isNotEmpty) {
+          _golonganLamaController.text = pegawai.golongan;
+        }
+        _pesanPegawai = 'Ditemukan: ${pegawai.nama} (NIK: ${pegawai.nik})';
       });
     } catch (e) {
       if (mounted) setState(() => _pesanPegawai = 'Gagal mencari pegawai: $e');
@@ -188,6 +250,18 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
       );
       if (lanjut != true) return;
     }
+    if (!mounted) return;
+
+    final setuju = await showKonfirmasiDialog(
+      context: context,
+      judul: 'Konfirmasi Penerbitan SK Sanksi',
+      pesan:
+          'Apakah Anda yakin ingin menerbitkan Surat Keputusan Sanksi ($_jenisSanksi) untuk pegawai $nama (NIK: $nik)?${widget.pengaduan != null ? " Pengaduan No. ${widget.pengaduan!.nomorPengaduan} akan otomatis dinyatakan selesai." : ""}',
+      labelKonfirmasi: 'Ya, Terbitkan SK',
+      warnaKonfirmasi: _navy,
+      iconHeader: Icons.gavel_rounded,
+    );
+    if (!setuju) return;
 
     setState(() => _menyimpan = true);
     try {
