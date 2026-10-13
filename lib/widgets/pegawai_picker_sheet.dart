@@ -72,7 +72,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
   late Future<List<PegawaiOption>> _futurePegawai;
 
   String _searchQuery = '';
-  String _roleFilter = 'ALL'; // 'ALL', 'KADIV', 'TPDPK', 'PEGAWAI'
+  String _roleFilter = 'EKSEKUTOR'; // 'EKSEKUTOR', 'TPDPK', 'KADIV', 'ALL', 'PEGAWAI'
 
   @override
   void initState() {
@@ -98,12 +98,25 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
 
       // 2. Role filter
       bool matchRole = true;
-      if (_roleFilter == 'KADIV') {
-        matchRole = (p.role ?? '').toLowerCase().contains('kadiv');
+      if (_roleFilter == 'EKSEKUTOR') {
+        matchRole = p.nik == '1711161' ||
+            p.nik == '1711251' ||
+            p.nik == '1711571' ||
+            p.name.toLowerCase().contains('dodi sudrajat') ||
+            (p.role ?? '').toLowerCase().contains('kadiv');
+      } else if (_roleFilter == 'KADIV') {
+        matchRole = (p.role ?? '').toLowerCase().contains('kadiv') ||
+            p.nik == '1711251' ||
+            p.nik == '1711571';
       } else if (_roleFilter == 'TPDPK') {
-        matchRole = (p.role ?? '').toLowerCase() == 'tpdpk';
+        matchRole = p.nik == '1711161' ||
+            p.name.toLowerCase().contains('dodi sudrajat') ||
+            (p.role ?? '').toLowerCase() == 'tpdpk';
       } else if (_roleFilter == 'PEGAWAI') {
-        matchRole = (p.role ?? '').toLowerCase() == 'pegawai';
+        matchRole = (p.role ?? '').toLowerCase() == 'pegawai' &&
+            p.nik != '1711161' &&
+            p.nik != '1711251' &&
+            p.nik != '1711571';
       }
 
       return matchQuery && matchRole;
@@ -199,13 +212,15 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  _buildFilterChip('Eksekutor Resmi (3)', 'EKSEKUTOR', isDark),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('TPDPK (Dodi Sudrajat)', 'TPDPK', isDark),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Kadiv SPI (2)', 'KADIV', isDark),
+                  const SizedBox(width: 8),
                   _buildFilterChip('Semua Pegawai', 'ALL', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Kadiv', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('TPDPK', 'TPDPK', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Staf / Pegawai', 'PEGAWAI', isDark),
+                  _buildFilterChip('Pegawai Lainnya', 'PEGAWAI', isDark),
                 ],
               ),
             ),
@@ -337,7 +352,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                                                   BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              item.jabatan,
+                                              item.badgeLabel,
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
@@ -440,7 +455,7 @@ class _PegawaiMultiPickerContentState
   final List<PegawaiOption> _selectedList = [];
 
   String _searchQuery = '';
-  String _roleFilter = 'ALL';
+  String _roleFilter = 'EKSEKUTOR';
 
   @override
   void initState() {
@@ -476,12 +491,25 @@ class _PegawaiMultiPickerContentState
           p.unitKerja.toLowerCase().contains(q);
 
       bool matchRole = true;
-      if (_roleFilter == 'KADIV') {
-        matchRole = (p.role ?? '').toLowerCase().contains('kadiv');
+      if (_roleFilter == 'EKSEKUTOR') {
+        matchRole = p.nik == '1711161' ||
+            p.nik == '1711251' ||
+            p.nik == '1711571' ||
+            p.name.toLowerCase().contains('dodi sudrajat') ||
+            (p.role ?? '').toLowerCase().contains('kadiv');
+      } else if (_roleFilter == 'KADIV') {
+        matchRole = (p.role ?? '').toLowerCase().contains('kadiv') ||
+            p.nik == '1711251' ||
+            p.nik == '1711571';
       } else if (_roleFilter == 'TPDPK') {
-        matchRole = (p.role ?? '').toLowerCase() == 'tpdpk';
+        matchRole = p.nik == '1711161' ||
+            p.name.toLowerCase().contains('dodi sudrajat') ||
+            (p.role ?? '').toLowerCase() == 'tpdpk';
       } else if (_roleFilter == 'PEGAWAI') {
-        matchRole = (p.role ?? '').toLowerCase() == 'pegawai';
+        matchRole = (p.role ?? '').toLowerCase() == 'pegawai' &&
+            p.nik != '1711161' &&
+            p.nik != '1711251' &&
+            p.nik != '1711571';
       }
 
       return matchQuery && matchRole;
@@ -586,13 +614,15 @@ class _PegawaiMultiPickerContentState
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  _buildChip('Eksekutor Resmi (3)', 'EKSEKUTOR', isDark),
+                  const SizedBox(width: 8),
+                  _buildChip('TPDPK (Dodi Sudrajat)', 'TPDPK', isDark),
+                  const SizedBox(width: 8),
+                  _buildChip('Kadiv SPI (2)', 'KADIV', isDark),
+                  const SizedBox(width: 8),
                   _buildChip('Semua Pegawai', 'ALL', isDark),
                   const SizedBox(width: 8),
-                  _buildChip('Kadiv', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('TPDPK', 'TPDPK', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('Staf / Pegawai', 'PEGAWAI', isDark),
+                  _buildChip('Pegawai Lainnya', 'PEGAWAI', isDark),
                 ],
               ),
             ),
@@ -732,7 +762,7 @@ class _PegawaiMultiPickerContentState
                                                   BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              item.jabatan,
+                                              item.badgeLabel,
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,

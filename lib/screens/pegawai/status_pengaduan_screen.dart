@@ -5,6 +5,7 @@ import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
+import '../shared/surat_detail_pengaduan_screen.dart';
 import '../dirut/dashboard_dirut_screen.dart';
 import '../kadiv/dashboard_kadiv_screen.dart';
 import '../kspi/dashboard_kspi_screen.dart';
@@ -1229,6 +1230,19 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       );
     }
 
+    void bukaSurat() {
+      if (id == null) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SuratDetailPengaduanScreen(
+            user: widget.user,
+            pengaduanId: id,
+            initialPengaduan: p,
+          ),
+        ),
+      );
+    }
+
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -1579,26 +1593,47 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 isSmallScreen ? 14 : 17,
                 isSmallScreen ? 14 : 17,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: isSmallScreen ? 43 : 47,
-                child: ElevatedButton.icon(
-                  onPressed: bukaDetail,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 17),
-                  label: const Text('Lihat Detail'),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: navy,
-                    elevation: 0,
-                    textStyle: TextStyle(
-                      fontSize: isSmallScreen ? 12 : 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: bukaSurat,
+                      icon: const Icon(Icons.description_outlined, size: 16),
+                      label: const Text(
+                        'Surat',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: navy,
+                        side: const BorderSide(color: navy),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: bukaDetail,
+                      icon: const Icon(Icons.visibility_outlined, size: 16),
+                      label: const Text(
+                        'Detail',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: navy,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

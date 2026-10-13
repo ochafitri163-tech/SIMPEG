@@ -102,7 +102,7 @@ extension PengaduanStatusX on PengaduanStatus {
       case PengaduanStatus.ditolakDirektur:
         return const Color(0xFFE74C3C);
       case PengaduanStatus.peninjauanKembali:
-        return const Color(0xFF8E44AD);
+        return const Color(0xFF0284C7);
       case PengaduanStatus.tindakLanjut:
         return const Color(0xFF27AE60);
       case PengaduanStatus.menungguSdm:
@@ -287,6 +287,8 @@ class Pengaduan {
   DivisiKadiv? eksekutorDivisiKadiv;
 
   // --- Tahap Investigasi (eksekutor: Kadiv/TPDPK) ---
+  /// 'terbukti' | 'tidak_terbukti'
+  String? kesimpulanInvestigasi;
   String? hasilInvestigasi;
   String? suratRekomendasi;
   DateTime? tanggalHasilInvestigasi;
@@ -302,8 +304,12 @@ class Pengaduan {
   DivisiKadiv? eksekutorTindakLanjutDivisiKadiv;
   String? catatanTindakLanjutSelesai;
 
-  // --- Tahap SDM (final) ---
+  // --- Tahap SDM (Penerbitan Surat Putusan Sanksi) ---
   String? catatanSdm;
+  String? nomorSuratPutusan;
+  String? jenisSanksi;
+  String? fileSuratPutusan;
+  DateTime? tanggalSuratPutusan;
 
   // --- Arsip (kalau ditolak di salah satu dari 3 titik approval) ---
   /// 'kadiv' | 'dirutTahap1' | 'dirutTahap2'
@@ -347,6 +353,7 @@ class Pengaduan {
     this.executorId,
     this.petugasInvestigasi,
     this.eksekutorDivisiKadiv,
+    this.kesimpulanInvestigasi,
     this.hasilInvestigasi,
     this.suratRekomendasi,
     this.tanggalHasilInvestigasi,
@@ -356,6 +363,10 @@ class Pengaduan {
     this.eksekutorTindakLanjutDivisiKadiv,
     this.catatanTindakLanjutSelesai,
     this.catatanSdm,
+    this.nomorSuratPutusan,
+    this.jenisSanksi,
+    this.fileSuratPutusan,
+    this.tanggalSuratPutusan,
     this.arsipPadaTahap,
     this.alasanArsip,
     this.tindakLanjutDiminta,
@@ -378,6 +389,18 @@ class Pengaduan {
       (pihakTerlapor != null && pihakTerlapor!.trim().isNotEmpty) ||
       (nikPelaku != null && nikPelaku!.trim().isNotEmpty) ||
       (jabatanPelaku != null && jabatanPelaku!.trim().isNotEmpty);
+
+  /// Status kesimpulan investigasi: Terbukti vs Tidak Terbukti
+  bool get isTerbukti =>
+      (kesimpulanInvestigasi ?? '').toLowerCase() == 'terbukti';
+
+  bool get isTidakTerbukti =>
+      (kesimpulanInvestigasi ?? '').toLowerCase() == 'tidak_terbukti';
+
+  /// Apakah Surat Putusan Sanksi dari SDM sudah diterbitkan
+  bool get adaPutusanSdm =>
+      (nomorSuratPutusan != null && nomorSuratPutusan!.trim().isNotEmpty) ||
+      (fileSuratPutusan != null && fileSuratPutusan!.trim().isNotEmpty);
 
   /// Ringkasan data pelaku/pihak yang diadukan (Nama, NIK, Jabatan),
   /// diformat satu baris supaya bisa ditampilkan secara konsisten di

@@ -85,6 +85,23 @@ class NotificationService {
       },
     );
 
+    // Daftarkan Channel Notifikasi Prioritas Maksimal (Heads-up banner & suara)
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl != null) {
+      await androidImpl.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'simpeg_urgent_channel',
+          'Notifikasi Penting SIMPEG',
+          description: 'Notifikasi pop-up banner di layar dan bersuara untuk pengaduan & info SIMPEG',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+    }
+
     _initialized = true;
   }
 

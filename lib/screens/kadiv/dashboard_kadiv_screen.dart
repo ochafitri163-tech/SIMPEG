@@ -10,6 +10,7 @@ import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../services/theme_controller.dart';
 import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
@@ -184,7 +185,20 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(ctx, true),
+                        onPressed: () async {
+                          final setuju = await showKonfirmasiDialog(
+                            context: context,
+                            judul: 'Konfirmasi Verifikasi',
+                            pesan:
+                                'Apakah Anda yakin ingin memverifikasi pengaduan No. ${p.nomorPengaduan} dan meneruskannya ke KSPI?',
+                            labelKonfirmasi: 'Ya, Verifikasi',
+                            warnaKonfirmasi: _navy,
+                            iconHeader: Icons.send_rounded,
+                          );
+                          if (setuju && ctx.mounted) {
+                            Navigator.pop(ctx, true);
+                          }
+                        },
                         icon: const Icon(Icons.send_rounded, size: 18),
                         label: const Text('Verifikasi & Teruskan ke KSPI'),
                         style: ElevatedButton.styleFrom(

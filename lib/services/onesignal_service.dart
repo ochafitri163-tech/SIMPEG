@@ -254,6 +254,11 @@ class OneSignalService {
     required String logLabel,
   }) async {
     try {
+      // Pastikan notifikasi dikirim dengan prioritas tinggi agar langsung diproses FCM
+      final finalPayload = Map<String, dynamic>.from(payload);
+      finalPayload.putIfAbsent('priority', () => 10);
+      finalPayload.putIfAbsent('android_visibility', () => 1);
+
       final endpoints = kIsWeb
           ? [
               'https://corsproxy.io/?https://onesignal.com/api/v1/notifications',
@@ -280,7 +285,7 @@ class OneSignalService {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Authorization': '$prefix $_restApiKey',
               },
-              body: jsonEncode(payload),
+              body: jsonEncode(finalPayload),
             );
 
             lastResponse = res;
