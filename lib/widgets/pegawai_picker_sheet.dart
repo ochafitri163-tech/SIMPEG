@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
 import '../models/pengaduan_service.dart';
 import '../theme/app_colors.dart';
@@ -912,3 +914,330 @@ class _PegawaiMultiPickerContentState
   }
 }
 
+
+// ===========================================================================
+// PICKER TERSANGKA — menampilkan SEMUA pegawai, server-side search,
+// relevance sort, dan exclude diri sendiri.
+// ===========================================================================
+
+/// Tampilkan bottom sheet untuk memilih pegawai yang diadukan (tersangka).
+Future<PegawaiOption?> showPegawaiTersangkaPickerSheet({
+  required BuildContext context,
+  PegawaiOption? selectedPegawai,
+  String? currentUserNik,
+  String title = 'Pilih Pegawai yang Diadukan',
+}) {
+  return showModalBottomSheet<PegawaiOption>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.card(context),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => _PegawaiTersangkaPickerContent(
+      selectedPegawai: selectedPegawai,
+      currentUserNik: currentUserNik,
+      title: title,
+    ),
+  );
+}
+
+class _PegawaiTersangkaPickerContent extends StatefulWidget {
+  final PegawaiOption? selectedPegawai;
+  final String? currentUserNik;
+  final String title;
+
+  const _PegawaiTersangkaPickerContent({
+    this.selectedPegawai,
+    this.currentUserNik,
+    required this.title,
+  });
+
+  @override
+  State<_PegawaiTersangkaPickerContent> createState() =>
+      _PegawaiTersangkaPickerContentState();
+}
+
+class _PegawaiTersangkaPickerContentState
+    extends State<_PegawaiTersangkaPickerContent> {
+  static const Color _navy = Color(0xFF0D2C6E);
+  static const Color _accent = Color(0xFF2E86AB);
+
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  List<PegawaiOption> _results = [];
+  bool _isLoading = false;
+  bool _firstLoad = true;
+  String _lastQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _search('');
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () => _search(val));
+  }
+
+  Future<void> _search(String query) async {
+    final q = query.trim();
+    if (!_firstLoad && q == _lastQuery) return;
+    _lastQuery = q;
+    _firstLoad = false;
+
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final client = Supabase.instance.client;
+      dynamic rows;
+
+      if (q.isEmpty) {
+        rows = await client
+            .from('pegawai')
+            .select()
+            .order('name', ascending: true)
+            .limit(200);
+      } else {
+        // Hanya search by name dan nik agar tidak ada false positive dari
+        // field jabatan (misal: "Operator" mengandung substring "rat", dll.)
+        rows = await client
+            .from('pegawai')
+            .select()
+            .or('name.ilike.%$q%,nik.ilike.%$q%')
+            .order('name', ascending: true)
+            .limit(100);
+      }
+
+      var list = (rows as List)
+          .map((r) => PegawaiOption.fromMap(r as Map<String, dynamic>))
+          .toList();
+
+      // Exclude diri sendiri
+      final selfNik = widget.currentUserNik?.trim() ?? '';
+      if (selfNik.isNotEmpty) {
+        list = list.where((p) => p.nik.trim() != selfNik).toList();
+      }
+
+      // Relevance sort:
+      //   1. name starts-with query  (prioritas tertinggi)
+      //   2. name contains query
+      //   3. nik contains query
+      // Dalam tiap tier, urutkan alfabetis (ascending).
+      if (q.isNotEmpty) {
+        final ql = q.toLowerCase();
+        list.sort((a, b) {
+          final aName = a.name.toLowerCase();
+          final bName = b.name.toLowerCase();
+
+          int tier(PegawaiOption p) {
+            final n = p.name.toLowerCase();
+            if (n.startsWith(ql)) return 0;   // paling relevan
+            if (n.contains(ql)) return 1;
+            return 2;                          // match dari nik
+          }
+
+          final tA = tier(a);
+          final tB = tier(b);
+          if (tA != tB) return tA.compareTo(tB);
+          return aName.compareTo(bName); // same tier → alfabetis
+        });
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _results = list;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = AppColors.textPrimary(context);
+    final textSecondary = AppColors.textSecondary(context);
+
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.person_search_rounded, color: _accent, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.title,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          )),
+                      Text('Cari dari seluruh data pegawai',
+                          style: TextStyle(fontSize: 11.5, color: textSecondary)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Cari nama, NIK, atau jabatan...',
+                hintStyle: TextStyle(fontSize: 13.5, color: textSecondary),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: isDark ? const Color(0xFF1E2633) : const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _results.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.person_off_rounded,
+                                  size: 48, color: textSecondary.withOpacity(0.5)),
+                              const SizedBox(height: 10),
+                              Text('Pegawai tidak ditemukan',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: textSecondary,
+                                  )),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _results.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = _results[index];
+                            final isSelected = widget.selectedPegawai?.nik == item.nik;
+                            return Material(
+                              color: isSelected
+                                  ? _accent.withOpacity(0.12)
+                                  : (isDark ? const Color(0xFF1E2638) : const Color(0xFFF8FAFC)),
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                onTap: () => Navigator.pop(context, item),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? _accent
+                                          : (isDark ? const Color(0xFF2C384E) : const Color(0xFFE2E8F0)),
+                                      width: isSelected ? 1.8 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 22,
+                                        backgroundColor: isSelected ? _accent : _navy.withOpacity(0.85),
+                                        child: Text(item.initials,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            )),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(item.name,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: textPrimary,
+                                                )),
+                                            const SizedBox(height: 3),
+                                            Text(item.jabatan,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(fontSize: 12, color: textSecondary)),
+                                            const SizedBox(height: 2),
+                                            Text('NIK: ${item.nik} - ${item.unitKerja}',
+                                                style: TextStyle(
+                                                    fontSize: 11, color: textSecondary.withOpacity(0.8))),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(Icons.check_circle_rounded, color: _accent, size: 24),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

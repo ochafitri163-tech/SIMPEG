@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,7 @@ import '../../widgets/media_lampiran_picker.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
 import 'status_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
+
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
 /// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
@@ -55,9 +57,6 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   };
 
   final _judulController = TextEditingController();
-  final _pihakTerlaporController = TextEditingController();
-  final _nikPelakuController = TextEditingController();
-  final _jabatanPelakuController = TextEditingController();
   final _deskripsiController = TextEditingController();
 
   String? _kategori;
@@ -68,26 +67,21 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   bool _isSubmitting = false;
 
   Future<void> _pilihPelaku() async {
-    final picked = await showPegawaiPickerSheet(
+    final picked = await showPegawaiTersangkaPickerSheet(
       context: context,
       selectedPegawai: _selectedPelaku,
+      currentUserNik: widget.user.nik,
       title: 'Pilih Pegawai yang Diadukan',
     );
     if (picked == null) return;
     setState(() {
       _selectedPelaku = picked;
-      _pihakTerlaporController.text = picked.name;
-      _nikPelakuController.text = picked.nik;
-      _jabatanPelakuController.text = picked.jabatan;
     });
   }
 
   @override
   void dispose() {
     _judulController.dispose();
-    _pihakTerlaporController.dispose();
-    _nikPelakuController.dispose();
-    _jabatanPelakuController.dispose();
     _deskripsiController.dispose();
     super.dispose();
   }
@@ -286,16 +280,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   }
 
   Future<void> _kirimPengaduan() async {
-    if (_pihakTerlaporController.text.trim().isEmpty) {
-      _showSnack('Nama pelaku/pihak yang diadukan tidak boleh kosong.', red);
-      return;
-    }
-    if (_nikPelakuController.text.trim().isEmpty) {
-      _showSnack('NIK pelaku tidak boleh kosong.', red);
-      return;
-    }
-    if (_jabatanPelakuController.text.trim().isEmpty) {
-      _showSnack('Jabatan pelaku tidak boleh kosong.', red);
+    if (_selectedPelaku == null) {
+      _showSnack('Silakan pilih pegawai yang diadukan dari data.', red);
       return;
     }
     if (_kategori == null) {
@@ -321,9 +307,9 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
         user: widget.user,
         kategori: _kategori!,
         judul: _judulController.text.trim(),
-        pihakTerlapor: _pihakTerlaporController.text.trim(),
-        nikPelaku: _nikPelakuController.text.trim(),
-        jabatanPelaku: _jabatanPelakuController.text.trim(),
+        pihakTerlapor: _selectedPelaku!.name,
+        nikPelaku: _selectedPelaku!.nik,
+        jabatanPelaku: _selectedPelaku!.jabatan,
         deskripsi: _deskripsiController.text.trim(),
         fotoBukti: [...fotoUrls, ..._mediaController.foto],
         videoBukti: _mediaController.video,
@@ -431,22 +417,67 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _pihakTerlaporController,
-                  hint: 'Nama pegawai atau unit terkait',
-                ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _nikPelakuController,
-                  hint: 'NIK pelaku',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _jabatanPelakuController,
-                  hint: 'Jabatan pelaku',
-                ),
+                // Read-only card: tampilkan data pelaku yang sudah dipilih
+                if (_selectedPelaku != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.card(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFF27AE60).withValues(alpha: 0.4)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.verified_user_rounded,
+                                size: 15, color: Color(0xFF27AE60)),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Pegawai yang Diadukan',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF27AE60),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _selectedPelaku!.name,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: labelDark,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _selectedPelaku!.jabatan,
+                          style: TextStyle(fontSize: 12.5, color: hintGrey),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'NIK: ${_selectedPelaku!.nik}  ·  ${_selectedPelaku!.unitKerja}',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: hintGrey.withValues(alpha: 0.8)),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 18),
                 _buildFieldLabel('Kategori'),
                 const SizedBox(height: 8),
