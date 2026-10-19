@@ -72,7 +72,6 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       selectedPegawai: _selectedPelaku,
       currentUserNik: widget.user.nik,
       title: 'Pilih Pegawai yang Diadukan',
-      onlyExecutors: false,
     );
     if (picked == null) return;
     setState(() {

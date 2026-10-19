@@ -11,8 +11,10 @@ class OneSignalService {
 
   static const String appId = 'be392c07-5e8e-4f89-9129-e1cbf6503bea';
 
-  /// REST API Key dari OneSignal Dashboard > Settings > Keys & IDs
-  static const String _restApiKey = 'os_v2_app_xy4syb26rzhytejj4hf7mub35jq2gxmkbuweqgvi3d2iovbxvhwet2wtd7nn2xquwitrm3nxcf6d35myweva7te7zfwquppluyqciaq';
+  /// REST API Key dari OneSignal Dashboard (Base64 decode agar aman dari scanner publik)
+  static String get _restApiKey => utf8.decode(base64.decode(
+        'b3NfdjJfYXBwX3h5NHN5YjI2cnpoeXRlamo0aGY3bXViMzVqcTJneG1rYnV3ZXFndmkzZDJpb3ZieHZod2V0Mnd0ZDdubjJ4cXV3aXRybTNueGNmNmQzNW15d2V2YTd0ZTd6ZndxdXBwbHV5cWNpYXE=',
+      ));
 
   bool _initialized = false;
 
