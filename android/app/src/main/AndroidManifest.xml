@@ -7,10 +7,17 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <application
-        android:label="flutter_application_3"
+        android:label="SIMPEG Mobile"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+        <!-- Notification icon & color for OneSignal & Android Status Bar / AOD -->
+        <meta-data
+            android:name="com.onesignal.NotificationIcon.default"
+            android:resource="@drawable/ic_stat_onesignal_default" />
+        <meta-data
+            android:name="com.onesignal.NotificationAccentColor.default"
+            android:value="FF0D2C6E" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

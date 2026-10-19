@@ -802,28 +802,36 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         children: [
           Row(
             children: [
-              if (widget.showBackButton) ...[
+              if (widget.showBackButton)
                 IconButton(
                   icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                   tooltip: 'Kembali',
                   onPressed: () => Navigator.maybePop(context),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Expanded(
-                child: Text(
-                  'Tugas Investigasi TPDPK',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isSmallScreen ? 18.0 : 21.0,
-                    fontWeight: FontWeight.bold,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'TPDPK',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
                   ),
                 ),
-              ),
+              const Spacer(),
               IconButton(
                 icon: const Icon(Icons.history_rounded, color: Colors.white),
                 tooltip: 'Riwayat Pengaduan',
+                visualDensity: VisualDensity.compact,
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -841,6 +849,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       color: Colors.white,
                     ),
                     tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                    visualDensity: VisualDensity.compact,
                     onPressed: () => ThemeController.instance.setDark(!isDark),
                   );
                 },
@@ -848,6 +857,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 tooltip: 'Muat ulang',
+                visualDensity: VisualDensity.compact,
                 onPressed: _refresh,
               ),
               IconTheme(
@@ -857,16 +867,27 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
                 tooltip: 'Keluar',
+                visualDensity: VisualDensity.compact,
                 onPressed: _logout,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tugas Investigasi TPDPK',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isSmallScreen ? 20.0 : 23.0,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Jalankan & laporkan hasil investigasi',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: isSmallScreen ? 11.0 : 12.5,
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: isSmallScreen ? 12.0 : 13.5,
             ),
           ),
         ],

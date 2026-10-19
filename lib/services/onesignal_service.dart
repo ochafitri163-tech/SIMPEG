@@ -37,6 +37,11 @@ class OneSignalService {
         OneSignal.User.pushSubscription.optIn();
       } catch (_) {}
 
+      // Bersihkan notifikasi lawas agar tidak menumpuk saat start
+      try {
+        await OneSignal.Notifications.clearAll();
+      } catch (_) {}
+
       OneSignal.Notifications.addClickListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Diklik: ${event.notification.title}');
@@ -106,6 +111,9 @@ class OneSignalService {
   }) async {
     if (!_isSupportedPlatform) return;
     try {
+      try {
+        await OneSignal.Notifications.clearAll();
+      } catch (_) {}
       await OneSignal.login(nik.trim());
       try {
         OneSignal.User.pushSubscription.optIn();
@@ -130,6 +138,9 @@ class OneSignalService {
   Future<void> logoutUser() async {
     if (!_isSupportedPlatform) return;
     try {
+      try {
+        await OneSignal.Notifications.clearAll();
+      } catch (_) {}
       await OneSignal.logout();
     } catch (_) {}
   }
@@ -258,6 +269,20 @@ class OneSignalService {
       final finalPayload = Map<String, dynamic>.from(payload);
       finalPayload.putIfAbsent('priority', () => 10);
       finalPayload.putIfAbsent('android_visibility', () => 1);
+      // Ikon silhouette putih resmi untuk Android Status Bar dan Always-On Display (AOD)
+      finalPayload.putIfAbsent('small_icon', () => 'ic_stat_onesignal_default');
+      // Ikon besar di sisi kanan notifikasi ketika drawer ditarik
+      finalPayload.putIfAbsent('large_icon', () => 'ic_launcher');
+      // Warna aksen navy SIMPEG (#0D2C6E)
+      finalPayload.putIfAbsent('android_accent_color', () => 'FF0D2C6E');
+      // Berikan android_group unik per notifikasi agar OneSignal TIDAK menggabungkan
+      // notifikasi baru dengan riwayat notifikasi kemarin yang sudah di-swipe oleh user
+      finalPayload.putIfAbsent(
+        'android_group',
+        () => 'simpeg_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      // TTL 12 jam (43200 detik) untuk mencegah OneSignal me-restore notifikasi lama
+      finalPayload.putIfAbsent('ttl', () => 43200);
 
       final endpoints = kIsWeb
           ? [
