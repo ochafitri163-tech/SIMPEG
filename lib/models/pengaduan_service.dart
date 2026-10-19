@@ -496,6 +496,10 @@ class PengaduanService {
     if (user.nik.trim().isEmpty) {
       throw Exception('NIK pegawai tidak tersedia.');
     }
+    if (deskripsi.trim().length < 30) {
+      throw Exception(
+          'Deskripsi pengaduan minimal 30 karakter agar informasi jelas.');
+    }
 
     // Buat pengaduan dengan nomor unik. Bila terjadi bentrok nomor
     // (unique constraint `nomor_pengaduan`) karena ada pengaduan lain yang

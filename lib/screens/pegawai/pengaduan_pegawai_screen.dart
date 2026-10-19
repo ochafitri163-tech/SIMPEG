@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -56,6 +55,8 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
             'serta pelanggaran prosedur keselamatan kerja (K3) di lapangan.',
   };
 
+  static const int _minDeskripsiLength = 30;
+
   final _judulController = TextEditingController();
   final _deskripsiController = TextEditingController();
 
@@ -65,6 +66,16 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   final ImagePicker _picker = ImagePicker();
   final MediaLampiranController _mediaController = MediaLampiranController();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _deskripsiController.addListener(_onDeskripsiChanged);
+  }
+
+  void _onDeskripsiChanged() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _pilihPelaku() async {
     final picked = await showPegawaiTersangkaPickerSheet(
@@ -81,6 +92,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
 
   @override
   void dispose() {
+    _deskripsiController.removeListener(_onDeskripsiChanged);
     _judulController.dispose();
     _deskripsiController.dispose();
     super.dispose();
@@ -292,8 +304,16 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       _showSnack('Judul singkat tidak boleh kosong.', red);
       return;
     }
-    if (_deskripsiController.text.trim().isEmpty) {
+    final deskripsiTrim = _deskripsiController.text.trim();
+    if (deskripsiTrim.isEmpty) {
       _showSnack('Deskripsi tidak boleh kosong.', red);
+      return;
+    }
+    if (deskripsiTrim.length < _minDeskripsiLength) {
+      _showSnack(
+        'Deskripsi pengaduan minimal $_minDeskripsiLength karakter agar informasi lebih detail dan jelas (saat ini baru ${deskripsiTrim.length} karakter).',
+        red,
+      );
       return;
     }
 
@@ -494,12 +514,125 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                   hint: 'Contoh: AC ruangan rusak',
                 ),
                 const SizedBox(height: 18),
-                _buildFieldLabel('Deskripsi'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildFieldLabel('Deskripsi'),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _deskripsiController.text.trim().length >=
+                                _minDeskripsiLength
+                            ? const Color(0xFF27AE60).withValues(alpha: 0.12)
+                            : const Color(0xFFE67E22).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _deskripsiController.text.trim().length >=
+                                  _minDeskripsiLength
+                              ? const Color(0xFF27AE60).withValues(alpha: 0.4)
+                              : const Color(0xFFE67E22).withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Text(
+                        'Min. $_minDeskripsiLength Karakter',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: _deskripsiController.text.trim().length >=
+                                  _minDeskripsiLength
+                              ? const Color(0xFF27AE60)
+                              : const Color(0xFFD35400),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   controller: _deskripsiController,
-                  hint: 'Jelaskan kejadian atau keluhan kamu di sini....',
+                  hint:
+                      'Jelaskan detail kejadian, kronologi, lokasi, bukti, atau dampak yang dialami (minimal $_minDeskripsiLength karakter)....',
                   maxLines: 5,
+                ),
+                const SizedBox(height: 6),
+                Builder(
+                  builder: (context) {
+                    final currentLen = _deskripsiController.text.trim().length;
+                    final isSufficient = currentLen >= _minDeskripsiLength;
+                    final progress =
+                        (currentLen / _minDeskripsiLength).clamp(0.0, 1.0);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 4,
+                            backgroundColor: isSufficient
+                                ? const Color(0xFF27AE60)
+                                    .withValues(alpha: 0.2)
+                                : const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isSufficient
+                                  ? const Color(0xFF27AE60)
+                                  : const Color(0xFFE67E22),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isSufficient
+                                        ? Icons.check_circle_rounded
+                                        : Icons.info_outline_rounded,
+                                    size: 14,
+                                    color: isSufficient
+                                        ? const Color(0xFF27AE60)
+                                        : const Color(0xFFE67E22),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      isSufficient
+                                          ? 'Deskripsi memenuhi syarat minimal'
+                                          : currentLen == 0
+                                              ? 'Wajib minimal $_minDeskripsiLength karakter agar detail jelas'
+                                              : 'Kurang ${_minDeskripsiLength - currentLen} karakter lagi',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: isSufficient
+                                            ? const Color(0xFF27AE60)
+                                            : const Color(0xFFD35400),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '$currentLen/$_minDeskripsiLength',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isSufficient
+                                    ? const Color(0xFF27AE60)
+                                    : hintGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 _buildLampirkanFotoButton(),

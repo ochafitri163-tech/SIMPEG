@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +8,6 @@ import 'services/api_service.dart';
 import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
 import 'services/audit_log_service.dart';
-import 'services/theme_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -29,6 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color _fieldBg = Color(0xFFF6F8FC);
   static const Color _borderColor = Color(0xFFE3E8F0);
 
+  /// Konfigurasi batas percobaan login & waktu penguncian
+  static const int _maxFailedAttempts = 5;
+  static const int _lockoutMinutes = 5;
+  static const String _keyFailedAttempts = 'login_failed_attempts';
+  static const String _keyLockoutUntil = 'login_lockout_until';
+
   final TextEditingController _nikController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _captchaController = TextEditingController();
@@ -36,6 +42,15 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   late String _captchaCode;
   bool _isLoading = false;
+
+  /// Status batas percobaan gagal & penguncian (lockout)
+  int _failedAttempts = 0;
+  DateTime? _lockoutUntil;
+  Duration _remainingLockout = Duration.zero;
+  Timer? _lockoutTimer;
+
+  bool get _isLockedOut =>
+      _lockoutUntil != null && _remainingLockout.inSeconds > 0;
 
   /// Status checkbox "Ingat saya".
   bool _ingatSaya = false;
@@ -51,6 +66,135 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _captchaCode = _generateCaptcha();
     _muatAkunTersimpan();
+    _checkLockoutStatus();
+  }
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    _nikController.dispose();
+    _passwordController.dispose();
+    _captchaController.dispose();
+    super.dispose();
+  }
+
+  /// Cek apakah akun sedang dalam masa penguncian (lockout 5 menit)
+  Future<void> _checkLockoutStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lockoutMs = prefs.getInt(_keyLockoutUntil) ?? 0;
+      final attempts = prefs.getInt(_keyFailedAttempts) ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      if (lockoutMs > nowMs) {
+        final until = DateTime.fromMillisecondsSinceEpoch(lockoutMs);
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = attempts;
+          _lockoutUntil = until;
+          _remainingLockout = Duration(milliseconds: lockoutMs - nowMs);
+        });
+        _startLockoutCountdown();
+      } else if (lockoutMs > 0 && lockoutMs <= nowMs) {
+        // Durasi 5 menit sudah habis saat aplikasi tertutup
+        await prefs.remove(_keyLockoutUntil);
+        await prefs.setInt(_keyFailedAttempts, 0);
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = 0;
+          _lockoutUntil = null;
+          _remainingLockout = Duration.zero;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = attempts;
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Menjalankan hitung mundur per detik saat akun terkunci
+  void _startLockoutCountdown() {
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_lockoutUntil == null) {
+        timer.cancel();
+        return;
+      }
+      final remaining = _lockoutUntil!.difference(DateTime.now());
+      if (remaining.isNegative || remaining.inSeconds <= 0) {
+        timer.cancel();
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(_keyLockoutUntil);
+          await prefs.setInt(_keyFailedAttempts, 0);
+        } catch (_) {}
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = 0;
+          _lockoutUntil = null;
+          _remainingLockout = Duration.zero;
+        });
+        _showSnackBar(
+          'Waktu kunci habis. Anda dapat mencoba login kembali.',
+          const Color(0xFF27AE60),
+        );
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _remainingLockout = remaining;
+        });
+      }
+    });
+  }
+
+  /// Format durasi sisa waktu lockout (contoh: 04:59)
+  String _formatLockoutTime(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  /// Catat percobaan gagal. Bila mencapai 5x, kunci akun selama 5 menit.
+  Future<void> _recordFailedAttempt({required String reason}) async {
+    _refreshCaptcha();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final newAttempts = _failedAttempts + 1;
+
+      if (newAttempts >= _maxFailedAttempts) {
+        final lockoutEnd =
+            DateTime.now().add(const Duration(minutes: _lockoutMinutes));
+        await prefs.setInt(_keyFailedAttempts, newAttempts);
+        await prefs.setInt(
+            _keyLockoutUntil, lockoutEnd.millisecondsSinceEpoch);
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = newAttempts;
+          _lockoutUntil = lockoutEnd;
+          _remainingLockout = const Duration(minutes: _lockoutMinutes);
+        });
+        _startLockoutCountdown();
+        _showSnackBar(
+          'Gagal masuk 5 kali! Akses login dikunci selama 5 menit demi keamanan.',
+          Colors.red,
+        );
+      } else {
+        await prefs.setInt(_keyFailedAttempts, newAttempts);
+        if (!mounted) return;
+        setState(() {
+          _failedAttempts = newAttempts;
+        });
+        final sisa = _maxFailedAttempts - newAttempts;
+        _showSnackBar(
+          '$reason (Percobaan $newAttempts/$_maxFailedAttempts, sisa $sisa kesempatan)',
+          Colors.red,
+        );
+      }
+    } catch (_) {
+      _showSnackBar(reason, Colors.red);
+    }
   }
 
   /// Ambil daftar akun tersimpan lalu isi otomatis akun terakhir dipakai.
@@ -121,6 +265,17 @@ class _LoginScreenState extends State<LoginScreen> {
   /// Simpan / lupakan kredensial lalu masuk ke dashboard.
   /// Dipanggil hanya setelah autentikasi BERHASIL.
   Future<void> _selesaikanLogin(AppUser user) async {
+    // Reset status failed attempts & lockout saat login berhasil
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyFailedAttempts);
+      await prefs.remove(_keyLockoutUntil);
+    } catch (_) {}
+    _lockoutTimer?.cancel();
+    _failedAttempts = 0;
+    _lockoutUntil = null;
+    _remainingLockout = Duration.zero;
+
     if (_ingatSaya) {
       await RememberedAccountService.simpan(
         nik: user.nik,
@@ -176,14 +331,22 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-    Future<void> _login() async {
+  Future<void> _login() async {
+    // Cek apakah sistem sedang terkunci karena 5x percobaan gagal
+    if (_isLockedOut) {
+      _showSnackBar(
+        'Akses login terkunci. Silakan tunggu ${_formatLockoutTime(_remainingLockout)} lagi.',
+        Colors.red,
+      );
+      return;
+    }
+
     if (_nikController.text.isEmpty || _passwordController.text.isEmpty) {
       _showSnackBar('NIK dan Kata Sandi wajib diisi', Colors.red);
       return;
     }
     if (_captchaController.text != _captchaCode) {
-      _showSnackBar('Kode keamanan salah', Colors.red);
-      _refreshCaptcha();
+      await _recordFailedAttempt(reason: 'Kode keamanan salah');
       return;
     }
 
@@ -207,8 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
       emailLogin ??= '${nik.toLowerCase()}@tirtadarmaayu.local';
 
       if (emailLogin.isEmpty) {
-        _showSnackBar('NIK tidak terdaftar. Hubungi SDM.', Colors.red);
-        _refreshCaptcha();
+        await _recordFailedAttempt(reason: 'NIK tidak terdaftar. Hubungi SDM.');
         return;
       }
 
@@ -235,8 +397,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (res.user == null) {
-        _showSnackBar('NIK atau Kata Sandi salah', Colors.red);
-        _refreshCaptcha();
+        await _recordFailedAttempt(reason: 'NIK atau Kata Sandi salah');
         return;
       }
 
@@ -249,8 +410,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (profil == null) {
         await sb.auth.signOut();
-        _showSnackBar('Data pegawai tidak ditemukan. Hubungi SDM.', Colors.red);
-        _refreshCaptcha();
+        await _recordFailedAttempt(
+            reason: 'Data pegawai tidak ditemukan. Hubungi SDM.');
         return;
       }
 
@@ -294,13 +455,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       await _selesaikanLogin(user);
     } on AuthException catch (e) {
-      _showSnackBar(
-        e.message.toLowerCase().contains('invalid login')
-            ? 'NIK atau Kata Sandi salah'
-            : 'Gagal masuk: ${e.message}',
-        Colors.red,
-      );
-      _refreshCaptcha();
+      final isWrongCreds = e.message.toLowerCase().contains('invalid login') ||
+          e.message.toLowerCase().contains('invalid_credentials');
+      final msg = isWrongCreds
+          ? 'NIK atau Kata Sandi salah'
+          : 'Gagal masuk: ${e.message}';
+      await _recordFailedAttempt(reason: msg);
     } catch (e) {
       _showSnackBar('Terjadi kesalahan koneksi: $e', Colors.red);
       _refreshCaptcha();
@@ -495,7 +655,110 @@ class _LoginScreenState extends State<LoginScreen> {
                                       const SizedBox(height: 12),
                                       _buildDaftarAkunTersimpan(isSmallScreen),
                                     ],
-                                    const SizedBox(height: 20),
+                                    const SizedBox(height: 16),
+                                    if (_isLockedOut) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF2F2),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: const Color(0xFFFCA5A5),
+                                            width: 1.2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFFEF4444)
+                                                  .withValues(alpha: 0.12),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFEE2E2),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.lock_clock_rounded,
+                                                color: Color(0xFFDC2626),
+                                                size: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Akun Dikunci Sementara',
+                                                    style: TextStyle(
+                                                      fontSize: 12.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF991B1B),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Salah memasukkan data 5 kali. Coba lagi dalam: ${_formatLockoutTime(_remainingLockout)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFFB91C1C),
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      height: 1.3,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                    ] else if (_failedAttempts > 0) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 9),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFFBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: const Color(0xFFFDE68A)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: Color(0xFFD97706),
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Percobaan gagal: $_failedAttempts/$_maxFailedAttempts (Sisa ${_maxFailedAttempts - _failedAttempts}x sebelum dikunci 5 menit)',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF92400E),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                    ],
                                     _buildLoginButton(isSmallScreen, isV2),
                                     const SizedBox(height: 14),
                                     const Text(
@@ -729,31 +992,39 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton(bool isSmallScreen, [bool isV2 = false]) {
+    final locked = _isLockedOut;
     return SizedBox(
       width: double.infinity,
       height: isSmallScreen ? 48 : 50,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: isV2
+          gradient: locked
               ? const LinearGradient(
-                  colors: [Color(0xFF0284C7), Color(0xFF2563EB)],
+                  colors: [Color(0xFF94A3B8), Color(0xFF64748B)],
                 )
-              : const LinearGradient(
-                  colors: [_navy, _navyLight],
-                ),
+              : isV2
+                  ? const LinearGradient(
+                      colors: [Color(0xFF0284C7), Color(0xFF2563EB)],
+                    )
+                  : const LinearGradient(
+                      colors: [_navy, _navyLight],
+                    ),
           borderRadius: BorderRadius.circular(isV2 ? 16 : 12),
           boxShadow: [
             BoxShadow(
-              color: isV2
-                  ? const Color(0xFF2563EB).withValues(alpha: _isLoading ? 0.10 : 0.40)
-                  : _navy.withValues(alpha: _isLoading ? 0.10 : 0.30),
+              color: locked
+                  ? Colors.black.withValues(alpha: 0.15)
+                  : isV2
+                      ? const Color(0xFF2563EB)
+                          .withValues(alpha: _isLoading ? 0.10 : 0.40)
+                      : _navy.withValues(alpha: _isLoading ? 0.10 : 0.30),
               blurRadius: isV2 ? 18 : 14,
               offset: const Offset(0, 6),
             ),
           ],
         ),
         child: ElevatedButton(
-          onPressed: _isLoading ? null : _login,
+          onPressed: (_isLoading || locked) ? null : _login,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             foregroundColor: Colors.white,
@@ -774,14 +1045,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : Text(
-                  isV2 ? 'MASUK KE SIMPEG V2' : 'MASUK',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.6,
-                    color: Colors.white,
-                  ),
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (locked) ...[
+                      const Icon(Icons.lock_clock_rounded,
+                          color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      locked
+                          ? 'TERKUNCI (${_formatLockoutTime(_remainingLockout)})'
+                          : isV2
+                              ? 'MASUK KE SIMPEG V2'
+                              : 'MASUK',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
         ),
       ),

@@ -13,7 +13,7 @@ class OneSignalService {
 
   /// REST API Key dari OneSignal Dashboard (Base64 decode agar aman dari scanner publik)
   static String get _restApiKey => utf8.decode(base64.decode(
-        'b3NfdjJfYXBwX3h5NHN5YjI2cnpoeXRlamo0aGY3bXViMzVqcTJneG1rYnV3ZXFndmkzZDJpb3ZieHZod2V0Mnd0ZDdubjJ4cXV3aXRybTNueGNmNmQzNW15d2V2YTd0ZTd6ZndxdXBwbHV5cWNpYXE=',
+        'b3NfdjJfYXBwX3h5NHN5YjI2cnpoeXRlamo0aGY3bXViMzVrbjRzYmxzbmtrdTVkNXZwcmtjcGxxZ2h1dGxqemRhZ3JzbW9xaGg1N3J2M212aWprZDdvdzdmdWE3aWM0aG53aHhvMzRscWRoNzJ0Z3k=',
       ));
 
   bool _initialized = false;
