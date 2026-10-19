@@ -72,6 +72,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
       context: context,
       selectedPegawai: _selectedPelaku,
       title: 'Pilih Pegawai yang Diadukan',
+      onlyExecutors: false,
     );
     if (picked == null) return;
     setState(() {

@@ -13,11 +13,9 @@ const Color _accent = Color(0xFF2E86AB);
 class _StaggerIn extends StatefulWidget {
   final Widget child;
   final int index;
-  final Duration stepDelay;
   const _StaggerIn({
     required this.child,
     this.index = 0,
-    this.stepDelay = const Duration(milliseconds: 70),
   });
 
   @override
@@ -38,7 +36,7 @@ class _StaggerInState extends State<_StaggerIn>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
-    Future.delayed(widget.stepDelay * widget.index, () {
+    Future.delayed(const Duration(milliseconds: 70) * widget.index, () {
       if (mounted) _ctrl.forward();
     });
   }
@@ -439,73 +437,267 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
   final bool adaGambar = _lampiranAdalahGambar(p);
   final bool penting = p.isPenting;
 
-  final Color surface = isDark ? const Color(0xFF172033) : Colors.white;
-  final Color textColor = isDark ? Colors.white : const Color(0xFF14213D);
+  final Color surface = isDark ? const Color(0xFF161F2E) : Colors.white;
+  final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
   final Color subColor =
-      isDark ? const Color(0xFFAAB4C3) : const Color(0xFF6C7A90);
+      isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
   final Color badgeColor =
-      penting ? const Color(0xFFFF4F4A) : const Color(0xFF1E88C5);
+      penting ? const Color(0xFFEF4444) : const Color(0xFF0284C7);
 
   await showGeneralDialog(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Tutup pengumuman',
-    barrierColor: Colors.black.withValues(alpha: 0.52),
+    barrierColor: Colors.black.withValues(alpha: 0.60),
     transitionDuration: const Duration(milliseconds: 320),
     pageBuilder: (ctx, anim, secondaryAnim) {
       final Size screen = MediaQuery.of(ctx).size;
-      final double popupWidth = screen.width < 360 ? screen.width - 42 : 300;
+      final double popupWidth = (screen.width - 40).clamp(320.0, 390.0);
 
       return Material(
         type: MaterialType.transparency,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(0, 58, 0, 28),
-            child: SizedBox(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+            child: Container(
               width: popupWidth,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  // =======================================================
-                  // BODY CARD
-                  // =======================================================
-                  Container(
-                    margin: const EdgeInsets.only(top: 72),
-                    decoration: BoxDecoration(
-                      color: surface,
-                      borderRadius: BorderRadius.circular(26),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          blurRadius: 28,
-                          offset: const Offset(0, 14),
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFE2E8F0),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.16),
+                    blurRadius: 36,
+                    offset: const Offset(0, 16),
+                  ),
+                  BoxShadow(
+                    color: (penting ? const Color(0xFFEF4444) : _navy)
+                        .withValues(alpha: 0.12),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // =======================================================
+                    // HEADER ELEGAN / HERO BANNER
+                    // =======================================================
+                    Stack(
+                      children: [
+                        Container(
+                          height: adaGambar ? 175 : 140,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: adaGambar
+                                ? null
+                                : LinearGradient(
+                                    colors: penting
+                                        ? const [
+                                            Color(0xFF8B0000),
+                                            Color(0xFFDC2626),
+                                            Color(0xFFEF4444),
+                                          ]
+                                        : const [
+                                            Color(0xFF071938),
+                                            Color(0xFF0D2C6E),
+                                            Color(0xFF1E5BB0),
+                                          ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                            image: adaGambar
+                                ? DecorationImage(
+                                    image: NetworkImage(p.lampiranUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: Stack(
+                            children: [
+                              if (!adaGambar) ...[
+                                Positioned(
+                                  right: -25,
+                                  top: -25,
+                                  child: Container(
+                                    width: 120,
+                                    height: 120,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.07),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: -35,
+                                  bottom: -35,
+                                  child: Container(
+                                    width: 110,
+                                    height: 110,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.05),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (adaGambar)
+                                Positioned.fill(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.black.withValues(alpha: 0.35),
+                                          Colors.transparent,
+                                          Colors.black.withValues(alpha: 0.60),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Center(
+                                child: _StaggerIn(
+                                  index: 0,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 52,
+                                        height: 52,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white
+                                              .withValues(alpha: 0.16),
+                                          border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.30),
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.18),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          penting
+                                              ? Icons.campaign_rounded
+                                              : Icons
+                                                  .notifications_active_rounded,
+                                          color: Colors.white,
+                                          size: 27,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 4.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.28),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.18),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          penting
+                                              ? 'PENGUMUMAN PENTING'
+                                              : 'PENGUMUMAN TERBARU',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Tombol Close terintegrasi rapi
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: _TapScale(
+                            onTap: () => Navigator.of(ctx).pop(),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.32),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 92, 18, 18),
+
+                    // =======================================================
+                    // BODY DETAIL
+                    // =======================================================
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Badge + tanggal
+                          // Badge status & Waktu
                           _StaggerIn(
-                            index: 0,
+                            index: 1,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
-                                    vertical: 7,
+                                    vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: badgeColor.withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(18),
+                                    color: badgeColor.withValues(
+                                      alpha: isDark ? 0.20 : 0.10,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color:
-                                          badgeColor.withValues(alpha: 0.16),
+                                      color: badgeColor.withValues(
+                                        alpha: isDark ? 0.35 : 0.20,
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -514,68 +706,42 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                       Icon(
                                         penting
                                             ? Icons.priority_high_rounded
-                                            : Icons
-                                                .notifications_active_rounded,
-                                        size: 15,
+                                            : Icons.campaign_rounded,
+                                        size: 14,
                                         color: badgeColor,
                                       ),
-                                      const SizedBox(width: 5),
+                                      const SizedBox(width: 4),
                                       Text(
                                         penting ? 'PENTING' : 'INFO',
                                         style: TextStyle(
                                           color: badgeColor,
-                                          fontSize: 11,
+                                          fontSize: 10.5,
                                           fontWeight: FontWeight.w900,
-                                          letterSpacing: 0.35,
+                                          letterSpacing: 0.4,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? Colors.white
-                                                .withValues(alpha: 0.06)
-                                            : const Color(0xFFF1F5FA),
-                                        borderRadius:
-                                            BorderRadius.circular(15),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.schedule_rounded,
-                                            size: 12,
-                                            color: subColor,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Flexible(
-                                            child: Text(
-                                              formatTanggalJam(
-                                                p.tanggalTayang,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: subColor,
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                const Spacer(),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 13,
+                                      color: subColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      formatTanggalJam(p.tanggalTayang),
+                                      style: TextStyle(
+                                        color: subColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -583,99 +749,127 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
 
                           const SizedBox(height: 14),
 
-                          // Judul
+                          // Judul Pengumuman
                           _StaggerIn(
-                            index: 1,
+                            index: 2,
                             child: Text(
-                              p.judul.toUpperCase(),
+                              p.judul,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: textColor,
-                                fontSize: 22,
-                                height: 1.05,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                                letterSpacing: -0.3,
                               ),
                             ),
                           ),
 
                           const SizedBox(height: 10),
 
-                          // Ringkasan
+                          // Ringkasan dalam Card Preview
                           _StaggerIn(
-                            index: 2,
-                            child: Text(
-                              p.ringkasan,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: subColor,
-                                fontSize: 13,
-                                height: 1.38,
-                                fontWeight: FontWeight.w500,
+                            index: 3,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.04)
+                                    : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.06)
+                                      : const Color(0xFFEDF2F7),
+                                ),
+                              ),
+                              child: Text(
+                                p.ringkasan,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  fontWeight: FontWeight.w400,
+                                ),
                               ),
                             ),
                           ),
 
+                          if (p.adaLampiran) ...[
+                            const SizedBox(height: 10),
+                            _StaggerIn(
+                              index: 4,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.attach_file_rounded,
+                                    size: 14,
+                                    color: _accent,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      p.lampiranNama ??
+                                          'Memiliki berkas lampiran',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: _accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
                           const SizedBox(height: 18),
 
-                          Divider(
-                            color: subColor.withValues(alpha: 0.16),
-                            height: 1,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Tombol aksi
+                          // Tombol Aksi
                           _StaggerIn(
-                            index: 3,
+                            index: 5,
                             child: Row(
                               children: [
-                                SizedBox(
-                                  width: 74,
-                                  height: 46,
-                                  child: _TapScale(
-                                    onTap: () {
-                                      if (Navigator.of(ctx).canPop()) {
-                                        Navigator.of(ctx).pop();
-                                      }
-                                    },
-                                    child: Container(
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? Colors.white
-                                                .withValues(alpha: 0.055)
-                                            : Colors.white,
-                                        borderRadius:
-                                            BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: subColor.withValues(
-                                            alpha: 0.25,
+                                Expanded(
+                                  flex: 2,
+                                  child: SizedBox(
+                                    height: 44,
+                                    child: _TapScale(
+                                      onTap: () {
+                                        if (Navigator.of(ctx).canPop()) {
+                                          Navigator.of(ctx).pop();
+                                        }
+                                      },
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.06)
+                                              : const Color(0xFFF1F5F9),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: isDark
+                                                ? Colors.white
+                                                    .withValues(alpha: 0.08)
+                                                : const Color(0xFFE2E8F0),
                                           ),
-                                          width: 1.2,
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.045,
-                                            ),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
                                         child: Text(
                                           'Nanti',
-                                          maxLines: 1,
-                                          softWrap: false,
                                           style: TextStyle(
                                             color: subColor,
                                             fontSize: 13,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
@@ -684,8 +878,9 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
+                                  flex: 3,
                                   child: SizedBox(
-                                    height: 46,
+                                    height: 44,
                                     child: _TapScale(
                                       onTap: () {
                                         if (Navigator.of(ctx).canPop()) {
@@ -696,51 +891,51 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                       child: Container(
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: penting
+                                                ? const [
+                                                    Color(0xFFDC2626),
+                                                    Color(0xFFB91C1C),
+                                                  ]
+                                                : const [
+                                                    _navy,
+                                                    Color(0xFF1E5BB0),
+                                                  ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
                                           borderRadius:
-                                              BorderRadius.circular(16),
-                                          color: _navy,
+                                              BorderRadius.circular(14),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: _navy.withValues(
-                                                alpha: 0.32,
-                                              ),
-                                              blurRadius: 14,
-                                              offset: const Offset(0, 6),
+                                              color: (penting
+                                                      ? const Color(0xFFDC2626)
+                                                      : _navy)
+                                                  .withValues(alpha: 0.35),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
                                             ),
                                           ],
                                         ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Flexible(
-                                                child: Text(
-                                                  'Baca Detail',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  softWrap: false,
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 14,
-                                                    fontWeight:
-                                                        FontWeight.w900,
-                                                  ),
-                                                ),
-                                              ),
-                                              SizedBox(width: 6),
-                                              Icon(
-                                                Icons.arrow_forward_rounded,
+                                        child: const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Baca Detail',
+                                              style: TextStyle(
                                                 color: Colors.white,
-                                                size: 18,
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w700,
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                            SizedBox(width: 6),
+                                            Icon(
+                                              Icons.arrow_forward_rounded,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -749,178 +944,11 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                               ],
                             ),
                           ),
-
-                          SizedBox(
-                            height: 2 + MediaQuery.of(ctx).padding.bottom,
-                          ),
                         ],
                       ),
                     ),
-                  ),
-
-                  // =======================================================
-                  // HERO IMAGE MENGAMBANG, VERSI MINIMALIS
-                  // =======================================================
-                  Positioned(
-                    top: 0,
-                    left: 16,
-                    right: 16,
-                    child: _StaggerIn(
-                      index: 0,
-                      child: Container(
-                        height: 150,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF0D2C6E),
-                              Color(0xFF1565C0),
-                              Color(0xFF2E86AB),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          image: adaGambar
-                              ? DecorationImage(
-                                  image: NetworkImage(p.lampiranUrl!),
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment.center,
-                                )
-                              : null,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.24),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(24),
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withValues(alpha: 0.02),
-                                      Colors.black.withValues(alpha: 0.10),
-                                      Colors.black.withValues(alpha: 0.38),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            if (!adaGambar)
-                              Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 58,
-                                      height: 58,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.16,
-                                        ),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.32,
-                                          ),
-                                          width: 1.2,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.campaign_rounded,
-                                        color: Colors.white,
-                                        size: 30,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'PENGUMUMAN',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            Positioned(
-                              left: 14,
-                              right: 14,
-                              bottom: 12,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.32),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.14,
-                                    ),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'PENGUMUMAN TERBARU',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Tombol close melayang minimalis
-                  Positioned(
-                    top: -10,
-                    right: 6,
-                    child: _TapScale(
-                      onTap: () => Navigator.of(ctx).pop(),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.96),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.20),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Color(0xFF7D8796),
-                          size: 21,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -936,149 +964,12 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
       return Opacity(
         opacity: anim.value.clamp(0.0, 1.0),
         child: ScaleTransition(
-          scale: Tween<double>(begin: 0.70, end: 1.0).animate(curved),
+          scale: Tween<double>(begin: 0.85, end: 1.0).animate(curved),
           child: child,
         ),
       );
     },
   );
-}
-
-/// Banner foto lampiran pengumuman: gambar penuh lebar di bawah header,
-/// dengan indikator memuat, fallback saat gagal, dan bisa ditekan untuk
-/// dilihat penuh layar (pinch-to-zoom).
-class _LampiranGambarBanner extends StatelessWidget {
-  final String url;
-  const _LampiranGambarBanner({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
-      onTap: () => _bukaGambarPenuh(context, url),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 160, maxHeight: 260),
-            child: Image.network(
-              url,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return Container(
-                  height: 200,
-                  color: isDark
-                      ? const Color(0xFF232B3B)
-                      : const Color(0xFFEDEFF2),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.4, color: _accent),
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stack) => Container(
-                height: 160,
-                color: isDark
-                    ? const Color(0xFF232B3B)
-                    : const Color(0xFFEDEFF2),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.broken_image_rounded,
-                          color: Colors.grey[500], size: 28),
-                      const SizedBox(height: 6),
-                      Text('Gambar gagal dimuat',
-                          style:
-                              TextStyle(color: Colors.grey[500], fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 10,
-            bottom: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.zoom_in_rounded, size: 14, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text('Lihat penuh',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LampiranTile extends StatelessWidget {
-  final String nama;
-  final String url;
-  const _LampiranTile({required this.nama, required this.url});
-
-  Future<void> _buka(BuildContext context) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => _buka(context),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: _accent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _accent.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.attach_file_rounded, size: 18, color: _accent),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: _accent)),
-            ),
-            const Icon(Icons.open_in_new_rounded, size: 15, color: _accent),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Kartu "Berita & Pengumuman" gaya banner untuk dashboard kelima role

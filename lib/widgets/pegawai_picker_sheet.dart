@@ -17,7 +17,8 @@ import '../theme/app_colors.dart';
 Future<PegawaiOption?> showPegawaiPickerSheet({
   required BuildContext context,
   PegawaiOption? selectedPegawai,
-  String title = 'Pilih Eksekutor Investigasi',
+  String title = 'Pilih Pegawai',
+  bool onlyExecutors = false,
 }) {
   return showModalBottomSheet<PegawaiOption>(
     context: context,
@@ -29,6 +30,7 @@ Future<PegawaiOption?> showPegawaiPickerSheet({
     builder: (ctx) => _PegawaiPickerContent(
       selectedPegawai: selectedPegawai,
       title: title,
+      onlyExecutors: onlyExecutors,
     ),
   );
 }
@@ -38,6 +40,7 @@ Future<List<PegawaiOption>?> showPegawaiMultiPickerSheet({
   required BuildContext context,
   List<PegawaiOption>? selectedPegawaiList,
   String title = 'Pilih Tim Eksekutor Investigasi',
+  bool onlyExecutors = true,
 }) {
   return showModalBottomSheet<List<PegawaiOption>>(
     context: context,
@@ -49,6 +52,7 @@ Future<List<PegawaiOption>?> showPegawaiMultiPickerSheet({
     builder: (ctx) => _PegawaiMultiPickerContent(
       initialSelectedList: selectedPegawaiList ?? [],
       title: title,
+      onlyExecutors: onlyExecutors,
     ),
   );
 }
@@ -124,10 +128,12 @@ List<PegawaiOption> _getOfficialExecutors(List<PegawaiOption> allPegawai) {
 class _PegawaiPickerContent extends StatefulWidget {
   final PegawaiOption? selectedPegawai;
   final String title;
+  final bool onlyExecutors;
 
   const _PegawaiPickerContent({
     this.selectedPegawai,
     required this.title,
+    this.onlyExecutors = false,
   });
 
   @override
@@ -142,11 +148,12 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
   late Future<List<PegawaiOption>> _futurePegawai;
 
   String _searchQuery = '';
-  String _roleFilter = 'KADIV'; // 'KADIV', 'TPDPK'
+  late String _roleFilter;
 
   @override
   void initState() {
     super.initState();
+    _roleFilter = widget.onlyExecutors ? 'KADIV' : 'ALL';
     _futurePegawai = PengaduanService.fetchDaftarPegawai();
   }
 
@@ -157,21 +164,43 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
   }
 
   List<PegawaiOption> _applyFilter(List<PegawaiOption> list) {
-    final eksekutors = _getOfficialExecutors(list);
+    final candidateList =
+        widget.onlyExecutors ? _getOfficialExecutors(list) : list;
 
-    return eksekutors.where((p) {
-      // 1. Role filter (hanya Kadiv SPI dan TPDPK)
-      if (_roleFilter == 'KADIV') {
-        final isKadiv = p.nik == '1711571' ||
-            p.nik == '1711251' ||
-            p.name.toLowerCase().contains('ghani') ||
-            p.name.toLowerCase().contains('nurkhuliyah') ||
-            p.name.toLowerCase().contains('nukhuliyah');
-        if (!isKadiv) return false;
-      } else if (_roleFilter == 'TPDPK') {
-        final isTpdpk = p.nik == '1711161' ||
-            p.name.toLowerCase().contains('dodi sudrajat');
-        if (!isTpdpk) return false;
+    return candidateList.where((p) {
+      // 1. Role filter
+      if (widget.onlyExecutors) {
+        if (_roleFilter == 'KADIV') {
+          final isKadiv = p.nik == '1711571' ||
+              p.nik == '1711251' ||
+              p.name.toLowerCase().contains('ghani') ||
+              p.name.toLowerCase().contains('nurkhuliyah') ||
+              p.name.toLowerCase().contains('nukhuliyah');
+          if (!isKadiv) return false;
+        } else if (_roleFilter == 'TPDPK') {
+          final isTpdpk = p.nik == '1711161' ||
+              p.name.toLowerCase().contains('dodi sudrajat');
+          if (!isTpdpk) return false;
+        }
+      } else {
+        if (_roleFilter == 'PEGAWAI') {
+          final isPegawai = p.role == null ||
+              p.role!.toLowerCase() == 'pegawai' ||
+              p.role!.isEmpty;
+          if (!isPegawai) return false;
+        } else if (_roleFilter == 'KADIV') {
+          final isKadiv = (p.role != null &&
+                  p.role!.toLowerCase().contains('kadiv')) ||
+              p.jabatan.toLowerCase().contains('kadiv') ||
+              p.jabatan.toLowerCase().contains('kepala divisi');
+          if (!isKadiv) return false;
+        } else if (_roleFilter == 'TPDPK') {
+          final isTpdpk = (p.role != null &&
+                  p.role!.toLowerCase().contains('tpdpk')) ||
+              p.jabatan.toLowerCase().contains('tpdpk');
+          if (!isTpdpk) return false;
+        }
+        // Jika 'ALL', loloskan semua role
       }
 
       // 2. Query filter (nama, nik, jabatan, unit kerja, badgeLabel)
@@ -277,11 +306,21 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  _buildFilterChip('Kadiv SPI', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('TPDPK', 'TPDPK', isDark),
-                ],
+                children: widget.onlyExecutors
+                    ? [
+                        _buildFilterChip('Kadiv SPI', 'KADIV', isDark),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('TPDPK', 'TPDPK', isDark),
+                      ]
+                    : [
+                        _buildFilterChip('Semua Pegawai', 'ALL', isDark),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Pegawai', 'PEGAWAI', isDark),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Kadiv SPI', 'KADIV', isDark),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('TPDPK', 'TPDPK', isDark),
+                      ],
               ),
             ),
             const SizedBox(height: 14),
@@ -311,7 +350,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.person_off_rounded,
-                              size: 48, color: textSecondary.withOpacity(0.5)),
+                              size: 48, color: textSecondary.withValues(alpha: 0.5)),
                           const SizedBox(height: 10),
                           Text(
                             'Pegawai tidak ditemukan',
@@ -337,7 +376,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
 
                       return Material(
                         color: isSelected
-                            ? _accent.withOpacity(0.12)
+                            ? _accent.withValues(alpha: 0.12)
                             : (isDark
                                 ? const Color(0xFF1E2638)
                                 : const Color(0xFFF8FAFC)),
@@ -368,7 +407,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                                   radius: 22,
                                   backgroundColor: isSelected
                                       ? _accent
-                                      : _navy.withOpacity(0.85),
+                                      : _navy.withValues(alpha: 0.85),
                                   child: Text(
                                     item.initials,
                                     style: const TextStyle(
@@ -403,7 +442,7 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: _accent.withOpacity(0.12),
+                                              color: _accent.withValues(alpha: 0.12),
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),
@@ -490,10 +529,12 @@ class _PegawaiPickerContentState extends State<_PegawaiPickerContent> {
 class _PegawaiMultiPickerContent extends StatefulWidget {
   final List<PegawaiOption> initialSelectedList;
   final String title;
+  final bool onlyExecutors;
 
   const _PegawaiMultiPickerContent({
     required this.initialSelectedList,
     required this.title,
+    this.onlyExecutors = true,
   });
 
   @override
@@ -516,6 +557,7 @@ class _PegawaiMultiPickerContentState
   @override
   void initState() {
     super.initState();
+    _roleFilter = widget.onlyExecutors ? 'KADIV' : 'ALL';
     _selectedList.addAll(widget.initialSelectedList);
     _futurePegawai = PengaduanService.fetchDaftarPegawai();
   }
@@ -539,21 +581,43 @@ class _PegawaiMultiPickerContentState
   }
 
   List<PegawaiOption> _applyFilter(List<PegawaiOption> list) {
-    final eksekutors = _getOfficialExecutors(list);
+    final candidateList =
+        widget.onlyExecutors ? _getOfficialExecutors(list) : list;
 
-    return eksekutors.where((p) {
-      // 1. Role filter (hanya Kadiv SPI dan TPDPK)
-      if (_roleFilter == 'KADIV') {
-        final isKadiv = p.nik == '1711571' ||
-            p.nik == '1711251' ||
-            p.name.toLowerCase().contains('ghani') ||
-            p.name.toLowerCase().contains('nurkhuliyah') ||
-            p.name.toLowerCase().contains('nukhuliyah');
-        if (!isKadiv) return false;
-      } else if (_roleFilter == 'TPDPK') {
-        final isTpdpk = p.nik == '1711161' ||
-            p.name.toLowerCase().contains('dodi sudrajat');
-        if (!isTpdpk) return false;
+    return candidateList.where((p) {
+      // 1. Role filter
+      if (widget.onlyExecutors) {
+        if (_roleFilter == 'KADIV') {
+          final isKadiv = p.nik == '1711571' ||
+              p.nik == '1711251' ||
+              p.name.toLowerCase().contains('ghani') ||
+              p.name.toLowerCase().contains('nurkhuliyah') ||
+              p.name.toLowerCase().contains('nukhuliyah');
+          if (!isKadiv) return false;
+        } else if (_roleFilter == 'TPDPK') {
+          final isTpdpk = p.nik == '1711161' ||
+              p.name.toLowerCase().contains('dodi sudrajat');
+          if (!isTpdpk) return false;
+        }
+      } else {
+        if (_roleFilter == 'PEGAWAI') {
+          final isPegawai = p.role == null ||
+              p.role!.toLowerCase() == 'pegawai' ||
+              p.role!.isEmpty;
+          if (!isPegawai) return false;
+        } else if (_roleFilter == 'KADIV') {
+          final isKadiv = (p.role != null &&
+                  p.role!.toLowerCase().contains('kadiv')) ||
+              p.jabatan.toLowerCase().contains('kadiv') ||
+              p.jabatan.toLowerCase().contains('kepala divisi');
+          if (!isKadiv) return false;
+        } else if (_roleFilter == 'TPDPK') {
+          final isTpdpk = (p.role != null &&
+                  p.role!.toLowerCase().contains('tpdpk')) ||
+              p.jabatan.toLowerCase().contains('tpdpk');
+          if (!isTpdpk) return false;
+        }
+        // Jika 'ALL', loloskan semua role
       }
 
       // 2. Query filter (nama, nik, jabatan, unit kerja, badgeLabel)
@@ -668,11 +732,21 @@ class _PegawaiMultiPickerContentState
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  _buildChip('Kadiv SPI', 'KADIV', isDark),
-                  const SizedBox(width: 8),
-                  _buildChip('TPDPK', 'TPDPK', isDark),
-                ],
+                children: widget.onlyExecutors
+                    ? [
+                        _buildChip('Kadiv SPI', 'KADIV', isDark),
+                        const SizedBox(width: 8),
+                        _buildChip('TPDPK', 'TPDPK', isDark),
+                      ]
+                    : [
+                        _buildChip('Semua Pegawai', 'ALL', isDark),
+                        const SizedBox(width: 8),
+                        _buildChip('Pegawai', 'PEGAWAI', isDark),
+                        const SizedBox(width: 8),
+                        _buildChip('Kadiv SPI', 'KADIV', isDark),
+                        const SizedBox(width: 8),
+                        _buildChip('TPDPK', 'TPDPK', isDark),
+                      ],
               ),
             ),
             const SizedBox(height: 12),
@@ -700,7 +774,7 @@ class _PegawaiMultiPickerContentState
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.person_off_rounded,
-                              size: 44, color: textSecondary.withOpacity(0.5)),
+                              size: 44, color: textSecondary.withValues(alpha: 0.5)),
                           const SizedBox(height: 8),
                           Text(
                             'Pegawai tidak ditemukan',
@@ -726,7 +800,7 @@ class _PegawaiMultiPickerContentState
 
                       return Material(
                         color: isSelected
-                            ? _accent.withOpacity(0.12)
+                            ? _accent.withValues(alpha: 0.12)
                             : (isDark
                                 ? const Color(0xFF1E2638)
                                 : const Color(0xFFF8FAFC)),
@@ -767,7 +841,7 @@ class _PegawaiMultiPickerContentState
                                   radius: 20,
                                   backgroundColor: isSelected
                                       ? _accent
-                                      : _navy.withOpacity(0.85),
+                                      : _navy.withValues(alpha: 0.85),
                                   child: Text(
                                     item.initials,
                                     style: const TextStyle(
@@ -802,7 +876,7 @@ class _PegawaiMultiPickerContentState
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: _accent.withOpacity(0.12),
+                                              color: _accent.withValues(alpha: 0.12),
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),
