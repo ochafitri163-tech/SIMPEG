@@ -1998,8 +1998,11 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             onPressed: _isProcessing
                 ? null
                 : () async {
-                    final picked =
-                        await showPegawaiPickerSheet(context: context);
+                    final picked = await showPegawaiPickerSheet(
+                      context: context,
+                      title: 'Pilih Eksekutor Investigasi',
+                      onlyExecutors: true,
+                    );
                     if (picked == null) return;
                     final catatan = await _dialogCatatan(
                       judul: 'Catatan Penugasan Investigasi (Opsional)',

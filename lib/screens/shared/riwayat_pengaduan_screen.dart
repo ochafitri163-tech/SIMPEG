@@ -96,58 +96,128 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.pageBackground(context),
-      appBar: AppBar(
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
-        title: const Text('Riwayat Pengaduan'),
-        elevation: 0,
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: FutureBuilder<List<Pengaduan>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Text(
+                        'Gagal memuat riwayat: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: AppColors.textSecondary(context), fontSize: 13),
+                      ),
+                    ),
+                  );
+                }
+
+                final semua = snapshot.data ?? [];
+                final terfilter = semua.where(_filter.cocok).toList();
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: Column(
+                    children: [
+                      _buildFilterBar(semua),
+                      Expanded(
+                        child: terfilter.isEmpty
+                            ? ListView(
+                                children: [
+                                  const SizedBox(height: 80),
+                                  _buildEmptyState(),
+                                ],
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                                itemCount: terfilter.length,
+                                itemBuilder: (_, i) => _buildCard(terfilter[i]),
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      body: FutureBuilder<List<Pengaduan>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Text(
-                  'Gagal memuat riwayat: ${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: AppColors.textSecondary(context), fontSize: 13),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(28),
+        bottomRight: Radius.circular(28),
+      ),
+      child: Container(
+        width: double.infinity,
+        color: _navy,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              right: -40,
+              top: -30,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
-            );
-          }
-
-          final semua = snapshot.data ?? [];
-          final terfilter = semua.where(_filter.cocok).toList();
-
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: Column(
-              children: [
-                _buildFilterBar(semua),
-                Expanded(
-                  child: terfilter.isEmpty
-                      ? ListView(
-                          children: [
-                            const SizedBox(height: 80),
-                            _buildEmptyState(),
-                          ],
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                          itemCount: terfilter.length,
-                          itemBuilder: (_, i) => _buildCard(terfilter[i]),
-                        ),
-                ),
-              ],
             ),
-          );
-        },
+            Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 14,
+                left: 16,
+                right: 16,
+                bottom: 20,
+              ),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.maybePop(context),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_left_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Riwayat Pengaduan',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -156,8 +226,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
     int hitung(_FilterRiwayat f) => semua.where(f.cocok).length;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      color: AppColors.card(context),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -230,7 +299,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -257,7 +326,7 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: p.status.color.withOpacity(0.12),
+                      color: p.status.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
