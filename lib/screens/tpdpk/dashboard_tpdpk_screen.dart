@@ -12,6 +12,7 @@ import '../shared/surat_detail_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../services/api_service.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../services/onesignal_service.dart';
@@ -50,10 +51,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   }
 
   Future<void> _logout() async {
-    try {
-      await OneSignalService.instance.logoutUser();
-    } catch (_) {}
-    await Supabase.instance.client.auth.signOut();
+    await ApiService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),

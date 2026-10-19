@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:simpeg_mobile/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../services/onesignal_service.dart';
 
 Future<void> confirmLogoutPatched(context) async {
@@ -102,10 +103,7 @@ Future<void> confirmLogoutPatched(context) async {
   );
 
   if (konfirmasi == true && context.mounted) {
-    try {
-      await OneSignalService.instance.logoutUser();
-    } catch (_) {}
-    await Supabase.instance.client.auth.signOut();
+    await ApiService.logout();
 
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

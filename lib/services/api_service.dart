@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'onesignal_service.dart';
 
 class ApiService {
   // Dynamic Host URL per platform:
@@ -245,13 +247,21 @@ class ApiService {
     }
   }
 
-  /// 11. Logout
+  /// 11. Logout - membersihkan seluruh sesi aktif, OneSignal, Supabase Auth, dan SharedPreferences
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('user_nik');
-    await prefs.remove('user_nama');
-    await prefs.remove('user_jabatan');
-    await prefs.remove('user_session_json');
+    try {
+      await OneSignalService.instance.logoutUser();
+    } catch (_) {}
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      await prefs.remove('user_nik');
+      await prefs.remove('user_nama');
+      await prefs.remove('user_jabatan');
+      await prefs.remove('user_session_json');
+    } catch (_) {}
   }
 }
