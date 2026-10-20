@@ -8,6 +8,7 @@ import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../../widgets/pengumuman_card.dart';
 import '../../widgets/role_guard.dart';
+import 'riwayat_pengumuman_screen.dart';
 
 /// Halaman KELOLA PENGUMUMAN — khusus role SDM.
 /// Buat / ubah / hapus / publikasikan pengumuman lengkap dengan prioritas,
@@ -134,6 +135,56 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
           title: 'Kelola Pengumuman',
           subtitle: 'Buat & atur pengumuman untuk seluruh pegawai',
           icon: Icons.campaign_rounded,
+          trailing: Tooltip(
+            message: 'Riwayat Pengumuman',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          RiwayatPengumumanScreen(user: widget.user),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Riwayat',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           child: FutureBuilder<List<Pengumuman>>(
             future: _future,
             builder: (context, snapshot) {
@@ -635,7 +686,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                 children: [
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeColor: _accent,
+                    activeThumbColor: _accent,
                     title: const Text('Tandai Penting',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Tampil dengan warna & badge merah'),
@@ -644,7 +695,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeColor: _accent,
+                    activeThumbColor: _accent,
                     title: const Text('Sematkan di atas',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Selalu tampil paling atas'),
@@ -653,7 +704,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeColor: _accent,
+                    activeThumbColor: _accent,
                     title: const Text('Publikasikan sekarang',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Nonaktif = disimpan sebagai draf'),
