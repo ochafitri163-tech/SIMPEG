@@ -508,292 +508,215 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // ==== PONI BIRU V1: dari atas sampai hampir tengah ====
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: size.height * (isVerySmallScreen ? 0.42 : 0.46),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    _navy,
-                    _navy.withValues(alpha: 0.94),
-                    _navyLight.withValues(alpha: 0.82),
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(46),
-                  bottomRight: Radius.circular(46),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _navy.withValues(alpha: 0.30),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 20 : 28,
-                    vertical: isVerySmallScreen ? 12 : 20,
+                    horizontal: isSmallScreen ? 16 : 24,
+                    vertical: isVerySmallScreen ? 10 : 16,
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: constraints.maxHeight,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Logo & Header
-                        _buildHeader(
-                          isSmallScreen: isSmallScreen,
-                          isVerySmallScreen: isVerySmallScreen,
-                          isV2: isV2,
-                        ),
-                            SizedBox(height: isVerySmallScreen ? 18 : 26),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Logo & Header ringkas
+                          _buildHeader(
+                            isSmallScreen: isSmallScreen,
+                            isVerySmallScreen: isVerySmallScreen,
+                            isV2: isV2,
+                          ),
+                          SizedBox(height: isVerySmallScreen ? 12 : 16),
 
-                            // KARTU LOGIN
-                            Container(
-                              constraints: const BoxConstraints(maxWidth: 360),
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isSmallScreen ? 20 : 24,
-                                vertical: isSmallScreen ? 22 : 26,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(22),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _navy.withValues(alpha: 0.18),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 14),
+                          // KARTU LOGIN RINGKAS (TIDAK MEMANJANG KE BAWAH)
+                          Container(
+                            constraints: const BoxConstraints(maxWidth: 350),
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmallScreen ? 18 : 22,
+                              vertical: isSmallScreen ? 18 : 20,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _navy.withValues(alpha: 0.16),
+                                  blurRadius: 26,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: AutofillGroup(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildLabeledField(
+                                    label: 'NIK',
+                                    controller: _nikController,
+                                    icon: Icons.badge_outlined,
+                                    hint: 'Masukkan NIK',
+                                    inputType: TextInputType.number,
+                                    autofillHints: const [
+                                      AutofillHints.username,
+                                    ],
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(20),
+                                    ],
+                                    isSmall: isSmallScreen,
+                                    isV2: isV2,
                                   ),
-                                ],
-                              ),
-                              child: AutofillGroup(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    _buildLabeledField(
-                                      label: 'NIK',
-                                      controller: _nikController,
-                                      icon: Icons.badge_outlined,
-                                      hint: 'Masukkan NIK',
-                                      inputType: TextInputType.number,
-                                      autofillHints: const [
-                                        AutofillHints.username,
-                                      ],
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        LengthLimitingTextInputFormatter(20),
-                                      ],
-                                      isSmall: isSmallScreen,
-                                      isV2: isV2,
-                                    ),
-                                    const SizedBox(height: 14),
-                                    _buildLabeledField(
-                                      label: 'Kata Sandi',
-                                      controller: _passwordController,
-                                      icon: Icons.lock_outline_rounded,
-                                      hint: 'Masukkan kata sandi',
-                                      obscure: _obscurePassword,
-                                      autofillHints: const [
-                                        AutofillHints.password,
-                                      ],
-                                      suffix: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_off_rounded
-                                              : Icons.visibility_rounded,
-                                          color: _navy.withValues(alpha: 0.55),
-                                          size: 18,
-                                        ),
-                                        onPressed: () {
-                                          setState(() =>
-                                              _obscurePassword = !_obscurePassword);
-                                        },
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        splashRadius: 18,
-                                      ),
-                                      isSmall: isSmallScreen,
-                                      isV2: isV2,
-                                    ),
-                                    const SizedBox(height: 14),
-                                    _buildCaptchaRow(isSmallScreen, isV2),
-                                    const SizedBox(height: 12),
-                                    _buildLabeledField(
-                                      label: 'Kode Keamanan',
-                                      controller: _captchaController,
-                                      icon: Icons.verified_user_outlined,
-                                      hint: 'Masukkan 6 angka di atas',
-                                      inputType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                        LengthLimitingTextInputFormatter(6),
-                                      ],
-                                      isSmall: isSmallScreen,
-                                      isV2: isV2,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildIngatSaya(isSmallScreen),
-                                    if (_akunTersimpan.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      _buildDaftarAkunTersimpan(isSmallScreen),
+                                  const SizedBox(height: 10),
+                                  _buildLabeledField(
+                                    label: 'Kata Sandi',
+                                    controller: _passwordController,
+                                    icon: Icons.lock_outline_rounded,
+                                    hint: 'Masukkan kata sandi',
+                                    obscure: _obscurePassword,
+                                    autofillHints: const [
+                                      AutofillHints.password,
                                     ],
-                                    const SizedBox(height: 16),
-                                    if (_isLockedOut) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFEF2F2),
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          border: Border.all(
-                                            color: const Color(0xFFFCA5A5),
-                                            width: 1.2,
+                                    suffix: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_rounded
+                                            : Icons.visibility_rounded,
+                                        color: _navy.withValues(alpha: 0.55),
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        setState(() =>
+                                            _obscurePassword = !_obscurePassword);
+                                      },
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      splashRadius: 18,
+                                    ),
+                                    isSmall: isSmallScreen,
+                                    isV2: isV2,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // Kode Keamanan + Captcha terintegrasi dalam 1 baris compact
+                                  _buildCaptchaSection(isSmallScreen, isV2),
+                                  const SizedBox(height: 10),
+                                  _buildIngatSaya(isSmallScreen),
+                                  if (_akunTersimpan.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    _buildDaftarAkunTersimpan(isSmallScreen),
+                                  ],
+                                  if (_isLockedOut) ...[
+                                    const SizedBox(height: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF2F2),
+                                        borderRadius:
+                                            BorderRadius.circular(9),
+                                        border: Border.all(
+                                          color: const Color(0xFFFCA5A5),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.lock_clock_rounded,
+                                            color: Color(0xFFDC2626),
+                                            size: 17,
                                           ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFFEF4444)
-                                                  .withValues(alpha: 0.12),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFFEE2E2),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: const Icon(
-                                                Icons.lock_clock_rounded,
-                                                color: Color(0xFFDC2626),
-                                                size: 24,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Akun dikunci sementara (${_formatLockoutTime(_remainingLockout)})',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF991B1B),
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  const Text(
-                                                    'Akun Dikunci Sementara',
-                                                    style: TextStyle(
-                                                      fontSize: 12.5,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Color(0xFF991B1B),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'Salah memasukkan data 5 kali. Coba lagi dalam: ${_formatLockoutTime(_remainingLockout)}',
-                                                    style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: Color(0xFFB91C1C),
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      height: 1.3,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 14),
-                                    ] else if (_failedAttempts > 0) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 9),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFFBEB),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                              color: const Color(0xFFFDE68A)),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.warning_amber_rounded,
-                                              color: Color(0xFFD97706),
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                'Percobaan gagal: $_failedAttempts/$_maxFailedAttempts (Sisa ${_maxFailedAttempts - _failedAttempts}x sebelum dikunci 5 menit)',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF92400E),
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                    ),
+                                  ] else if (_failedAttempts > 0) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFFFDE68A)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: Color(0xFFD97706),
+                                            size: 15,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'Gagal: $_failedAttempts/$_maxFailedAttempts (Sisa ${_maxFailedAttempts - _failedAttempts}x)',
+                                              style: const TextStyle(
+                                                fontSize: 10.5,
+                                                color: Color(0xFF92400E),
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                    ],
-                                    _buildLoginButton(isSmallScreen, isV2),
-                                    const SizedBox(height: 14),
-                                    const Text(
-                                      'Pendaftaran & lupa kata sandi melalui website resmi',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: _textMuted,
-                                        fontSize: 10.5,
-                                        height: 1.45,
-                                        fontWeight: FontWeight.w400,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
+                                  const SizedBox(height: 14),
+                                  _buildLoginButton(isSmallScreen, isV2),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Pendaftaran & lupa kata sandi melalui website resmi',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: _textMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-
-                            SizedBox(height: isVerySmallScreen ? 14 : 18),
-                            Text(
-                              '\u00A9 IT PERUMDAM Tirta Darma Ayu 2026',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _navy.withValues(alpha: 0.75),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                              ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '\u00A9 IT PERUMDAM Tirta Darma Ayu 2026',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _navy.withValues(alpha: 0.75),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
             ],
           ),
         );
@@ -801,13 +724,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
 
-  /// Header tanpa kotak: logo, Selamat Datang, SIMPEG Mobile, lalu subjudul.
+  /// Header tanpa kotak: logo ringkas, SIMPEG Mobile, lalu nama perusahaan.
   Widget _buildHeader({
     required bool isSmallScreen,
     required bool isVerySmallScreen,
     bool isV2 = false,
   }) {
-    final double logoSize = isSmallScreen ? 74 : 84;
+    final double logoSize = isSmallScreen ? 48 : 54;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -816,20 +739,18 @@ class _LoginScreenState extends State<LoginScreen> {
         Container(
           width: logoSize,
           height: logoSize,
-          padding: const EdgeInsets.all(9),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
             border: isV2
-                ? Border.all(color: const Color(0xFF38BDF8), width: 2.5)
-                : null,
+                ? Border.all(color: const Color(0xFF38BDF8), width: 2)
+                : Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: isV2
-                    ? const Color(0xFF0284C7).withValues(alpha: 0.45)
-                    : Colors.black.withValues(alpha: 0.20),
-                blurRadius: isV2 ? 22 : 18,
-                offset: const Offset(0, 8),
+                color: _navy.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -847,30 +768,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Icon(
                     Icons.water_drop_rounded,
                     color: Colors.white,
-                    size: 34,
+                    size: 26,
                   ),
                 );
               },
             ),
           ),
         ),
-        SizedBox(height: isVerySmallScreen ? 14 : 20),
+        const SizedBox(height: 8),
 
-        // 2. Selamat Datang
-        Text(
-          'Selamat Datang',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 24 : 27,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            letterSpacing: -0.2,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // 3. SIMPEG Mobile + nama perusahaan
+        // 2. SIMPEG Mobile
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -878,116 +785,170 @@ class _LoginScreenState extends State<LoginScreen> {
               'SIMPEG Mobile',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: isSmallScreen ? 16 : 17.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.3,
-                height: 1.2,
+                fontSize: isSmallScreen ? 17 : 19,
+                fontWeight: FontWeight.w800,
+                color: isV2 ? const Color(0xFF0F172A) : _navy,
+                letterSpacing: 0.2,
               ),
             ),
             if (isV2) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
-                  'V2 LUXURY',
+                  'V2',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
                   ),
                 ),
               ),
             ],
           ],
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           'PERUMDAM TIRTA DARMA AYU',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: isSmallScreen ? 10.5 : 11.5,
-            fontWeight: FontWeight.w600,
-            color: Colors.white.withValues(alpha: 0.85),
-            letterSpacing: 1.3,
-            height: 1.3,
-          ),
-        ),
-        SizedBox(height: isVerySmallScreen ? 8 : 12),
-
-        // 4. Subjudul
-        Text(
-          'Masuk dengan NIK dan Kata Sandi',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: isSmallScreen ? 12.5 : 13,
-            fontWeight: FontWeight.w400,
-            color: Colors.white.withValues(alpha: 0.80),
-            height: 1.35,
+            fontSize: isSmallScreen ? 9.5 : 10.5,
+            fontWeight: FontWeight.w700,
+            color: isV2 ? const Color(0xFF64748B) : const Color(0xFF475569),
+            letterSpacing: 1.1,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCaptchaRow(bool isSmallScreen, [bool isV2 = false]) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
-        borderRadius: BorderRadius.circular(isV2 ? 16 : 12),
-        border: Border.all(
-          color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
-          width: 1.2,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              _captchaCode,
-              style: TextStyle(
-                color: isV2 ? const Color(0xFF0F172A) : _navy,
-                fontSize: isSmallScreen ? 17 : 19,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 6,
-                fontFamily: 'monospace',
-              ),
-            ),
+  /// Kode Keamanan + Captcha terintegrasi dalam 1 baris hemat ruang
+  Widget _buildCaptchaSection(bool isSmallScreen, [bool isV2 = false]) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kode Keamanan',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: _textDark,
+            letterSpacing: 0.2,
           ),
-          GestureDetector(
-            onTap: _refreshCaptcha,
-            child: Container(
-              padding: const EdgeInsets.all(7),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            // Kotak kode captcha dengan tombol refresh
+            Container(
+              height: 40,
+              padding: const EdgeInsets.only(left: 10, right: 4),
               decoration: BoxDecoration(
-                color: isV2
-                    ? const Color(0xFF0284C7).withValues(alpha: 0.12)
-                    : _navy.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
+                color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isV2
-                      ? const Color(0xFF0284C7).withValues(alpha: 0.30)
-                      : _navy.withValues(alpha: 0.20),
-                  width: 1,
+                  color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
+                  width: 1.2,
                 ),
               ),
-              child: Icon(
-                Icons.refresh_rounded,
-                color: isV2 ? const Color(0xFF0284C7) : _navy,
-                size: 18,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _captchaCode,
+                    style: TextStyle(
+                      color: isV2 ? const Color(0xFF0F172A) : _navy,
+                      fontSize: isSmallScreen ? 14 : 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 3,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: _refreshCaptcha,
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      color: isV2 ? const Color(0xFF0284C7) : _navy,
+                      size: 16,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 26, minHeight: 26),
+                    splashRadius: 14,
+                    tooltip: 'Acak kode',
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 8),
+            // Input 6 angka
+            Expanded(
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: isV2
+                          ? const Color(0xFF0284C7)
+                          : _navy.withValues(alpha: 0.65),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextField(
+                        controller: _captchaController,
+                        cursorColor: isV2 ? const Color(0xFF0284C7) : _navy,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        style: TextStyle(
+                          color: _textDark,
+                          fontSize: isSmallScreen ? 13 : 13.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          hintText: '6 angka',
+                          hintStyle: TextStyle(
+                            color: Color(0xFFA3AEBF),
+                            fontSize: 11.5,
+                            letterSpacing: 0,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 9,
+                            horizontal: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -995,7 +956,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final locked = _isLockedOut;
     return SizedBox(
       width: double.infinity,
-      height: isSmallScreen ? 48 : 50,
+      height: 44,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: locked
@@ -1009,17 +970,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   : const LinearGradient(
                       colors: [_navy, _navyLight],
                     ),
-          borderRadius: BorderRadius.circular(isV2 ? 16 : 12),
+          borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
               color: locked
-                  ? Colors.black.withValues(alpha: 0.15)
-                  : isV2
-                      ? const Color(0xFF2563EB)
-                          .withValues(alpha: _isLoading ? 0.10 : 0.40)
-                      : _navy.withValues(alpha: _isLoading ? 0.10 : 0.30),
-              blurRadius: isV2 ? 18 : 14,
-              offset: const Offset(0, 6),
+                  ? Colors.black.withValues(alpha: 0.12)
+                  : _navy.withValues(alpha: _isLoading ? 0.08 : 0.24),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -1033,15 +991,15 @@ class _LoginScreenState extends State<LoginScreen> {
             disabledBackgroundColor: Colors.transparent,
             disabledForegroundColor: Colors.white70,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(isV2 ? 16 : 12),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
           child: _isLoading
               ? const SizedBox(
-                  height: 20,
-                  width: 20,
+                  height: 18,
+                  width: 18,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
+                    strokeWidth: 2.2,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
@@ -1050,8 +1008,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     if (locked) ...[
                       const Icon(Icons.lock_clock_rounded,
-                          color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
+                          color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
                     ],
                     Text(
                       locked
@@ -1060,9 +1018,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? 'MASUK KE SIMPEG V2'
                               : 'MASUK',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.6,
+                        letterSpacing: 1.2,
                         color: Colors.white,
                       ),
                     ),
@@ -1078,15 +1036,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       children: [
         SizedBox(
-          width: 22,
-          height: 22,
+          width: 20,
+          height: 20,
           child: Checkbox(
             value: _ingatSaya,
             activeColor: _navy,
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             onChanged: (v) => setState(() => _ingatSaya = v ?? false),
           ),
         ),
@@ -1097,7 +1055,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Text(
               'Ingat saya di perangkat ini',
               style: TextStyle(
-                fontSize: isSmall ? 12 : 12.5,
+                fontSize: isSmall ? 11.5 : 12,
                 fontWeight: FontWeight.w600,
                 color: _textDark,
               ),
@@ -1122,72 +1080,71 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
             style: TextButton.styleFrom(
               foregroundColor: _textMuted,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: const Size(0, 30),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: const Size(0, 24),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: const Text('Hapus semua',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600)),
           ),
       ],
     );
   }
 
-  /// Daftar akun tersimpan. Ketuk kartu -> form terisi otomatis.
+  /// Daftar akun tersimpan ringkas. Ketuk kartu -> form terisi otomatis.
   Widget _buildDaftarAkunTersimpan(bool isSmall) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: _fieldBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _borderColor, width: 1.2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _borderColor, width: 1.1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
               Icon(Icons.switch_account_rounded,
-                  size: 15, color: _navy.withValues(alpha: 0.65)),
-              const SizedBox(width: 6),
+                  size: 13, color: _navy.withValues(alpha: 0.70)),
+              const SizedBox(width: 5),
               Text(
                 'Akun tersimpan (${_akunTersimpan.length})',
                 style: const TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   color: _textDark,
-                  letterSpacing: 0.2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           ..._akunTersimpan.map((akun) {
             final terpilih = _nikDipilih == akun.nik;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 4),
               child: InkWell(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 onTap: _isLoading ? null : () => _pakaiAkun(akun),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color:
-                        terpilih ? _navy.withValues(alpha: 0.08) : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    color: terpilih ? _navy.withValues(alpha: 0.08) : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: terpilih
                           ? _navy.withValues(alpha: 0.45)
                           : _borderColor,
-                      width: terpilih ? 1.4 : 1,
+                      width: terpilih ? 1.2 : 1,
                     ),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 30,
-                        height: 30,
+                        width: 24,
+                        height: 24,
                         alignment: Alignment.center,
                         decoration: const BoxDecoration(
                           color: _navyLight,
@@ -1197,12 +1154,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           akun.inisial,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 11.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1212,35 +1169,35 @@ class _LoginScreenState extends State<LoginScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: isSmall ? 12 : 12.5,
+                                fontSize: isSmall ? 11 : 11.5,
                                 fontWeight: FontWeight.w700,
                                 color: _textDark,
                               ),
                             ),
-                            const SizedBox(height: 1),
                             Text(
-                              'NIK ${akun.nik} \u00b7 \u2022\u2022\u2022\u2022\u2022\u2022',
+                              'NIK ${akun.nik}',
                               style: const TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 9.5,
                                 color: _textMuted,
-                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                       ),
                       if (terpilih)
-                        const Icon(Icons.check_circle_rounded,
-                            size: 16, color: _navy),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 17, color: Color(0xFFE74C3C)),
-                        tooltip: 'Hapus akun tersimpan',
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 30, minHeight: 30),
-                        splashRadius: 16,
-                        onPressed: _isLoading ? null : () => _hapusAkun(akun),
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4),
+                          child: Icon(Icons.check_circle_rounded,
+                              size: 14, color: _navy),
+                        ),
+                      InkWell(
+                        onTap: _isLoading ? null : () => _hapusAkun(akun),
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.all(3),
+                          child: Icon(Icons.delete_outline_rounded,
+                              size: 15, color: Color(0xFFE74C3C)),
+                        ),
                       ),
                     ],
                   ),
@@ -1248,15 +1205,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           }),
-          const Text(
-            'Kredensial disimpan terenkripsi di perangkat ini saja, '
-            'tidak dikirim ke server.',
-            style: TextStyle(
-              fontSize: 9.8,
-              color: _textMuted,
-              height: 1.4,
-            ),
-          ),
         ],
       ),
     );
@@ -1281,17 +1229,18 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: FontWeight.w700,
             color: isV2 ? const Color(0xFF0F172A) : _textDark,
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Container(
+          height: 40,
           decoration: BoxDecoration(
             color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
-            borderRadius: BorderRadius.circular(isV2 ? 16 : 12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
               width: 1.2,
@@ -1300,13 +1249,15 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Row(
             children: [
               if (icon != null) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Icon(
                   icon,
-                  color: isV2 ? const Color(0xFF0284C7) : _navy.withValues(alpha: 0.65),
-                  size: 18,
+                  color: isV2
+                      ? const Color(0xFF0284C7)
+                      : _navy.withValues(alpha: 0.65),
+                  size: 17,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
               ],
               Expanded(
                 child: TextField(
@@ -1315,7 +1266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   cursorColor: isV2 ? const Color(0xFF0284C7) : _navy,
                   style: TextStyle(
                     color: _textDark,
-                    fontSize: isSmall ? 13.5 : 14,
+                    fontSize: isSmall ? 13 : 13.5,
                     fontWeight: FontWeight.w500,
                   ),
                   keyboardType: inputType,
@@ -1325,24 +1276,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     isDense: true,
                     suffixIcon: suffix,
                     suffixIconConstraints: const BoxConstraints(
-                      minWidth: 36,
+                      minWidth: 32,
                       minHeight: 20,
                     ),
                     hintText: hint,
                     hintStyle: const TextStyle(
                       color: Color(0xFFA3AEBF),
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
-                      vertical: isSmall ? 11 : 12,
-                      horizontal: icon != null ? 4 : 12,
+                      vertical: 9,
+                      horizontal: icon != null ? 2 : 10,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
             ],
           ),
         ),
