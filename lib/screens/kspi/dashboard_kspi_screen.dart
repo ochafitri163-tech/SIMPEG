@@ -16,6 +16,7 @@ import '../../widgets/konfirmasi_dialog.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
+import '../../services/api_service.dart';
 import '../../services/onesignal_service.dart';
 /// Dashboard untuk role KSPI — Tahap 3 & Tahap 4 (fungsional).
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
@@ -57,10 +58,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   }
 
   Future<void> _logout() async {
-    try {
-      await OneSignalService.instance.logoutUser();
-    } catch (_) {}
-    await Supabase.instance.client.auth.signOut();
+    await ApiService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),

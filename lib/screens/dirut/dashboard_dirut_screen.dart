@@ -13,6 +13,7 @@ import '../shared/surat_detail_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../services/theme_controller.dart';
+import '../../services/api_service.dart';
 import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
 /// alur:
@@ -67,10 +68,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   }
 
   Future<void> _logout() async {
-    try {
-      await OneSignalService.instance.logoutUser();
-    } catch (_) {}
-    await Supabase.instance.client.auth.signOut();
+    await ApiService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),

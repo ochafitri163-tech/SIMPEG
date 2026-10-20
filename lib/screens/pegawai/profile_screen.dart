@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import '../../services/onesignal_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
@@ -788,10 +789,7 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (konfirmasi == true && context.mounted) {
-      try {
-        await OneSignalService.instance.logoutUser();
-      } catch (_) {}
-      await Supabase.instance.client.auth.signOut();
+      await ApiService.logout();
 
       if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
