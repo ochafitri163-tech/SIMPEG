@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
+import 'notification_deduplicator.dart';
 import 'web_notification_stub.dart'
     if (dart.library.js_interop) 'web_notification_web.dart';
 
@@ -218,6 +219,14 @@ class RealtimeNotificationService {
   /// - Android/iOS: flutter_local_notifications (status bar)
   /// - Web: Web Notifications API (browser notification)
   void _showNotification({required String title, required String body}) {
+    if (!NotificationDeduplicator.shouldDisplay(title, body)) {
+      if (kDebugMode) {
+        print(
+          '⛔ [RealtimeNotification] Notifikasi diabaikan (duplikat): "$title" | "$body"',
+        );
+      }
+      return;
+    }
     if (kIsWeb) {
       showWebNotification(title, body);
     } else {

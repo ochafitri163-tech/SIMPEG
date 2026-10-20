@@ -13,52 +13,75 @@ class NotificationService {
 
   bool _initialized = false;
 
+
   static const _channelAbsensi = AndroidNotificationDetails(
     'absensi_channel',
     'Pengingat Absensi',
     channelDescription: 'Pengingat jam masuk & pulang kerja',
-    importance: Importance.high,
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
   );
 
   static const _channelGaji = AndroidNotificationDetails(
     'gaji_channel',
     'Gaji & Payroll',
-    channelDescription: 'Notifikasi slip gaji, insentif, dan tunjangan pendidikan',
-    importance: Importance.high,
+    channelDescription:
+        'Notifikasi slip gaji, insentif, dan tunjangan pendidikan',
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
   );
 
   static const _channelThr = AndroidNotificationDetails(
     'thr_channel',
     'THR & Gaji 13',
     channelDescription: 'Notifikasi THR dan gaji ke-13',
-    importance: Importance.high,
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
   );
 
   static const _channelPengaduan = AndroidNotificationDetails(
-    'pengaduan_channel',
-    'Pengaduan Pegawai',
+    'simpeg_urgent_channel',
+    'Notifikasi Penting SIMPEG',
     channelDescription: 'Update status pengaduan pegawai',
-    importance: Importance.high,
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
+    fullScreenIntent: true,
   );
 
   static const _channelKepegawaian = AndroidNotificationDetails(
     'kepegawaian_channel',
     'Kepegawaian',
-    channelDescription: 'Notifikasi cuti, lembur, dokumen, dan info kepegawaian',
-    importance: Importance.high,
+    channelDescription:
+        'Notifikasi cuti, lembur, dokumen, dan info kepegawaian',
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
   );
 
   static const _channelPengumuman = AndroidNotificationDetails(
-    'pengumuman_channel',
-    'Pengumuman Kantor',
+    'simpeg_urgent_channel',
+    'Notifikasi Penting SIMPEG',
     channelDescription: 'Info & pengumuman dari PDAM',
-    importance: Importance.high,
+    importance: Importance.max,
     priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    visibility: NotificationVisibility.public,
+    fullScreenIntent: true,
   );
 
   Future<void> init() async {

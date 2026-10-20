@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'notification_nav_helper.dart';
+import 'notification_deduplicator.dart';
 
 class OneSignalService {
   OneSignalService._();
@@ -53,10 +54,20 @@ class OneSignalService {
       });
 
       OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+        final title = event.notification.title ?? '';
+        final body = event.notification.body ?? '';
         if (kDebugMode) {
-          print('Notifikasi OneSignal Masuk di Foreground: ${event.notification.title}');
+          print('Notifikasi OneSignal Masuk di Foreground: $title');
         }
-        event.notification.display();
+        if (NotificationDeduplicator.shouldDisplay(title, body)) {
+          event.notification.display();
+        } else {
+          if (kDebugMode) {
+            print(
+              'Notifikasi OneSignal di-suppress (duplikat dicegah): $title | $body',
+            );
+          }
+        }
       });
 
       _initialized = true;
@@ -271,12 +282,15 @@ class OneSignalService {
       final finalPayload = Map<String, dynamic>.from(payload);
       finalPayload.putIfAbsent('priority', () => 10);
       finalPayload.putIfAbsent('android_visibility', () => 1);
+      // Salurkan ke notification channel berprioritas MAX agar pop-up banner muncul di layar
+      finalPayload.putIfAbsent('existing_android_channel_id', () => 'simpeg_urgent_channel');
       // Ikon silhouette putih resmi untuk Android Status Bar dan Always-On Display (AOD)
       finalPayload.putIfAbsent('small_icon', () => 'ic_stat_onesignal_default');
       // Ikon besar di sisi kanan notifikasi ketika drawer ditarik
       finalPayload.putIfAbsent('large_icon', () => 'ic_launcher');
       // Warna aksen navy SIMPEG (#0D2C6E)
       finalPayload.putIfAbsent('android_accent_color', () => 'FF0D2C6E');
+      finalPayload.putIfAbsent('android_sound', () => 'notification');
       // Berikan android_group unik per notifikasi agar OneSignal TIDAK menggabungkan
       // notifikasi baru dengan riwayat notifikasi kemarin yang sudah di-swipe oleh user
       finalPayload.putIfAbsent(

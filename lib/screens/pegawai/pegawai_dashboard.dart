@@ -215,7 +215,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         : widget.user.name.trim();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
-    const crossAxisCount = 3;
+    final crossAxisCount = screenWidth > 900 ? 5 : (screenWidth > 600 ? 4 : 3);
 
     final isDirut = widget.user.role == UserRole.direktur;
     final isKspi = widget.user.role == UserRole.kspi;
@@ -410,7 +410,9 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                     crossAxisCount: crossAxisCount,
                     mainAxisSpacing: isSmallScreen ? 10 : 16,
                     crossAxisSpacing: isSmallScreen ? 10 : 16,
-                    childAspectRatio: isSmallScreen ? 0.78 : 0.85,
+                    childAspectRatio: screenWidth > 600
+                        ? 0.95
+                        : (isSmallScreen ? 0.78 : 0.85),
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
