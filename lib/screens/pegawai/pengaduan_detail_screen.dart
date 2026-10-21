@@ -42,24 +42,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     final userNik = widget.user.nik.trim();
     final userName = widget.user.name.trim().toLowerCase();
 
-    // Pihak yang dilaporkan (terlapor)
+    // Pihak yang dilaporkan (terlapor) tidak boleh melihat identitas pelapor
     final nikPelaku = (p.nikPelaku ?? '').trim();
     final namaPelaku = (p.pihakTerlapor ?? '').trim().toLowerCase();
     final isTerlapor = (nikPelaku.isNotEmpty && userNik == nikPelaku) ||
         (namaPelaku.isNotEmpty && userName == namaPelaku);
     if (isTerlapor) return false;
 
-    // Pihak pelapor
-    final nikPelapor = p.nik.trim();
-    final namaPelapor = p.namaPegawai.trim().toLowerCase();
-    final isPelapor = (nikPelapor.isNotEmpty && userNik == nikPelapor) ||
-        (namaPelapor.isNotEmpty && userName == namaPelapor);
-    if (isPelapor) return false;
+    // Hanya KSPI dan Kadiv Kategori (Administrasi & Teknik) yang bisa melihat pelapor
+    final isKspi = widget.user.role == UserRole.kspi ||
+        widget.user.nik == '1711161' ||
+        widget.user.name.toLowerCase().contains('dodi');
+    final isKadivKategori = widget.user.role == UserRole.kadivKategori;
 
-    // Role pegawai biasa
-    if (widget.user.role == UserRole.pegawai) return false;
-
-    return true;
+    return isKspi || isKadivKategori;
   }
 
   @override

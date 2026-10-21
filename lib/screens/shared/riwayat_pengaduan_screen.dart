@@ -337,8 +337,29 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
     );
   }
 
+  bool _tampilkanInfoPelapor(Pengaduan p) {
+    if (p.anonim) return false;
+
+    final userNik = widget.user.nik.trim();
+    final userName = widget.user.name.trim().toLowerCase();
+
+    // Pihak yang dilaporkan (terlapor) tidak boleh melihat identitas pelapor
+    final nikPelaku = (p.nikPelaku ?? '').trim();
+    final namaPelaku = (p.pihakTerlapor ?? '').trim().toLowerCase();
+    final isTerlapor = (nikPelaku.isNotEmpty && userNik == nikPelaku) ||
+        (namaPelaku.isNotEmpty && userName == namaPelaku);
+    if (isTerlapor) return false;
+
+    // Hanya KSPI dan Kadiv Kategori (Administrasi & Teknik) yang bisa melihat pelapor
+    final isKspi = widget.user.role == UserRole.kspi ||
+        widget.user.nik == '1711161' ||
+        widget.user.name.toLowerCase().contains('dodi');
+    final isKadivKategori = widget.user.role == UserRole.kadivKategori;
+
+    return isKspi || isKadivKategori;
+  }
+
   Widget _buildCard(Pengaduan p) {
-    final pelapor = p.anonim ? 'Anonim' : p.namaPegawai;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () {
@@ -409,11 +430,14 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                     color: AppColors.textPrimary(context)),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Pelapor: $pelapor',
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary(context)),
-              ),
+              if (_tampilkanInfoPelapor(p)) ...[
+                Text(
+                  'Pelapor: ${p.namaPegawai}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary(context)),
+                ),
+                const SizedBox(height: 2),
+              ],
               const SizedBox(height: 2),
               Text(
                 'Kategori: ${p.kategori} \u00b7 ${formatTanggalJam(p.tanggalPengaduan)}',

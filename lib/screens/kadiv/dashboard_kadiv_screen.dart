@@ -1483,7 +1483,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              'Pelapor: ${p.namaPegawai}',
+              'Pelapor: ${p.anonim ? "Anonim" : p.namaPegawai}',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
             ),
             const SizedBox(height: 2),
