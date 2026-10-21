@@ -163,6 +163,7 @@ class _FormCutiSheetState extends State<_FormCutiSheet> {
   DateTime? _mulai;
   DateTime? _selesai;
   bool _kirim = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -191,11 +192,11 @@ class _FormCutiSheetState extends State<_FormCutiSheet> {
 
   Future<void> _submit() async {
     if (_mulai == null || _selesai == null) {
-      _pesan('Pilih tanggal mulai & selesai.');
+      setState(() => _errorMessage = 'Pilih tanggal mulai & selesai cuti/izin.');
       return;
     }
     if (_alasanC.text.trim().isEmpty) {
-      _pesan('Alasan wajib diisi.');
+      setState(() => _errorMessage = 'Alasan pengajuan cuti/izin wajib diisi.');
       return;
     }
     setState(() => _kirim = true);
@@ -285,12 +286,46 @@ class _FormCutiSheetState extends State<_FormCutiSheet> {
             TextField(
               controller: _alasanC,
               maxLines: 3,
+              onChanged: (_) {
+                if (_errorMessage != null) {
+                  setState(() => _errorMessage = null);
+                }
+              },
               decoration: InputDecoration(
-                labelText: 'Alasan',
+                labelText: 'Alasan *',
+                errorText: _errorMessage,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,

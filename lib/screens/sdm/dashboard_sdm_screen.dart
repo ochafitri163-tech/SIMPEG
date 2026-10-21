@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
@@ -17,7 +16,13 @@ import '../../widgets/konfirmasi_dialog.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
+
+enum _SdmClusterFilter {
+  semua,
+  menungguTindakLanjut,
+  selesai,
+}
+
 /// Dashboard untuk role SDM — titik akhir alur Pengaduan (tindak lanjut
 /// administratif). Data & aksi terhubung ke Supabase lewat
 /// [PengaduanService.untukRoleSebagaiObjek] & [PengaduanService.sdmSelesaikan].
@@ -39,6 +44,9 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
   static const Color _accent = Color(0xFF2E86AB);
 
   late Future<List<Pengaduan>> _future;
+
+  /// Cluster filter tab status pengaduan
+  _SdmClusterFilter _clusterFilter = _SdmClusterFilter.semua;
 
   @override
   void initState() {
@@ -72,6 +80,19 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
         margin: const EdgeInsets.all(16),
       ),
     );
+  }
+
+  Future<void> _bukaDetail(Pengaduan p) async {
+    final id = p.supabaseId;
+    if (id == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PengaduanDetailScreen(user: widget.user, pengaduanId: id),
+      ),
+    );
+    await _refresh();
   }
 
   Future<T?> _openSheet<T>(
@@ -319,13 +340,68 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                 final menungguSdm = semua
                     .where((p) => p.status == PengaduanStatus.menungguSdm)
                     .toList();
+                final selesai = semua
+                    .where((p) =>
+                        p.status == PengaduanStatus.selesai ||
+                        p.status == PengaduanStatus.arsip)
+                    .toList();
 
-                content = _buildSection(
-                  'MENUNGGU TINDAK LANJUT SDM',
-                  menungguSdm,
-                  (p) => _bukaTerbitkanSk(p),
-                  'Tidak ada pengaduan yang perlu ditindaklanjuti.',
-                  'Terbitkan SK Sanksi',
+                Widget listContent;
+                switch (_clusterFilter) {
+                  case _SdmClusterFilter.semua:
+                    listContent = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSection(
+                          'MENUNGGU TINDAK LANJUT SDM',
+                          menungguSdm,
+                          (p) => _bukaTerbitkanSk(p),
+                          'Tidak ada pengaduan yang perlu ditindaklanjuti.',
+                          'Terbitkan SK Sanksi',
+                        ),
+                        if (selesai.isNotEmpty)
+                          _buildSection(
+                            'PENGADUAN SELESAI',
+                            selesai,
+                            (p) => _bukaDetail(p),
+                            'Belum ada pengaduan selesai.',
+                            'Detail',
+                          ),
+                      ],
+                    );
+                    break;
+                  case _SdmClusterFilter.menungguTindakLanjut:
+                    listContent = menungguSdm.isEmpty
+                        ? _buildEmptyState('Tidak ada pengaduan yang perlu ditindaklanjuti.')
+                        : Column(
+                            children: menungguSdm
+                                .map((p) => _buildPengaduanCard(
+                                    p, (item) => _bukaTerbitkanSk(item), 'Terbitkan SK Sanksi'))
+                                .toList(),
+                          );
+                    break;
+                  case _SdmClusterFilter.selesai:
+                    listContent = selesai.isEmpty
+                        ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
+                        : Column(
+                            children: selesai
+                                .map((p) => _buildPengaduanCard(
+                                    p, (item) => _bukaDetail(item), 'Detail'))
+                                .toList(),
+                          );
+                    break;
+                }
+
+                content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildClusterBar(
+                      countSemua: semua.length,
+                      countMenunggu: menungguSdm.length,
+                      countSelesai: selesai.length,
+                    ),
+                    listContent,
+                  ],
                 );
               }
 
@@ -534,6 +610,124 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.inbox_rounded,
+              size: 40,
+              color: AppColors.textSecondary(context).withValues(alpha: 0.4)),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClusterBar({
+    required int countSemua,
+    required int countMenunggu,
+    required int countSelesai,
+  }) {
+    final items = [
+      (filter: _SdmClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
+      (filter: _SdmClusterFilter.menungguTindakLanjut, label: 'Menunggu SK Sanksi', count: countMenunggu, icon: Icons.pending_actions_rounded),
+      (filter: _SdmClusterFilter.selesai, label: 'Selesai & Arsip', count: countSelesai, icon: Icons.task_alt_rounded),
+    ];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: items.map((c) {
+            final isSelected = _clusterFilter == c.filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _clusterFilter = c.filter),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: _navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        c.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${c.count}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

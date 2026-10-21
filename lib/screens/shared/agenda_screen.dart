@@ -293,6 +293,7 @@ class _FormAgendaSheetState extends State<_FormAgendaSheet> {
   final _lokasiC = TextEditingController();
   DateTime? _tanggal;
   bool _simpan = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -314,8 +315,12 @@ class _FormAgendaSheetState extends State<_FormAgendaSheet> {
   }
 
   Future<void> _submit() async {
+    if (_judulC.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Judul kegiatan wajib diisi.');
+      return;
+    }
     if (_tanggal == null) {
-      _pesan('Pilih tanggal kegiatan.');
+      setState(() => _errorMessage = 'Pilih tanggal kegiatan terlebih dahulu.');
       return;
     }
     setState(() => _simpan = true);
@@ -377,12 +382,46 @@ class _FormAgendaSheetState extends State<_FormAgendaSheet> {
             const SizedBox(height: 16),
             TextField(
               controller: _judulC,
+              onChanged: (_) {
+                if (_errorMessage != null) {
+                  setState(() => _errorMessage = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: 'Judul Kegiatan *',
+                errorText: _errorMessage,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             InkWell(
               onTap: _pilihTanggal,

@@ -224,37 +224,97 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
 
   Widget _buildFilterBar(List<Pengaduan> semua) {
     int hitung(_FilterRiwayat f) => semua.where(f.cocok).length;
+    IconData iconFor(_FilterRiwayat f) {
+      switch (f) {
+        case _FilterRiwayat.semua:
+          return Icons.grid_view_rounded;
+        case _FilterRiwayat.diproses:
+          return Icons.autorenew_rounded;
+        case _FilterRiwayat.selesai:
+          return Icons.task_alt_rounded;
+        case _FilterRiwayat.arsip:
+          return Icons.archive_rounded;
+      }
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         child: Row(
           children: _FilterRiwayat.values.map((f) {
-            final selected = _filter == f;
+            final isSelected = _filter == f;
+            final count = hitung(f);
             return Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  '${f.label} (${hitung(f)})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: selected
-                        ? Colors.white
-                        : AppColors.textPrimary(context),
+              child: InkWell(
+                onTap: () => setState(() => _filter = f),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: _navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        iconFor(f),
+                        size: 14,
+                        color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        f.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                selected: selected,
-                selectedColor: _accent,
-                backgroundColor: AppColors.surfaceMuted(context),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: selected ? _accent : AppColors.divider(context),
-                  ),
-                ),
-                onSelected: (_) => setState(() => _filter = f),
               ),
             );
           }).toList(),

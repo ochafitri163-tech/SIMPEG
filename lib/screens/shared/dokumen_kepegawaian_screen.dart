@@ -244,6 +244,7 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
   String? _fileNama;
   bool _uploading = false;
   bool _simpan = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -277,8 +278,12 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
   }
 
   Future<void> _submit() async {
+    if (_judulC.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Judul dokumen wajib diisi.');
+      return;
+    }
     if (_fileUrl == null) {
-      _pesan('Pilih file terlebih dahulu.');
+      setState(() => _errorMessage = 'Pilih file dokumen terlebih dahulu.');
       return;
     }
     setState(() => _simpan = true);
@@ -341,12 +346,46 @@ class _FormDokumenSheetState extends State<_FormDokumenSheet> {
             const SizedBox(height: 16),
             TextField(
               controller: _judulC,
+              onChanged: (_) {
+                if (_errorMessage != null) {
+                  setState(() => _errorMessage = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: 'Judul Dokumen *',
+                errorText: _errorMessage,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _nomorC,

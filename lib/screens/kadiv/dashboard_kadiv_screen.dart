@@ -20,6 +20,15 @@ import '../../services/onesignal_service.dart';
 /// Data pengaduan diambil dari Supabase lewat [PengaduanService], semua
 /// aksi (verifikasi, selesaikan tindak lanjut) langsung menulis ke
 /// database (bukan lagi mutasi object in-memory).
+enum _KadivClusterFilter {
+  semua,
+  menungguVerifikasi,
+  investigasi,
+  diterima,
+  ditolak,
+  selesai,
+}
+
 class DashboardKadivScreen extends StatefulWidget {
   final AppUser user;
   final bool showBackButton;
@@ -39,10 +48,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
 
   late Future<List<Pengaduan>> _future;
 
-  /// Tab status keputusan Kadiv: 0 = Diterima, 1 = Ditolak. Menampilkan
-  /// riwayat pengaduan yang sudah diputuskan Kadiv (keduanya tetap
-  /// diteruskan ke KSPI untuk ditinjau ulang).
-  int _keputusanTab = 0;
+  /// Cluster filter tab status pengaduan
+  _KadivClusterFilter _clusterFilter = _KadivClusterFilter.semua;
 
   @override
   void initState() {
@@ -106,6 +113,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     const opsiKategori = ['Pelanggaran Administrasi', 'Pelanggaran Teknik'];
     final divisiSaya = widget.user.divisiKadiv;
     final catatanController = TextEditingController();
+    String? errorCatatan;
 
     final aksi = await showModalBottomSheet<String>(
       context: context,
@@ -184,15 +192,49 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     TextField(
                       controller: catatanController,
                       maxLines: 3,
+                      onChanged: (_) {
+                        if (errorCatatan != null) {
+                          setSheetState(() => errorCatatan = null);
+                        }
+                      },
                       decoration: InputDecoration(
                         labelText: pindahDivisi
                             ? 'Alasan pengalihan kategori (opsional)'
                             : 'Catatan verifikasi (wajib jika ditolak)',
+                        errorText: errorCatatan,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
+                    if (errorCatatan != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE74C3C).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorCatatan!,
+                                style: const TextStyle(
+                                  color: Color(0xFFE74C3C),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     if (pindahDivisi) ...[
                       SizedBox(
@@ -231,7 +273,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 if (catatanController.text.trim().isEmpty) {
-                                  _showSnack('Alasan penolakan wajib diisi pada catatan.', const Color(0xFFE74C3C));
+                                  setSheetState(() {
+                                    errorCatatan = 'Alasan penolakan wajib diisi pada catatan.';
+                                  });
                                   return;
                                 }
                                 final setuju = await showKonfirmasiDialog(
@@ -822,77 +866,143 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               final diterimaKadiv = keputusanKadivSaya
                   .where((p) => p.keputusanKadiv == Keputusan.terima)
                   .toList();
-              final ditolakKadiv = keputusanKadivSaya
-                  .where((p) => p.keputusanKadiv == Keputusan.tolak)
+              final selesai = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.selesai ||
+                      p.status == PengaduanStatus.arsip)
                   .toList();
-              final keputusanTerpilih =
-                  _keputusanTab == 0 ? diterimaKadiv : ditolakKadiv;
+
+              Widget listContent;
+              switch (_clusterFilter) {
+                case _KadivClusterFilter.semua:
+                  if (semua.isEmpty) {
+                    listContent = _buildEmptyState('Tidak ada data pengaduan untuk divisi Anda.');
+                  } else {
+                    listContent = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (menungguVerifikasi.isNotEmpty) ...[
+                          _buildSectionTitle('PENGADUAN MASUK — MENUNGGU VERIFIKASI', menungguVerifikasi.length),
+                          const SizedBox(height: 10),
+                          ...menungguVerifikasi.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Tinjau & Verifikasi',
+                                onAksi: () => _bukaVerifikasi(p),
+                              )),
+                          const SizedBox(height: 16),
+                        ],
+                        if (tindakLanjut.isNotEmpty) ...[
+                          _buildSectionTitle('INVESTIGASI DITUGASKAN', tindakLanjut.length),
+                          const SizedBox(height: 10),
+                          ...tindakLanjut.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Kirim Hasil Investigasi',
+                                onAksi: () => _bukaKirimHasil(p),
+                              )),
+                          const SizedBox(height: 16),
+                        ],
+                        if (diterimaKadiv.isNotEmpty) ...[
+                          _buildSectionTitle('RIWAYAT DITERIMA KADIV', diterimaKadiv.length),
+                          const SizedBox(height: 10),
+                          ...diterimaKadiv.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )),
+                          const SizedBox(height: 16),
+                        ],
+                        if (ditolakKadiv.isNotEmpty) ...[
+                          _buildSectionTitle('RIWAYAT DITOLAK KADIV', ditolakKadiv.length),
+                          const SizedBox(height: 10),
+                          ...ditolakKadiv.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )),
+                          const SizedBox(height: 16),
+                        ],
+                        if (selesai.isNotEmpty) ...[
+                          _buildSectionTitle('PENGADUAN SELESAI & ARSIP', selesai.length),
+                          const SizedBox(height: 10),
+                          ...selesai.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )),
+                        ],
+                      ],
+                    );
+                  }
+                  break;
+                case _KadivClusterFilter.menungguVerifikasi:
+                  listContent = menungguVerifikasi.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan yang menunggu verifikasi.')
+                      : Column(
+                          children: menungguVerifikasi.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Tinjau & Verifikasi',
+                                onAksi: () => _bukaVerifikasi(p),
+                              )).toList(),
+                        );
+                  break;
+                case _KadivClusterFilter.investigasi:
+                  listContent = tindakLanjut.isEmpty
+                      ? _buildEmptyState('Tidak ada investigasi yang ditugaskan ke Anda.')
+                      : Column(
+                          children: tindakLanjut.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Kirim Hasil Investigasi',
+                                onAksi: () => _bukaKirimHasil(p),
+                              )).toList(),
+                        );
+                  break;
+                case _KadivClusterFilter.diterima:
+                  listContent = diterimaKadiv.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan yang Anda terima.')
+                      : Column(
+                          children: diterimaKadiv.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )).toList(),
+                        );
+                  break;
+                case _KadivClusterFilter.ditolak:
+                  listContent = ditolakKadiv.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan yang Anda tolak.')
+                      : Column(
+                          children: ditolakKadiv.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )).toList(),
+                        );
+                  break;
+                case _KadivClusterFilter.selesai:
+                  listContent = selesai.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
+                      : Column(
+                          children: selesai.map((p) => _buildPengaduanCard(
+                                p,
+                                tombolLabel: 'Detail',
+                                onAksi: () => _bukaDetail(p),
+                              )).toList(),
+                        );
+                  break;
+              }
 
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'PENGADUAN MASUK — MENUNGGU VERIFIKASI',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: AppColors.textSecondary(context),
-                    ),
+                  _buildClusterBar(
+                    countSemua: semua.length,
+                    countMenunggu: menungguVerifikasi.length,
+                    countInvestigasi: tindakLanjut.length,
+                    countDiterima: diterimaKadiv.length,
+                    countDitolak: ditolakKadiv.length,
+                    countSelesai: selesai.length,
                   ),
-                  const SizedBox(height: 10),
-                  if (menungguVerifikasi.isEmpty)
-                    _buildEmptyState(
-                        'Tidak ada pengaduan yang menunggu verifikasi.')
-                  else
-                    ...menungguVerifikasi.map((p) => _buildPengaduanCard(
-                          p,
-                          tombolLabel: 'Tinjau & Verifikasi',
-                          onAksi: () => _bukaVerifikasi(p),
-                        )),
-                  const SizedBox(height: 20),
-                  Text(
-                    'INVESTIGASI DITUGASKAN',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (tindakLanjut.isEmpty)
-                    _buildEmptyState('Tidak ada investigasi yang ditugaskan.')
-                  else
-                    ...tindakLanjut.map((p) => _buildPengaduanCard(
-                          p,
-                          tombolLabel: 'Kirim Hasil Investigasi',
-                          onAksi: () => _bukaKirimHasil(p),
-                        )),
-                  const SizedBox(height: 20),
-                  Text(
-                    'STATUS PENGADUAN',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: AppColors.textSecondary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildKeputusanTabBar(
-                      diterimaKadiv.length, ditolakKadiv.length),
-                  const SizedBox(height: 12),
-                  if (keputusanTerpilih.isEmpty)
-                    _buildEmptyState(_keputusanTab == 0
-                        ? 'Belum ada pengaduan yang Anda terima.'
-                        : 'Belum ada pengaduan yang Anda tolak.')
-                  else
-                    ...keputusanTerpilih.map((p) => _buildPengaduanCard(
-                          p,
-                          tombolLabel: 'Detail',
-                          onAksi: () => _bukaDetail(p),
-                        )),
+                  listContent,
                 ],
               );
             }
@@ -1180,33 +1290,137 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
       final selected = _keputusanTab == index;
       return Expanded(
         child: GestureDetector(
-          onTap: () => setState(() => _keputusanTab = index),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
-            decoration: BoxDecoration(
-              color: selected ? warna : warna.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$label ($jumlah)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : warna,
-              ),
+  Widget _buildSectionTitle(String text, int count) {
+    return Row(
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: AppColors.textSecondary(context),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: _accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: _accent,
             ),
           ),
         ),
-      );
-    }
-
-    return Row(
-      children: [
-        tab('Diterima', 0, jumlahDiterima, const Color(0xFF27AE60)),
-        tab('Ditolak', 1, jumlahDitolak, const Color(0xFFE74C3C)),
       ],
+    );
+  }
+
+  Widget _buildClusterBar({
+    required int countSemua,
+    required int countMenunggu,
+    required int countInvestigasi,
+    required int countDiterima,
+    required int countDitolak,
+    required int countSelesai,
+  }) {
+    final items = [
+      (filter: _KadivClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
+      (filter: _KadivClusterFilter.menungguVerifikasi, label: 'Menunggu Verifikasi', count: countMenunggu, icon: Icons.hourglass_top_rounded),
+      (filter: _KadivClusterFilter.investigasi, label: 'Investigasi', count: countInvestigasi, icon: Icons.search_rounded),
+      (filter: _KadivClusterFilter.diterima, label: 'Diterima', count: countDiterima, icon: Icons.check_circle_outline_rounded),
+      (filter: _KadivClusterFilter.ditolak, label: 'Ditolak', count: countDitolak, icon: Icons.highlight_off_rounded),
+      (filter: _KadivClusterFilter.selesai, label: 'Selesai & Arsip', count: countSelesai, icon: Icons.task_alt_rounded),
+    ];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: items.map((c) {
+            final isSelected = _clusterFilter == c.filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _clusterFilter = c.filter),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: _navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        c.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${c.count}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
@@ -17,7 +16,16 @@ import '../../widgets/konfirmasi_dialog.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
+enum _KspiClusterFilter {
+  semua,
+  reviewAwal,
+  pilihEksekutor,
+  tinjauHasil,
+  tindakLanjut,
+  peninjauanKembali,
+  selesai,
+}
+
 /// Dashboard untuk role KSPI — Tahap 3 & Tahap 4 (fungsional).
 /// Data & aksi sudah terhubung ke Supabase lewat [PengaduanService].
 class DashboardKspiScreen extends StatefulWidget {
@@ -43,6 +51,9 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   /// 1 = Ditolak Kadiv. Keduanya tetap masuk ke KSPI untuk ditinjau &
   /// diverifikasi ulang (baik yang diterima maupun ditolak Kadiv).
   int _kadivTab = 0;
+
+  /// Cluster filter tab status pengaduan
+  _KspiClusterFilter _clusterFilter = _KspiClusterFilter.semua;
 
   @override
   void initState() {
@@ -189,6 +200,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // (wajib isi alasan) — bila ditolak, proses berhenti & diarsipkan.
   Future<void> _bukaTeruskanKeDirut(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String? errorCatatan;
 
     final aksi = await _openSheet<String>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -238,13 +250,47 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             TextField(
               controller: catatanController,
               maxLines: 3,
+              onChanged: (_) {
+                if (errorCatatan != null) {
+                  setSheetState(() => errorCatatan = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText:
                     'Catatan (opsional utk teruskan, WAJIB bila tolak)',
+                errorText: errorCatatan,
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorCatatan != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorCatatan!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             Row(
               children: [
@@ -252,9 +298,9 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       if (catatanController.text.trim().isEmpty) {
-                        _showSnack(
-                            'Alasan penolakan wajib diisi.',
-                            const Color(0xFFE74C3C));
+                        setSheetState(() {
+                          errorCatatan = 'Alasan penolakan wajib diisi.';
+                        });
                         return;
                       }
                       Navigator.pop(ctx, 'tolak');
@@ -387,6 +433,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   Future<void> _bukaReviewAwal(Pengaduan p) async {
     List<PegawaiOption> selectedExecutors = [];
     final catatanController = TextEditingController();
+    String? errorExecutors;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -581,15 +628,43 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorExecutors != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorExecutors!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (selectedExecutors.isEmpty) {
-                    _showSnack(
-                        'Harap pilih minimal 1 pegawai eksekutor.',
-                        const Color(0xFFE74C3C));
+                    setSheetState(() {
+                      errorExecutors = 'Harap pilih minimal 1 pegawai eksekutor.';
+                    });
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -654,6 +729,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   Future<void> _bukaReviewHasil(Pengaduan p) async {
     bool sesuai = true;
     final catatanController = TextEditingController();
+    String? errorCatatan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -680,7 +756,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     labelStyle: TextStyle(
                         color: sesuai ? Colors.white : AppColors.textPrimary(context),
                         fontWeight: FontWeight.w600),
-                    onSelected: (_) => setSheetState(() => sesuai = true),
+                    onSelected: (_) => setSheetState(() {
+                      sesuai = true;
+                      errorCatatan = null;
+                    }),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -702,22 +781,57 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             TextField(
               controller: catatanController,
               maxLines: 3,
+              onChanged: (_) {
+                if (errorCatatan != null) {
+                  setSheetState(() => errorCatatan = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: sesuai
                     ? 'Catatan untuk Direktur (opsional)'
                     : 'Alasan revisi (wajib)',
+                errorText: errorCatatan,
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorCatatan != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorCatatan!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (!sesuai && catatanController.text.trim().isEmpty) {
-                    _showSnack(
-                        'Alasan revisi wajib diisi.', const Color(0xFFE74C3C));
+                    setSheetState(() {
+                      errorCatatan = 'Alasan revisi wajib diisi.';
+                    });
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -793,6 +907,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- 3. Revisi setelah penolakan Direktur ----------
   Future<void> _bukaRevisiPenolakan(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String? errorCatatan;
+
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
         child: Column(
@@ -807,20 +923,55 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             TextField(
               controller: catatanController,
               maxLines: 3,
+              onChanged: (_) {
+                if (errorCatatan != null) {
+                  setSheetState(() => errorCatatan = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: 'Catatan revisi',
+                errorText: errorCatatan,
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorCatatan != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorCatatan!,
+                        style: const TextStyle(
+                          color: Color(0xFFE74C3C),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   if (catatanController.text.trim().isEmpty) {
-                    _showSnack(
-                        'Catatan revisi wajib diisi.', const Color(0xFFE74C3C));
+                    setSheetState(() {
+                      errorCatatan = 'Catatan revisi wajib diisi.';
+                    });
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -1045,63 +1196,151 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               final peninjauan = semua
                   .where((p) => p.status == PengaduanStatus.peninjauanKembali)
                   .toList();
+              final selesai = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.selesai ||
+                      p.status == PengaduanStatus.arsip)
+                  .toList();
+
+              Widget listContent;
+              switch (_clusterFilter) {
+                case _KspiClusterFilter.semua:
+                  listContent = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'REVIEW AWAL DARI KADIV',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                            color: AppColors.textSecondary(context)),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildKadivTabBar(
+                          siapTeruskanDiterima.length, siapTeruskanDitolak.length),
+                      const SizedBox(height: 12),
+                      if (siapTeruskan.isEmpty)
+                        _buildEmptyState(
+                          _kadivTab == 0
+                              ? 'Belum ada pengaduan yang diterima Kadiv.'
+                              : 'Belum ada pengaduan yang ditolak Kadiv.',
+                        )
+                      else
+                        ...siapTeruskan.map((p) => _buildPengaduanCard(
+                            p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
+                      const SizedBox(height: 14),
+                      _buildSection(
+                          'PILIH EKSEKUTOR INVESTIGASI',
+                          reviewAwal,
+                          _bukaReviewAwal,
+                          'Belum ada pengaduan siap ditugaskan.',
+                          'Pilih Eksekutor'),
+                      _buildSection(
+                          'TINJAU HASIL INVESTIGASI',
+                          reviewHasil,
+                          _bukaReviewHasil,
+                          'Belum ada hasil investigasi masuk.',
+                          'Tinjau Hasil'),
+                      _buildSection(
+                          'TINDAK LANJUT DITUGASKAN',
+                          ditolak,
+                          _bukaSelesaikanTindakLanjut,
+                          'Tidak ada tindak lanjut yang ditugaskan.',
+                          'Jalankan'),
+                      _buildSection(
+                          'PENINJAUAN KEMBALI DARI DIREKTUR',
+                          peninjauan,
+                          _bukaPeninjauanKembali,
+                          'Tidak ada permintaan peninjauan kembali.',
+                          'Tindak Lanjuti'),
+                    ],
+                  );
+                  break;
+                case _KspiClusterFilter.reviewAwal:
+                  listContent = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildKadivTabBar(
+                          siapTeruskanDiterima.length, siapTeruskanDitolak.length),
+                      const SizedBox(height: 12),
+                      if (siapTeruskan.isEmpty)
+                        _buildEmptyState(
+                          _kadivTab == 0
+                              ? 'Belum ada pengaduan yang diterima Kadiv.'
+                              : 'Belum ada pengaduan yang ditolak Kadiv.',
+                        )
+                      else
+                        ...siapTeruskan.map((p) => _buildPengaduanCard(
+                            p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
+                    ],
+                  );
+                  break;
+                case _KspiClusterFilter.pilihEksekutor:
+                  listContent = reviewAwal.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan siap ditugaskan.')
+                      : Column(
+                          children: reviewAwal
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaReviewAwal, 'Pilih Eksekutor'))
+                              .toList(),
+                        );
+                  break;
+                case _KspiClusterFilter.tinjauHasil:
+                  listContent = reviewHasil.isEmpty
+                      ? _buildEmptyState('Belum ada hasil investigasi masuk.')
+                      : Column(
+                          children: reviewHasil
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaReviewHasil, 'Tinjau Hasil'))
+                              .toList(),
+                        );
+                  break;
+                case _KspiClusterFilter.tindakLanjut:
+                  listContent = ditolak.isEmpty
+                      ? _buildEmptyState('Tidak ada tindak lanjut yang ditugaskan.')
+                      : Column(
+                          children: ditolak
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaSelesaikanTindakLanjut, 'Jalankan'))
+                              .toList(),
+                        );
+                  break;
+                case _KspiClusterFilter.peninjauanKembali:
+                  listContent = peninjauan.isEmpty
+                      ? _buildEmptyState('Tidak ada permintaan peninjauan kembali.')
+                      : Column(
+                          children: peninjauan
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaPeninjauanKembali, 'Tindak Lanjuti'))
+                              .toList(),
+                        );
+                  break;
+                case _KspiClusterFilter.selesai:
+                  listContent = selesai.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
+                      : Column(
+                          children: selesai
+                              .map((p) => _buildPengaduanCard(
+                                  p, (item) => _bukaDetail(item), 'Detail'))
+                              .toList(),
+                        );
+                  break;
+              }
 
               content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'REVIEW AWAL DARI KADIV',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                        color: AppColors.textSecondary(context)),
+                  _buildClusterBar(
+                    countSemua: semua.length,
+                    countReviewAwal: siapTeruskanSemua.length,
+                    countPilihEksekutor: reviewAwal.length,
+                    countTinjauHasil: reviewHasil.length,
+                    countTindakLanjut: ditolak.length,
+                    countPeninjauanKembali: peninjauan.length,
+                    countSelesai: selesai.length,
                   ),
-                  const SizedBox(height: 10),
-                  _buildKadivTabBar(
-                      siapTeruskanDiterima.length, siapTeruskanDitolak.length),
-                  const SizedBox(height: 12),
-                  if (siapTeruskan.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _kadivTab == 0
-                            ? 'Belum ada pengaduan yang diterima Kadiv.'
-                            : 'Belum ada pengaduan yang ditolak Kadiv.',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary(context)),
-                      ),
-                    )
-                  else
-                    ...siapTeruskan.map((p) => _buildPengaduanCard(
-                        p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
-                  const SizedBox(height: 14),
-                  _buildSection(
-                      'PILIH EKSEKUTOR INVESTIGASI',
-                      reviewAwal,
-                      _bukaReviewAwal,
-                      'Belum ada pengaduan siap ditugaskan.',
-                      'Pilih Eksekutor'),
-                  _buildSection(
-                      'TINJAU HASIL INVESTIGASI',
-                      reviewHasil,
-                      _bukaReviewHasil,
-                      'Belum ada hasil investigasi masuk.',
-                      'Tinjau Hasil'),
-                  _buildSection(
-                      'TINDAK LANJUT DITUGASKAN',
-                      ditolak,
-                      _bukaSelesaikanTindakLanjut,
-                      'Tidak ada tindak lanjut yang ditugaskan.',
-                      'Jalankan'),
-                  _buildSection(
-                      'PENINJAUAN KEMBALI DARI DIREKTUR',
-                      peninjauan,
-                      _bukaPeninjauanKembali,
-                      'Tidak ada permintaan peninjauan kembali.',
-                      'Tindak Lanjuti'),
+                  listContent,
                 ],
               );
             }
@@ -1456,6 +1695,132 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.inbox_rounded,
+              size: 40,
+              color: AppColors.textSecondary(context).withValues(alpha: 0.4)),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClusterBar({
+    required int countSemua,
+    required int countReviewAwal,
+    required int countPilihEksekutor,
+    required int countTinjauHasil,
+    required int countTindakLanjut,
+    required int countPeninjauanKembali,
+    required int countSelesai,
+  }) {
+    final items = [
+      (filter: _KspiClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
+      (filter: _KspiClusterFilter.reviewAwal, label: 'Review Awal Kadiv', count: countReviewAwal, icon: Icons.rate_review_rounded),
+      (filter: _KspiClusterFilter.pilihEksekutor, label: 'Pilih Eksekutor', count: countPilihEksekutor, icon: Icons.person_search_rounded),
+      (filter: _KspiClusterFilter.tinjauHasil, label: 'Tinjau Hasil', count: countTinjauHasil, icon: Icons.fact_check_rounded),
+      (filter: _KspiClusterFilter.tindakLanjut, label: 'Tindak Lanjut', count: countTindakLanjut, icon: Icons.build_circle_rounded),
+      (filter: _KspiClusterFilter.peninjauanKembali, label: 'Peninjauan Kembali', count: countPeninjauanKembali, icon: Icons.replay_rounded),
+      (filter: _KspiClusterFilter.selesai, label: 'Selesai & Arsip', count: countSelesai, icon: Icons.task_alt_rounded),
+    ];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: items.map((c) {
+            final isSelected = _clusterFilter == c.filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _clusterFilter = c.filter),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: _navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        c.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${c.count}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

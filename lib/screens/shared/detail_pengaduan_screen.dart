@@ -292,10 +292,6 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                   children: [
                     _buildInfoCard(p),
                     const SizedBox(height: 16),
-                    if (p.adaDataPelaku) ...[
-                      _buildPelakuCard(p),
-                      const SizedBox(height: 16),
-                    ],
                     if (p.fotoBukti.isNotEmpty) ...[
                       _buildSectionTitle('Foto Bukti'),
                       const SizedBox(height: 8),
@@ -303,12 +299,16 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       const SizedBox(height: 16),
                     ],
                     _buildLampiranLain(p),
-                    _buildHasilInvestigasi(p),
-                    _buildSuratPutusanSdm(p),
                     _buildSectionTitle('Riwayat Status'),
                     const SizedBox(height: 8),
                     _buildTimeline(p),
                     const SizedBox(height: 16),
+                    if (p.adaDataPelaku) ...[
+                      _buildPelakuCard(p),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildHasilInvestigasi(p),
+                    _buildSuratPutusanSdm(p),
                     _buildKartuSk(p),
                     if (widget.showAction) ...[
                       const SizedBox(height: 20),
@@ -405,7 +405,34 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
+  bool _tampilkanInfoPelapor(Pengaduan p) {
+    if (p.anonim) return false;
+
+    final userNik = widget.user.nik.trim();
+    final userName = widget.user.name.trim().toLowerCase();
+
+    // Pihak yang dilaporkan (terlapor)
+    final nikPelaku = (p.nikPelaku ?? '').trim();
+    final namaPelaku = (p.pihakTerlapor ?? '').trim().toLowerCase();
+    final isTerlapor = (nikPelaku.isNotEmpty && userNik == nikPelaku) ||
+        (namaPelaku.isNotEmpty && userName == namaPelaku);
+    if (isTerlapor) return false;
+
+    // Pihak pelapor
+    final nikPelapor = p.nik.trim();
+    final namaPelapor = p.namaPegawai.trim().toLowerCase();
+    final isPelapor = (nikPelapor.isNotEmpty && userNik == nikPelapor) ||
+        (namaPelapor.isNotEmpty && userName == namaPelapor);
+    if (isPelapor) return false;
+
+    // Role pegawai biasa (bukan manajemen SDM/KSPI/Kadiv/Dirut/TPDPK)
+    if (widget.user.role == UserRole.pegawai) return false;
+
+    return true;
+  }
+
   Widget _buildInfoCard(Pengaduan p) {
+    final bool showPelapor = _tampilkanInfoPelapor(p);
     final String namaPelapor = p.anonim ? 'Anonim' : p.namaPegawai;
 
     return Container(
@@ -553,16 +580,17 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       spacing: 12,
                       runSpacing: 10,
                       children: [
-                        SizedBox(
-                          width: itemWidth,
-                          child: _buildInfoMeta(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Pelapor',
-                            value: namaPelapor,
+                        if (showPelapor)
+                          SizedBox(
+                            width: itemWidth,
+                            child: _buildInfoMeta(
+                              icon: Icons.person_outline_rounded,
+                              label: 'Pelapor',
+                              value: namaPelapor,
+                            ),
                           ),
-                        ),
                         SizedBox(
-                          width: itemWidth,
+                          width: showPelapor ? itemWidth : constraints.maxWidth,
                           child: _buildInfoMeta(
                             icon: Icons.calendar_today_outlined,
                             label: 'Tanggal pengaduan',
@@ -1168,7 +1196,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   }
 
   /// SK Sanksi yang terbit dari pengaduan ini (kalau ada). Ditampilkan
-  /// untuk semua role agar SDM bisa memverifikasi hasil penerbitannya.
+  /// untuk semua role agar pegawai terlapor, pelapor, dan manajemen bisa
+  /// melihat dan membuka seluruh dokumen yang diinput oleh SDM.
   Widget _buildKartuSk(Pengaduan p) {
     if (p.supabaseId == null) return const SizedBox.shrink();
     return FutureBuilder<List<SkSanksi>>(
@@ -1183,44 +1212,91 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             const SizedBox(height: 8),
             ...list.map((sk) => Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(14),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.card(context),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: green.withValues(alpha: 0.35)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.gavel_rounded, size: 16, color: green),
-                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: green.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.gavel_rounded, size: 16, color: green),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
-                            child: Text(sk.nomorSk,
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: labelDark)),
+                            child: Text(
+                              sk.nomorSk,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: labelDark,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         '${sk.jenisSanksi} \u00b7 ${sk.tingkat}'
                         '${sk.perubahanJabatan != null ? ' \u00b7 ${sk.perubahanJabatan}' : ''}',
-                        style: TextStyle(fontSize: 12, color: hintGrey),
+                        style: TextStyle(fontSize: 12.5, color: hintGrey),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${sk.totalBerkas} berkas'
                         '${sk.dokumenLengkap ? ' \u00b7 dokumen wajib lengkap' : ' \u00b7 dokumen wajib BELUM lengkap'}',
                         style: TextStyle(
-                            fontSize: 11.5,
-                            color: sk.dokumenLengkap ? green : red,
-                            fontWeight: FontWeight.w600),
+                          fontSize: 11.5,
+                          color: sk.dokumenLengkap ? green : red,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                      const SizedBox(height: 12),
+                      Divider(height: 1, color: AppColors.divider(context)),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            sk.dokumenLengkap
+                                ? Icons.folder_special_rounded
+                                : Icons.folder_open_rounded,
+                            size: 15,
+                            color: green,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Berkas Dokumen yang Diinput SDM (${sk.totalBerkas}):',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: labelDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      for (final jenis in JenisDokumenSk.values)
+                        _buildSkDokumenItem(jenis.label, sk.dokumen[jenis] ?? const []),
+                      for (final tambahan in sk.tambahan)
+                        if (tambahan.berkas.isNotEmpty)
+                          _buildSkDokumenItem(tambahan.judul, tambahan.berkas, isTambahan: true),
                     ],
                   ),
                 )),
@@ -1228,6 +1304,153 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         );
       },
     );
+  }
+
+  Widget _buildSkDokumenItem(
+    String judul,
+    List<String> berkas, {
+    bool isTambahan = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isTambahan
+                    ? Icons.attach_file_rounded
+                    : berkas.isEmpty
+                        ? Icons.error_outline_rounded
+                        : Icons.check_circle_rounded,
+                size: 14,
+                color: isTambahan
+                    ? accent
+                    : berkas.isEmpty
+                        ? red
+                        : green,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  judul,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: labelDark,
+                  ),
+                ),
+              ),
+              if (berkas.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (isTambahan ? accent : green).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${berkas.length} berkas',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: isTambahan ? accent : green,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (berkas.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, top: 4),
+              child: Text(
+                'Belum diunggah.',
+                style: TextStyle(fontSize: 11, color: hintGrey),
+              ),
+            )
+          else
+            for (int i = 0; i < berkas.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, top: 6),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _bukaUrl(berkas[i]),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceMuted(context),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.divider(context)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isPdf(berkas[i])
+                                ? Icons.picture_as_pdf_outlined
+                                : Icons.description_outlined,
+                            size: 15,
+                            color: accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _namaFile(berkas[i]),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: labelDark,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Buka',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: accent,
+                                  ),
+                                ),
+                                SizedBox(width: 3),
+                                Icon(Icons.open_in_new_rounded, size: 12, color: accent),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  bool _isPdf(String url) {
+    final clean = url.split('?').first.toLowerCase();
+    return clean.endsWith('.pdf');
+  }
+
+  String _namaFile(String url) {
+    try {
+      final clean = url.split('?').first;
+      final seg = clean.split('/').last;
+      if (seg.isNotEmpty) return Uri.decodeComponent(seg);
+    } catch (_) {}
+    return url;
   }
 
   Widget _buildTimeline(Pengaduan p) {

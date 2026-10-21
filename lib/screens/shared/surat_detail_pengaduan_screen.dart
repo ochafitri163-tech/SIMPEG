@@ -60,6 +60,32 @@ class _SuratDetailPengaduanScreenState
   String? _errorMessage;
   bool _isGeneratingPdf = false;
 
+  bool _tampilkanInfoPelapor(Pengaduan p) {
+    if (p.anonim) return false;
+
+    final userNik = widget.user.nik.trim();
+    final userName = widget.user.name.trim().toLowerCase();
+
+    // Pihak yang dilaporkan (terlapor)
+    final nikPelaku = (p.nikPelaku ?? '').trim();
+    final namaPelaku = (p.pihakTerlapor ?? '').trim().toLowerCase();
+    final isTerlapor = (nikPelaku.isNotEmpty && userNik == nikPelaku) ||
+        (namaPelaku.isNotEmpty && userName == namaPelaku);
+    if (isTerlapor) return false;
+
+    // Pihak pelapor
+    final nikPelapor = p.nik.trim();
+    final namaPelapor = p.namaPegawai.trim().toLowerCase();
+    final isPelapor = (nikPelapor.isNotEmpty && userNik == nikPelapor) ||
+        (namaPelapor.isNotEmpty && userName == namaPelapor);
+    if (isPelapor) return false;
+
+    // Role pegawai biasa
+    if (widget.user.role == UserRole.pegawai) return false;
+
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -460,19 +486,19 @@ class _SuratDetailPengaduanScreenState
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(
-                            'Nama: ${_sanitizePdfText(p.namaPegawai)}',
+                            'Nama: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.namaPegawai) : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                           pw.Text(
-                            'NIK: ${_sanitizePdfText(p.nik)}',
+                            'NIK: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.nik) : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                           pw.Text(
-                            'Golongan: ${_sanitizePdfText(p.golongan, defaultValue: "-")}',
+                            'Golongan: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.golongan, defaultValue: "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                           pw.Text(
-                            'Divisi/Unit: ${_sanitizePdfText(p.cabang, defaultValue: "-")}',
+                            'Divisi/Unit: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.cabang, defaultValue: "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                         ],
@@ -1009,10 +1035,10 @@ class _SuratDetailPengaduanScreenState
                         context,
                         judul: 'Pelapor',
                         items: [
-                          'Nama: ${p.namaPegawai}',
-                          'NIK: ${p.nik}',
-                          'Golongan: ${p.golongan.isNotEmpty ? p.golongan : "-"}',
-                          'Divisi/Unit: ${p.cabang.isNotEmpty ? p.cabang : "-"}',
+                          'Nama: ${_tampilkanInfoPelapor(p) ? p.namaPegawai : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
+                          'NIK: ${_tampilkanInfoPelapor(p) ? p.nik : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
+                          'Golongan: ${_tampilkanInfoPelapor(p) ? (p.golongan.isNotEmpty ? p.golongan : "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
+                          'Divisi/Unit: ${_tampilkanInfoPelapor(p) ? (p.cabang.isNotEmpty ? p.cabang : "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                         ],
                       ),
                     ),

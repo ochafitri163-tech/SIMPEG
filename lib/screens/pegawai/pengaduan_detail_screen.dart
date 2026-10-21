@@ -36,6 +36,32 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   late Future<Pengaduan?> _future;
   bool _isProcessing = false;
 
+  bool _tampilkanInfoPelapor(Pengaduan p) {
+    if (p.anonim) return false;
+
+    final userNik = widget.user.nik.trim();
+    final userName = widget.user.name.trim().toLowerCase();
+
+    // Pihak yang dilaporkan (terlapor)
+    final nikPelaku = (p.nikPelaku ?? '').trim();
+    final namaPelaku = (p.pihakTerlapor ?? '').trim().toLowerCase();
+    final isTerlapor = (nikPelaku.isNotEmpty && userNik == nikPelaku) ||
+        (namaPelaku.isNotEmpty && userName == namaPelaku);
+    if (isTerlapor) return false;
+
+    // Pihak pelapor
+    final nikPelapor = p.nik.trim();
+    final namaPelapor = p.namaPegawai.trim().toLowerCase();
+    final isPelapor = (nikPelapor.isNotEmpty && userNik == nikPelapor) ||
+        (namaPelapor.isNotEmpty && userName == namaPelapor);
+    if (isPelapor) return false;
+
+    // Role pegawai biasa
+    if (widget.user.role == UserRole.pegawai) return false;
+
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -428,19 +454,20 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             spacing: 16,
             runSpacing: 8,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.person_outline_rounded,
-                      size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
-                  const SizedBox(width: 6),
-                  Text(p.anonim ? 'Anonim' : p.namaPegawai,
-                      style: TextStyle(
-                          fontSize: isSmallScreen ? 11.0 : 12.0,
-                          color: hintGrey,
-                          fontWeight: FontWeight.w600)),
-                ],
-              ),
+              if (_tampilkanInfoPelapor(p))
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_outline_rounded,
+                        size: isSmallScreen ? 14.0 : 15.0, color: hintGrey),
+                    const SizedBox(width: 6),
+                    Text(p.anonim ? 'Anonim' : p.namaPegawai,
+                        style: TextStyle(
+                            fontSize: isSmallScreen ? 11.0 : 12.0,
+                            color: hintGrey,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
@@ -14,7 +13,15 @@ import '../../theme/app_colors.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
+
+enum _DirutClusterFilter {
+  semua,
+  tahap1,
+  tahap2,
+  pilihEksekutor,
+  selesai,
+}
+
 /// Dashboard untuk role Direktur (DIRUT). Direktur menangani 3 titik dalam
 /// alur:
 /// 1. Approval Tahap 1 (menungguDirutTahap1) — layak diinvestigasi?
@@ -41,6 +48,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
 
   late Future<List<Pengaduan>> _menungguFuture;
   late Future<List<Pengaduan>> _riwayatFuture;
+
+  /// Cluster filter tab status pengaduan
+  _DirutClusterFilter _clusterFilter = _DirutClusterFilter.semua;
 
   @override
   void initState() {
@@ -182,6 +192,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   Future<void> _bukaKeputusanTahap1(Pengaduan p) async {
     Keputusan keputusan = Keputusan.terima;
     final catatanController = TextEditingController();
+    String? errorAlasan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -201,19 +212,58 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             _infoBlok('Judul', p.judul),
             _infoBlok('Deskripsi', p.deskripsi),
             const SizedBox(height: 6),
-            _pilihanTerimaTolak(keputusan, setSheetState, (v) => keputusan = v),
+            _pilihanTerimaTolak(keputusan, setSheetState, (v) {
+              keputusan = v;
+              if (keputusan != Keputusan.tolak) {
+                errorAlasan = null;
+              }
+            }),
             const SizedBox(height: 16),
             TextField(
               controller: catatanController,
               maxLines: 3,
+              onChanged: (_) {
+                if (errorAlasan != null) {
+                  setSheetState(() => errorAlasan = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: keputusan == Keputusan.tolak
                     ? 'Alasan penolakan (wajib)'
                     : 'Catatan (opsional)',
+                errorText: errorAlasan,
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorAlasan != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _red.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: _red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorAlasan!,
+                        style: const TextStyle(
+                          color: _red,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -221,7 +271,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 onPressed: () {
                   if (keputusan == Keputusan.tolak &&
                       catatanController.text.trim().isEmpty) {
-                    _showSnack('Alasan penolakan wajib diisi.', _red);
+                    setSheetState(() {
+                      errorAlasan = 'Alasan penolakan wajib diisi.';
+                    });
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -288,6 +340,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     String pilihan = 'terima';
     final catatanController = TextEditingController();
     final isTerbukti = p.isTerbukti;
+    String? errorCatatan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
       return SingleChildScrollView(
@@ -361,7 +414,10 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                     ),
                     selected: pilihan == 'terima',
                     selectedColor: _green,
-                    onSelected: (_) => setSheetState(() => pilihan = 'terima'),
+                    onSelected: (_) => setSheetState(() {
+                      pilihan = 'terima';
+                      errorCatatan = null;
+                    }),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -402,14 +458,48 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             TextField(
               controller: catatanController,
               maxLines: 3,
+              onChanged: (_) {
+                if (errorCatatan != null) {
+                  setSheetState(() => errorCatatan = null);
+                }
+              },
               decoration: InputDecoration(
                 labelText: pilihan == 'peninjauan'
                     ? 'Catatan arahan tinjau ulang untuk KSPI (wajib)'
                     : 'Catatan arahan Dirut (opsional)',
+                errorText: errorCatatan,
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
+            if (errorCatatan != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _red.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: _red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorCatatan!,
+                        style: const TextStyle(
+                          color: _red,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -417,7 +507,9 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 onPressed: () {
                   if (pilihan == 'peninjauan' &&
                       catatanController.text.trim().isEmpty) {
-                    _showSnack('Catatan arahan tinjau ulang wajib diisi.', _red);
+                    setSheetState(() {
+                      errorCatatan = 'Catatan arahan tinjau ulang wajib diisi.';
+                    });
                     return;
                   }
                   Navigator.pop(ctx, true);
@@ -658,33 +750,88 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
               );
             } else {
               final semua = snapshot.data ?? [];
+              final tahap1 = semua
+                  .where((p) => p.status == PengaduanStatus.menungguDirutTahap1)
+                  .toList();
+              final tahap2 = semua
+                  .where((p) => p.status == PengaduanStatus.menungguDirutTahap2)
+                  .toList();
+              final pilihEksekutor = semua
+                  .where((p) =>
+                      p.status ==
+                      PengaduanStatus.menungguPilihEksekutorTindakLanjut)
+                  .toList();
+              final selesai = semua
+                  .where((p) =>
+                      p.status == PengaduanStatus.selesai ||
+                      p.status == PengaduanStatus.arsip)
+                  .toList();
               final menunggu = semua
                   .where((p) =>
                       p.status == PengaduanStatus.menungguDirutTahap1 ||
                       p.status == PengaduanStatus.menungguDirutTahap2 ||
-                      p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut)
+                      p.status ==
+                          PengaduanStatus.menungguPilihEksekutorTindakLanjut)
                   .toList();
 
-              content = menunggu.isEmpty
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      alignment: Alignment.center,
-                      child: Column(
-                        children: [
-                          Icon(Icons.inbox_rounded,
-                              size: 48, color: AppColors.divider(context)),
-                          const SizedBox(height: 10),
-                          Text(
-                              'Tidak ada pengaduan yang menunggu persetujuan.',
-                              style: TextStyle(
-                                  fontSize: 12.5, color: AppColors.textSecondary(context))),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      children:
-                          menunggu.map((p) => _buildPengaduanCard(p)).toList(),
-                    );
+              Widget listContent;
+              switch (_clusterFilter) {
+                case _DirutClusterFilter.semua:
+                  listContent = menunggu.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan yang menunggu persetujuan.')
+                      : Column(
+                          children:
+                              menunggu.map((p) => _buildPengaduanCard(p)).toList(),
+                        );
+                  break;
+                case _DirutClusterFilter.tahap1:
+                  listContent = tahap1.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan menunggu Approval Tahap 1.')
+                      : Column(
+                          children:
+                              tahap1.map((p) => _buildPengaduanCard(p)).toList(),
+                        );
+                  break;
+                case _DirutClusterFilter.tahap2:
+                  listContent = tahap2.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan menunggu Approval Tahap 2.')
+                      : Column(
+                          children:
+                              tahap2.map((p) => _buildPengaduanCard(p)).toList(),
+                        );
+                  break;
+                case _DirutClusterFilter.pilihEksekutor:
+                  listContent = pilihEksekutor.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan menunggu penetapan eksekutor.')
+                      : Column(
+                          children: pilihEksekutor
+                              .map((p) => _buildPengaduanCard(p))
+                              .toList(),
+                        );
+                  break;
+                case _DirutClusterFilter.selesai:
+                  listContent = selesai.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
+                      : Column(
+                          children:
+                              selesai.map((p) => _buildPengaduanCard(p)).toList(),
+                        );
+                  break;
+              }
+
+              content = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildClusterBar(
+                    countSemua: menunggu.length,
+                    countTahap1: tahap1.length,
+                    countTahap2: tahap2.length,
+                    countPilihEksekutor: pilihEksekutor.length,
+                    countSelesai: selesai.length,
+                  ),
+                  listContent,
+                ],
+              );
             }
 
             return RefreshIndicator(
@@ -1079,24 +1226,148 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: aksi,
-                icon: const Icon(Icons.gavel_rounded, size: 16),
-                label: Text(_labelAksi(p),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9)),
+            if (aksi != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: aksi,
+                  icon: const Icon(Icons.gavel_rounded, size: 16),
+                  label: Text(_labelAksi(p),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.inbox_rounded,
+              size: 40,
+              color: AppColors.textSecondary(context).withValues(alpha: 0.4)),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClusterBar({
+    required int countSemua,
+    required int countTahap1,
+    required int countTahap2,
+    required int countPilihEksekutor,
+    required int countSelesai,
+  }) {
+    final items = [
+      (filter: _DirutClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
+      (filter: _DirutClusterFilter.tahap1, label: 'Approval Tahap 1', count: countTahap1, icon: Icons.how_to_reg_rounded),
+      (filter: _DirutClusterFilter.tahap2, label: 'Approval Tahap 2', count: countTahap2, icon: Icons.gavel_rounded),
+      (filter: _DirutClusterFilter.pilihEksekutor, label: 'Pilih Eksekutor', count: countPilihEksekutor, icon: Icons.person_pin_rounded),
+      (filter: _DirutClusterFilter.selesai, label: 'Selesai & Arsip', count: countSelesai, icon: Icons.task_alt_rounded),
+    ];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: items.map((c) {
+            final isSelected = _clusterFilter == c.filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _clusterFilter = c.filter),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? _navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: _navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        c.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.textPrimary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${c.count}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );

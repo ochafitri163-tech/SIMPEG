@@ -587,7 +587,10 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
   }
 
   Future<void> _simpan() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _pesan('Mohon lengkapi seluruh inputan wajib yang bertanda bintang (*).');
+      return;
+    }
     if (_target.isEmpty) {
       _pesan('Pilih minimal satu role tujuan.');
       return;
