@@ -498,7 +498,7 @@ class _SuratDetailPengaduanScreenState
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                           pw.Text(
-                            'Divisi/Unit: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.cabang, defaultValue: "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
+                            'Unit Kerja: ${_tampilkanInfoPelapor(p) ? _sanitizePdfText(p.cabang, defaultValue: "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                         ],
@@ -1038,7 +1038,7 @@ class _SuratDetailPengaduanScreenState
                           'Nama: ${_tampilkanInfoPelapor(p) ? p.namaPegawai : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                           'NIK: ${_tampilkanInfoPelapor(p) ? p.nik : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                           'Golongan: ${_tampilkanInfoPelapor(p) ? (p.golongan.isNotEmpty ? p.golongan : "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
-                          'Divisi/Unit: ${_tampilkanInfoPelapor(p) ? (p.cabang.isNotEmpty ? p.cabang : "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
+                          'Unit Kerja: ${_tampilkanInfoPelapor(p) ? (p.cabang.isNotEmpty ? p.cabang : "-") : (p.anonim ? "[Anonim]" : "[Dirahasiakan]")}',
                         ],
                       ),
                     ),

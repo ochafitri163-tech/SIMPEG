@@ -689,7 +689,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                 children: [
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeThumbColor: _accent,
+                    activeColor: _accent,
                     title: const Text('Tandai Penting',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Tampil dengan warna & badge merah'),
@@ -698,7 +698,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeThumbColor: _accent,
+                    activeColor: _accent,
                     title: const Text('Sematkan di atas',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Selalu tampil paling atas'),
@@ -707,7 +707,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    activeThumbColor: _accent,
+                    activeColor: _accent,
                     title: const Text('Publikasikan sekarang',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Nonaktif = disimpan sebagai draf'),
