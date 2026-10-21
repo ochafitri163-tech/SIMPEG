@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
@@ -15,7 +14,6 @@ import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
 /// Data pengaduan diambil dari Supabase lewat [PengaduanService], semua
 /// aksi (verifikasi, selesaikan tindak lanjut) langsung menulis ke
@@ -866,6 +864,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               final diterimaKadiv = keputusanKadivSaya
                   .where((p) => p.keputusanKadiv == Keputusan.terima)
                   .toList();
+              final ditolakKadiv = keputusanKadivSaya
+                  .where((p) => p.keputusanKadiv == Keputusan.tolak)
+                  .toList();
               final selesai = semua
                   .where((p) =>
                       p.status == PengaduanStatus.selesai ||
@@ -1282,14 +1283,6 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     );
   }
 
-  /// Topbar segmented tab "Diterima" / "Ditolak" — riwayat keputusan
-  /// Kadiv terhadap pengaduan yang masuk (keduanya tetap diteruskan &
-  /// ditinjau ulang oleh KSPI).
-  Widget _buildKeputusanTabBar(int jumlahDiterima, int jumlahDitolak) {
-    Widget tab(String label, int index, int jumlah, Color warna) {
-      final selected = _keputusanTab == index;
-      return Expanded(
-        child: GestureDetector(
   Widget _buildSectionTitle(String text, int count) {
     return Row(
       children: [
