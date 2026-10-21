@@ -35,9 +35,13 @@ class RoleGuard extends StatelessWidget {
 
   bool get _diizinkan {
     if (allowedRoles.contains(user.role)) return true;
-    // Akses khusus eksekutor resmi investigasi SPI
+    // Akses khusus eksekutor resmi investigasi SPI & Kepala SPI (Dodi Sudrajat)
     if (allowedRoles.contains(UserRole.tpdpk) &&
-        (user.nik == '1711161' || user.role == UserRole.kspi)) {
+        (user.nik == '1711161' || user.role == UserRole.kspi || user.name.toLowerCase().contains('dodi'))) {
+      return true;
+    }
+    if (allowedRoles.contains(UserRole.kspi) &&
+        (user.nik == '1711161' || user.role == UserRole.tpdpk || user.name.toLowerCase().contains('dodi'))) {
       return true;
     }
     if (allowedRoles.contains(UserRole.kadivKategori) &&

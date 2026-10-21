@@ -12,6 +12,7 @@ import '../shared/surat_detail_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
+import '../kspi/dashboard_kspi_screen.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
 
@@ -742,6 +743,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.user.role == UserRole.kspi ||
+        widget.user.role == UserRole.tpdpk ||
+        widget.user.nik == '1711161' ||
+        widget.user.name.toLowerCase().contains('dodi')) {
+      return DashboardKspiScreen(
+        user: widget.user,
+        showBackButton: widget.showBackButton,
+        initialTab: 1,
+      );
+    }
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.tpdpk, UserRole.kspi],
