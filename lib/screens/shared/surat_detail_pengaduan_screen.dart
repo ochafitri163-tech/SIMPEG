@@ -472,7 +472,7 @@ class _SuratDetailPengaduanScreenState
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                           pw.Text(
-                            'Divisi/Unit: ${_sanitizePdfText(p.cabang, defaultValue: "-")}',
+                            'Unit Kerja: ${_sanitizePdfText(p.cabang, defaultValue: "-")}',
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                         ],
@@ -1012,7 +1012,7 @@ class _SuratDetailPengaduanScreenState
                           'Nama: ${p.namaPegawai}',
                           'NIK: ${p.nik}',
                           'Golongan: ${p.golongan.isNotEmpty ? p.golongan : "-"}',
-                          'Divisi/Unit: ${p.cabang.isNotEmpty ? p.cabang : "-"}',
+                          'Unit Kerja: ${p.cabang.isNotEmpty ? p.cabang : "-"}',
                         ],
                       ),
                     ),
