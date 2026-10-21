@@ -18,7 +18,8 @@ import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
 enum _KspiClusterFilter {
   semua,
-  reviewAwal,
+  diterimaKadiv,
+  ditolakKadiv,
   pilihEksekutor,
   tinjauHasil,
   tindakLanjut,
@@ -46,11 +47,6 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   static const Color _accent = Color(0xFF2E86AB);
 
   late Future<List<Pengaduan>> _future;
-
-  /// Tab kategori "Review Awal dari Kadiv": 0 = Diterima Kadiv,
-  /// 1 = Ditolak Kadiv. Keduanya tetap masuk ke KSPI untuk ditinjau &
-  /// diverifikasi ulang (baik yang diterima maupun ditolak Kadiv).
-  int _kadivTab = 0;
 
   /// Cluster filter tab status pengaduan
   _KspiClusterFilter _clusterFilter = _KspiClusterFilter.semua;
@@ -905,6 +901,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   }
 
   // ---------- 3. Revisi setelah penolakan Direktur ----------
+  // ignore: unused_element
   Future<void> _bukaRevisiPenolakan(Pengaduan p) async {
     final catatanController = TextEditingController();
     String? errorCatatan;
@@ -1179,8 +1176,6 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               final siapTeruskanDitolak = siapTeruskanSemua
                   .where((p) => p.keputusanKadiv == Keputusan.tolak)
                   .toList();
-              final siapTeruskan =
-                  _kadivTab == 0 ? siapTeruskanDiterima : siapTeruskanDitolak;
               final reviewAwal = semua
                   .where(
                       (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
@@ -1208,28 +1203,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   listContent = Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'REVIEW AWAL DARI KADIV',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                            color: AppColors.textSecondary(context)),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildKadivTabBar(
-                          siapTeruskanDiterima.length, siapTeruskanDitolak.length),
-                      const SizedBox(height: 12),
-                      if (siapTeruskan.isEmpty)
-                        _buildEmptyState(
-                          _kadivTab == 0
-                              ? 'Belum ada pengaduan yang diterima Kadiv.'
-                              : 'Belum ada pengaduan yang ditolak Kadiv.',
-                        )
-                      else
-                        ...siapTeruskan.map((p) => _buildPengaduanCard(
-                            p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
-                      const SizedBox(height: 14),
+                      _buildSection(
+                          'REVIEW AWAL — DITERIMA KADIV',
+                          siapTeruskanDiterima,
+                          _bukaTeruskanKeDirut,
+                          'Belum ada pengaduan yang diterima Kadiv.',
+                          'Tinjau & Verifikasi'),
+                      _buildSection(
+                          'REVIEW AWAL — DITOLAK KADIV',
+                          siapTeruskanDitolak,
+                          _bukaTeruskanKeDirut,
+                          'Belum ada pengaduan yang ditolak Kadiv.',
+                          'Tinjau & Verifikasi'),
                       _buildSection(
                           'PILIH EKSEKUTOR INVESTIGASI',
                           reviewAwal,
@@ -1257,24 +1242,25 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     ],
                   );
                   break;
-                case _KspiClusterFilter.reviewAwal:
-                  listContent = Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildKadivTabBar(
-                          siapTeruskanDiterima.length, siapTeruskanDitolak.length),
-                      const SizedBox(height: 12),
-                      if (siapTeruskan.isEmpty)
-                        _buildEmptyState(
-                          _kadivTab == 0
-                              ? 'Belum ada pengaduan yang diterima Kadiv.'
-                              : 'Belum ada pengaduan yang ditolak Kadiv.',
-                        )
-                      else
-                        ...siapTeruskan.map((p) => _buildPengaduanCard(
-                            p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi')),
-                    ],
-                  );
+                case _KspiClusterFilter.diterimaKadiv:
+                  listContent = siapTeruskanDiterima.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan yang diterima Kadiv.')
+                      : Column(
+                          children: siapTeruskanDiterima
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi'))
+                              .toList(),
+                        );
+                  break;
+                case _KspiClusterFilter.ditolakKadiv:
+                  listContent = siapTeruskanDitolak.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan yang ditolak Kadiv.')
+                      : Column(
+                          children: siapTeruskanDitolak
+                              .map((p) => _buildPengaduanCard(
+                                  p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi'))
+                              .toList(),
+                        );
                   break;
                 case _KspiClusterFilter.pilihEksekutor:
                   listContent = reviewAwal.isEmpty
@@ -1333,7 +1319,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 children: [
                   _buildClusterBar(
                     countSemua: semua.length,
-                    countReviewAwal: siapTeruskanSemua.length,
+                    countDiterimaKadiv: siapTeruskanDiterima.length,
+                    countDitolakKadiv: siapTeruskanDitolak.length,
                     countPilihEksekutor: reviewAwal.length,
                     countTinjauHasil: reviewHasil.length,
                     countTindakLanjut: ditolak.length,
@@ -1723,7 +1710,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
 
   Widget _buildClusterBar({
     required int countSemua,
-    required int countReviewAwal,
+    required int countDiterimaKadiv,
+    required int countDitolakKadiv,
     required int countPilihEksekutor,
     required int countTinjauHasil,
     required int countTindakLanjut,
@@ -1732,7 +1720,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   }) {
     final items = [
       (filter: _KspiClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
-      (filter: _KspiClusterFilter.reviewAwal, label: 'Review Awal Kadiv', count: countReviewAwal, icon: Icons.rate_review_rounded),
+      (filter: _KspiClusterFilter.diterimaKadiv, label: 'Diterima Kadiv', count: countDiterimaKadiv, icon: Icons.check_circle_outline_rounded),
+      (filter: _KspiClusterFilter.ditolakKadiv, label: 'Ditolak Kadiv', count: countDitolakKadiv, icon: Icons.highlight_off_rounded),
       (filter: _KspiClusterFilter.pilihEksekutor, label: 'Pilih Eksekutor', count: countPilihEksekutor, icon: Icons.person_search_rounded),
       (filter: _KspiClusterFilter.tinjauHasil, label: 'Tinjau Hasil', count: countTinjauHasil, icon: Icons.fact_check_rounded),
       (filter: _KspiClusterFilter.tindakLanjut, label: 'Tindak Lanjut', count: countTindakLanjut, icon: Icons.build_circle_rounded),
@@ -1825,42 +1814,6 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     );
   }
 
-  /// Topbar segmented tab "Diterima" / "Ditolak" — mengelompokkan
-  /// pengaduan yang masuk ke KSPI berdasarkan keputusan Kadiv sebelumnya.
-  Widget _buildKadivTabBar(int jumlahDiterima, int jumlahDitolak) {
-    Widget tab(String label, int index, int jumlah, Color warna) {
-      final selected = _kadivTab == index;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() => _kadivTab = index),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
-            decoration: BoxDecoration(
-              color: selected ? warna : warna.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$label ($jumlah)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : warna,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        tab('Diterima Kadiv', 0, jumlahDiterima, const Color(0xFF27AE60)),
-        tab('Ditolak Kadiv', 1, jumlahDitolak, const Color(0xFFE74C3C)),
-      ],
-    );
-  }
 
   Widget _buildSection(
     String title,

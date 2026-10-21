@@ -13,6 +13,87 @@ import '../tpdpk/dashboard_tpdpk_screen.dart';
 import '../sdm/dashboard_sdm_screen.dart';
 import '../../theme/app_colors.dart';
 
+enum _KelolaPengaduanCluster {
+  semua,
+  verifikasi,
+  ditinjau,
+  investigasi,
+  tindakLanjut,
+  selesai,
+  arsip,
+}
+
+extension _KelolaPengaduanClusterX on _KelolaPengaduanCluster {
+  String get label {
+    switch (this) {
+      case _KelolaPengaduanCluster.semua:
+        return 'Semua';
+      case _KelolaPengaduanCluster.verifikasi:
+        return 'Menunggu Verifikasi';
+      case _KelolaPengaduanCluster.ditinjau:
+        return 'Ditinjau SPI/Dirut';
+      case _KelolaPengaduanCluster.investigasi:
+        return 'Investigasi';
+      case _KelolaPengaduanCluster.tindakLanjut:
+        return 'Tindak Lanjut & Sanksi';
+      case _KelolaPengaduanCluster.selesai:
+        return 'Selesai';
+      case _KelolaPengaduanCluster.arsip:
+        return 'Diarsipkan';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _KelolaPengaduanCluster.semua:
+        return Icons.grid_view_rounded;
+      case _KelolaPengaduanCluster.verifikasi:
+        return Icons.hourglass_top_rounded;
+      case _KelolaPengaduanCluster.ditinjau:
+        return Icons.fact_check_rounded;
+      case _KelolaPengaduanCluster.investigasi:
+        return Icons.search_rounded;
+      case _KelolaPengaduanCluster.tindakLanjut:
+        return Icons.gavel_rounded;
+      case _KelolaPengaduanCluster.selesai:
+        return Icons.task_alt_rounded;
+      case _KelolaPengaduanCluster.arsip:
+        return Icons.archive_rounded;
+    }
+  }
+
+  bool cocok(Pengaduan p) {
+    switch (this) {
+      case _KelolaPengaduanCluster.semua:
+        return true;
+      case _KelolaPengaduanCluster.verifikasi:
+        return p.status == PengaduanStatus.menungguKadiv ||
+            p.status == PengaduanStatus.menungguVerifikasiKadiv;
+      case _KelolaPengaduanCluster.ditinjau:
+        return p.status == PengaduanStatus.reviewKspi ||
+            p.status == PengaduanStatus.menungguDirutTahap1 ||
+            p.status == PengaduanStatus.menungguPilihEksekutor ||
+            p.status == PengaduanStatus.menungguReviewKspi;
+      case _KelolaPengaduanCluster.investigasi:
+        return p.status == PengaduanStatus.menungguInvestigasi ||
+            p.status == PengaduanStatus.investigasiBerjalan ||
+            p.status == PengaduanStatus.revisiInvestigasi;
+      case _KelolaPengaduanCluster.tindakLanjut:
+        return p.status == PengaduanStatus.menungguDirutTahap2 ||
+            p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+            p.status == PengaduanStatus.tindakLanjutBerjalan ||
+            p.status == PengaduanStatus.tindakLanjut ||
+            p.status == PengaduanStatus.menungguSdm;
+      case _KelolaPengaduanCluster.selesai:
+        return p.status == PengaduanStatus.selesai;
+      case _KelolaPengaduanCluster.arsip:
+        return p.status == PengaduanStatus.arsip ||
+            p.status == PengaduanStatus.ditolakDirektur ||
+            p.status == PengaduanStatus.peninjauanKembali;
+    }
+  }
+}
+
 class StatusPengaduanScreen extends StatefulWidget {
   final AppUser user;
   final bool showBackButton;
@@ -208,6 +289,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  _KelolaPengaduanCluster _clusterFilter = _KelolaPengaduanCluster.semua;
   Set<PengaduanStatus> _filterStatus = {};
   String? _filterCabang;
   DateTimeRange? _filterTanggal;
@@ -260,7 +342,10 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               !p.tanggalPengaduan
                   .isAfter(_filterTanggal!.end.add(const Duration(days: 1))));
 
-      return matchQuery && matchStatus && matchCabang && matchTanggal;
+      final matchCluster = _clusterFilter == _KelolaPengaduanCluster.semua ||
+          _clusterFilter.cocok(p);
+
+      return matchQuery && matchStatus && matchCabang && matchTanggal && matchCluster;
     }).toList()
       ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
   }
@@ -271,6 +356,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   }
 
   bool get _adaFilterAktif =>
+      _clusterFilter != _KelolaPengaduanCluster.semua ||
       _filterStatus.isNotEmpty ||
       _filterCabang != null ||
       _filterTanggal != null;
@@ -589,6 +675,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               slivers: [
                 SliverToBoxAdapter(child: _buildHeader(isSmallScreen)),
                 SliverToBoxAdapter(
+                  child: _buildClusterBar(semua, isSmallScreen),
+                ),
+                SliverToBoxAdapter(
                   child: _buildRingkasanBar(items.length, semua, isSmallScreen),
                 ),
                 if (items.isEmpty)
@@ -637,7 +726,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       color: AppColors.pageBackground(context),
       padding: EdgeInsets.fromLTRB(
         isSmallScreen ? 16 : 20,
-        isSmallScreen ? 16 : 20,
+        8,
         isSmallScreen ? 16 : 20,
         _adaFilterAktif ? 8 : 14,
       ),
@@ -710,6 +799,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                 if (_adaFilterAktif)
                   TextButton.icon(
                     onPressed: () => setState(() {
+                      _clusterFilter = _KelolaPengaduanCluster.semua;
                       _filterStatus = {};
                       _filterCabang = null;
                       _filterTanggal = null;
@@ -736,6 +826,13 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (_clusterFilter != _KelolaPengaduanCluster.semua)
+                      _buildFilterChipAktif(
+                        label: 'Proses: ${_clusterFilter.label}',
+                        color: navy,
+                        onRemove: () => setState(() =>
+                            _clusterFilter = _KelolaPengaduanCluster.semua),
+                      ),
                     for (final s in _filterStatus)
                       _buildFilterChipAktif(
                         label: s.label,
@@ -763,6 +860,101 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClusterBar(List<Pengaduan> semua, bool isSmallScreen) {
+    int countFor(_KelolaPengaduanCluster c) => semua.where(c.cocok).length;
+
+    return Container(
+      width: double.infinity,
+      color: AppColors.pageBackground(context),
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 16 : 20,
+        14,
+        isSmallScreen ? 16 : 20,
+        2,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: _KelolaPengaduanCluster.values.map((c) {
+            final isSelected = _clusterFilter == c;
+            final count = countFor(c);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _clusterFilter = c),
+                borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected ? navy : AppColors.card(context),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? navy : AppColors.divider(context),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: navy.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      else
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        c.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : hintGrey,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : labelDark,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.22)
+                              : AppColors.surfaceMuted(context),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : hintGrey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
