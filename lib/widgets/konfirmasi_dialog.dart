@@ -19,6 +19,7 @@ Future<bool> showKonfirmasiDialog({
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
         contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actionsOverflowButtonSpacing: 8,
         title: Row(
           children: [
             Container(
@@ -41,9 +42,11 @@ Future<bool> showKonfirmasiDialog({
             ),
           ],
         ),
-        content: Text(
-          pesan,
-          style: const TextStyle(fontSize: 13.5, height: 1.45),
+        content: SingleChildScrollView(
+          child: Text(
+            pesan,
+            style: const TextStyle(fontSize: 13.5, height: 1.45),
+          ),
         ),
         actions: [
           OutlinedButton(
@@ -108,16 +111,19 @@ Future<CatatanResult> showDialogCatatan({
     builder: (ctx) {
       return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actionsOverflowButtonSpacing: 8,
         title: Text(
           judul,
           style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
         ),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: controller,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: hint,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ),
         actions: [

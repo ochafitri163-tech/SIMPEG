@@ -552,311 +552,247 @@ class _InsentifScreenState extends State<InsentifScreen> {
 
   Future<Uint8List> _generateInsentifPdf(InsentifItem item) async {
     final doc = pw.Document();
-    const navyColor = PdfColor.fromInt(0xFF0D2C6E);
-    const greyColor = PdfColor.fromInt(0xFF8C97A6);
 
-    if (item.slip != null) {
-      doc.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          build: (context) =>
-              _buildSlipPdfContent(item.slip!, navyColor, greyColor),
-        ),
-      );
-    } else {
-      doc.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(36),
-          build: (context) =>
-              _buildSimplePdfContent(item, navyColor, greyColor),
-        ),
-      );
-    }
+    final slip = item.slip ??
+        InsentifSlipDetail(
+          perusahaan: 'PERUMDAM TIRTA DARMA AYU KAB. INDRAMAYU',
+          bulanLabel: item.periode.toUpperCase(),
+          nik: widget.user.nik,
+          nama: widget.user.name,
+          golongan: widget.user.golonganUntukSlip,
+          unitKerja: widget.user.unitKerja,
+          jabatan: widget.user.jabatan,
+          insentifJabatan: 0,
+          insentifPrestasi: 0,
+          insentifTransportasi: 0,
+          insentifPangan: 0,
+          insentifBpjsKesehatan: 0,
+          insentifPerumahan: 0,
+          insentifBpjsTenagaKerja: 0,
+          insentifPerusahaan: 0,
+          lembur: 0,
+          insentifPajak: 0,
+          insentifAirMinum: 0,
+          insentifKomunikasi: 0,
+          potonganSanksiPerusahaan: 0,
+          potonganPmiLain: 0,
+          potonganDapenma: 0,
+          potonganBpjsTenagaKerja: 0,
+          potonganPerumahan: 0,
+          potonganInsentifPerusahaan: 0,
+          potonganKorpri: 0,
+          potonganPajak: 0,
+          potonganBpjsKesehatan: 0,
+          potonganKoperasi: 0,
+          potonganDarmaWanita: 0,
+          potonganRekeningAirMinum: 0,
+          potonganKas: 0,
+          potonganBankBjb: 0,
+          potonganBankBjbs: 0,
+          potonganBankBtn: 0,
+          potonganBankBpr: 0,
+          potonganAsuransi: 0,
+          potonganZakatProfesi: 0,
+        );
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        build: (context) => _buildSlipPdfContent(slip),
+      ),
+    );
 
     return doc.save();
   }
 
-  pw.Widget _buildSlipPdfContent(
-    InsentifSlipDetail slip,
-    PdfColor navyColor,
-    PdfColor greyColor,
-  ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Center(
-          child: pw.Text(
-            slip.perusahaan,
-            style: pw.TextStyle(
-              fontSize: 12.5,
-              fontWeight: pw.FontWeight.bold,
-              color: navyColor,
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 3),
-        pw.Center(
-          child: pw.Text(
-            'DAFTAR INSENTIF & POTONGAN BULAN : ${slip.bulanLabel}',
-            style: pw.TextStyle(fontSize: 10.5, color: greyColor),
-          ),
-        ),
-        pw.SizedBox(height: 12),
-        pw.Divider(color: greyColor, thickness: 0.7),
-        pw.SizedBox(height: 10),
-        _pdfIdentityRow('NIK', widget.user.nik),
-        _pdfIdentityRow('NAMA', widget.user.name.toUpperCase()),
-        _pdfIdentityRow('GOLONGAN', widget.user.golonganUntukSlip),
-        _pdfIdentityRow('UNIT KERJA', widget.user.unitKerja.toUpperCase()),
-        _pdfIdentityRow('JABATAN', widget.user.jabatan.toUpperCase()),
-        pw.SizedBox(height: 14),
-        pw.Divider(color: greyColor, thickness: 0.7),
-        pw.SizedBox(height: 10),
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Expanded(
-              child: _buildInsentifColumn(slip, navyColor, greyColor),
-            ),
-            pw.SizedBox(width: 18),
-            pw.Expanded(
-              child: _buildPotonganColumn(slip, navyColor, greyColor),
-            ),
-          ],
-        ),
-        pw.SizedBox(height: 16),
-        pw.Divider(color: greyColor, thickness: 0.7),
-        pw.SizedBox(height: 10),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(
-              'JUMLAH INSENTIF DITERIMA',
-              style: pw.TextStyle(
-                fontSize: 11.5,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-            pw.Text(
-              formatRupiah(slip.jumlahDiterima),
-              style: pw.TextStyle(
-                fontSize: 11.5,
-                fontWeight: pw.FontWeight.bold,
-                color: navyColor,
-              ),
-            ),
-          ],
-        ),
-        pw.SizedBox(height: 20),
-        pw.Divider(color: greyColor, thickness: 0.7),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          'Slip insentif ini sudah disetujui oleh Direksi. Segala bentuk '
-          'penyalahgunaan slip bukan menjadi tanggung jawab perusahaan.',
-          style: pw.TextStyle(fontSize: 8, color: greyColor),
-        ),
-      ],
-    );
+  String _formatNominal(int value) {
+    final str = value.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      final posFromRight = str.length - i;
+      buffer.write(str[i]);
+      if (posFromRight > 1 && posFromRight % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+    return buffer.toString();
   }
 
-  pw.Widget _pdfIdentityRow(String label, String value) {
+  pw.Widget _pdfRowItem(
+    String label,
+    dynamic value, {
+    bool bold = false,
+    double labelWidth = 155,
+    double numberWidth = 65,
+    bool isNumber = true,
+  }) {
+    final style = pw.TextStyle(
+      fontSize: 8.2,
+      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      color: PdfColors.black,
+    );
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 3),
+      padding: const pw.EdgeInsets.symmetric(vertical: 0.9),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: 70,
-            child: pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
+            width: labelWidth,
+            child: pw.Text(label, style: style),
           ),
-          pw.Text(': ', style: const pw.TextStyle(fontSize: 9)),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          pw.Text(' : ', style: style),
+          if (isNumber)
+            pw.SizedBox(
+              width: numberWidth,
+              child: pw.Text(
+                value is int ? _formatNominal(value) : value.toString(),
+                textAlign: pw.TextAlign.right,
+                style: style,
+              ),
+            )
+          else
+            pw.Expanded(
+              child: pw.Text(value.toString(), style: style),
             ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildSlipPdfContent(InsentifSlipDetail slip) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(
+          'PERUMDAM TIRTA DARMA AYU KAB. INDRAMAYU',
+          style: pw.TextStyle(
+            fontSize: 11,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.black,
           ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _buildInsentifColumn(
-    InsentifSlipDetail slip,
-    PdfColor navyColor,
-    PdfColor greyColor,
-  ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'INSENTIF',
-          style: pw.TextStyle(
-              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
         ),
-        pw.SizedBox(height: 6),
-        _pdfSlipLine('Insentif Jabatan', slip.insentifJabatan),
-        _pdfSlipLine('Insentif Prestasi', slip.insentifPrestasi),
-        _pdfSlipLine('Insentif Transportasi', slip.insentifTransportasi),
-        _pdfSlipLine('Insentif Pangan', slip.insentifPangan),
-        _pdfSlipLine('Insentif BPJS Kesehatan', slip.insentifBpjsKesehatan),
-        _pdfSlipLine('Insentif Perumahan', slip.insentifPerumahan),
-        _pdfSlipLine(
-            'Insentif BPJS Tenaga Kerja', slip.insentifBpjsTenagaKerja),
-        _pdfSlipLine('Insentif Perusahaan', slip.insentifPerusahaan),
-        _pdfSlipLine('Lembur', slip.lembur),
-        _pdfSlipLine('Insentif Pajak', slip.insentifPajak),
-        _pdfSlipLine('Insentif Air Minum', slip.insentifAirMinum),
-        _pdfSlipLine('Insentif Komunikasi', slip.insentifKomunikasi),
-        pw.SizedBox(height: 4),
-        pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Insentif', slip.jumlahInsentif,
-            bold: true, color: navyColor),
-      ],
-    );
-  }
-
-  pw.Widget _buildPotonganColumn(
-    InsentifSlipDetail slip,
-    PdfColor navyColor,
-    PdfColor greyColor,
-  ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
+        pw.SizedBox(height: 3),
         pw.Text(
-          'POTONGAN',
+          'DAFTAR INSENTIF & POTONGAN BULAN : ${slip.bulanLabel}',
           style: pw.TextStyle(
-              fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: greyColor),
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.black,
+          ),
         ),
-        pw.SizedBox(height: 6),
-        _pdfSlipLine(
-            'Potongan Sanksi Perusahaan', slip.potonganSanksiPerusahaan),
-        _pdfSlipLine('Potongan PMI / Lain-lain', slip.potonganPmiLain),
-        _pdfSlipLine('Potongan Dapenma', slip.potonganDapenma),
-        _pdfSlipLine(
-            'Potongan BPJS Tenaga Kerja', slip.potonganBpjsTenagaKerja),
-        _pdfSlipLine('Potongan Perumahan', slip.potonganPerumahan),
-        _pdfSlipLine(
-            'Potongan Insentif Perusahaan', slip.potonganInsentifPerusahaan),
-        _pdfSlipLine('Potongan Korpri', slip.potonganKorpri),
-        _pdfSlipLine('Potongan Pajak', slip.potonganPajak),
-        _pdfSlipLine('Potongan BPJS Kesehatan', slip.potonganBpjsKesehatan),
-        pw.SizedBox(height: 4),
-        pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine('Jumlah Potongan Insentif', slip.jumlahPotonganInsentif,
-            bold: true, color: navyColor),
-        pw.SizedBox(height: 10),
-        _pdfSlipLine('Potongan Koperasi', slip.potonganKoperasi),
-        _pdfSlipLine('Potongan Darma Wanita', slip.potonganDarmaWanita),
-        _pdfSlipLine(
-            'Potongan Rekening Air Minum', slip.potonganRekeningAirMinum),
-        _pdfSlipLine('Potongan Kas', slip.potonganKas),
-        _pdfSlipLine('Potongan Bank BJB', slip.potonganBankBjb),
-        _pdfSlipLine('Potongan Bank BJBS', slip.potonganBankBjbs),
-        _pdfSlipLine('Potongan Bank BTN', slip.potonganBankBtn),
-        _pdfSlipLine('Potongan Bank BPR', slip.potonganBankBpr),
-        _pdfSlipLine('Potongan Asuransi', slip.potonganAsuransi),
-        _pdfSlipLine('Potongan Zakat Profesi', slip.potonganZakatProfesi),
-        pw.SizedBox(height: 4),
-        pw.Divider(color: greyColor, thickness: 0.5),
-        _pdfSlipLine(
-            'Jumlah Potongan Non-Insentif', slip.jumlahPotonganNonInsentif,
-            bold: true, color: navyColor),
-      ],
-    );
-  }
-
-  pw.Widget _pdfSlipLine(
-    String label,
-    int value, {
-    bool bold = false,
-    PdfColor? color,
-  }) {
-    final style = pw.TextStyle(
-      fontSize: 8.3,
-      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-      color: color,
-    );
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 3),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Expanded(child: pw.Text(label, style: style)),
-          pw.Text(formatRupiah(value), style: style),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _buildSimplePdfContent(
-    InsentifItem item,
-    PdfColor navyColor,
-    PdfColor greyColor,
-  ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'PERUMDAM TIRTA DARMA AYU',
-          style: pw.TextStyle(
-              fontSize: 11, color: greyColor, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          'Slip Insentif Pegawai',
-          style: pw.TextStyle(
-              fontSize: 20, fontWeight: pw.FontWeight.bold, color: navyColor),
-        ),
-        pw.SizedBox(height: 2),
-        pw.Text('Periode ${item.periode}',
-            style: pw.TextStyle(fontSize: 12, color: greyColor)),
-        pw.SizedBox(height: 20),
-        pw.Divider(color: greyColor),
-        pw.SizedBox(height: 14),
-        _pdfRow('Judul', item.judul, navyColor),
-        pw.SizedBox(height: 12),
-        pw.Divider(color: greyColor),
-        pw.SizedBox(height: 12),
+        pw.SizedBox(height: 16),
         pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('Jumlah Diterima',
-                style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: navyColor)),
-            pw.Text(formatRupiah(item.jumlah),
-                style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: navyColor)),
+            // Left Column (Identitas & Insentif)
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _pdfRowItem('NIK', slip.nik, isNumber: false),
+                  _pdfRowItem('NAMA', slip.nama.toUpperCase(), isNumber: false),
+                  _pdfRowItem('GOLONGAN', slip.golongan, isNumber: false),
+                  _pdfRowItem('UNIT KERJA', slip.unitKerja.toUpperCase(),
+                      isNumber: false),
+                  _pdfRowItem('JABATAN', slip.jabatan.toUpperCase(),
+                      isNumber: false),
+                  _pdfRowItem('INSENTIF JABATAN', slip.insentifJabatan),
+                  _pdfRowItem('INSENTIF PRESTASI', slip.insentifPrestasi),
+                  _pdfRowItem(
+                      'INSENTIF TRANSPORTASI', slip.insentifTransportasi),
+                  _pdfRowItem('INSENTIF PANGAN', slip.insentifPangan),
+                  _pdfRowItem(
+                      'INSENTIF BPJS KESEHATAN', slip.insentifBpjsKesehatan),
+                  _pdfRowItem('INSENTIF PERUMAHAN', slip.insentifPerumahan),
+                  _pdfRowItem('INSENTIF BPJS TENAGA KERJA',
+                      slip.insentifBpjsTenagaKerja),
+                  _pdfRowItem(
+                      'INSENTIF PERUSAHAAN', slip.insentifPerusahaan),
+                  _pdfRowItem('LEMBUR', slip.lembur),
+                  _pdfRowItem('INSENTIF PAJAK', slip.insentifPajak),
+                  _pdfRowItem('INSENTIF AIR MINUM', slip.insentifAirMinum),
+                  _pdfRowItem('INSENTIF KOMUNIKASI', slip.insentifKomunikasi),
+                  _pdfRowItem('JUMLAH INSENTIF', slip.jumlahInsentif,
+                      bold: true),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'SLIP INSENTIF INI SUDAH DISETUJUI OLEH DIREKSI\nNAMUN SEGALA BENTUK PENYALAH GUNAAN SLIP\nBUKAN MENJADI TANGGUNG JAWAB KAMI.',
+                    style: pw.TextStyle(
+                      fontSize: 7.5,
+                      fontStyle: pw.FontStyle.italic,
+                      color: PdfColors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 25),
+            // Right Column (Potongan)
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.SizedBox(height: 38), // sejajar dengan UNIT KERJA
+                  _pdfRowItem('POTONGAN SANKSI PERUSAHAAN',
+                      slip.potonganSanksiPerusahaan,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN PMI / LAIN-LAIN',
+                      slip.potonganPmiLain,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN DAPENMA', slip.potonganDapenma,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BPJS TENAGA KERJA',
+                      slip.potonganBpjsTenagaKerja,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN PERUMAHAN', slip.potonganPerumahan,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN INSENTIF PERUSAHAAN',
+                      slip.potonganInsentifPerusahaan,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN KORPRI', slip.potonganKorpri,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN PAJAK', slip.potonganPajak,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BPJS KESEHATAN',
+                      slip.potonganBpjsKesehatan,
+                      labelWidth: 195),
+                  _pdfRowItem('JUMLAH POTONGAN INSENTIF',
+                      slip.jumlahPotonganInsentif,
+                      bold: true, labelWidth: 195),
+                  _pdfRowItem('POTONGAN KOPERASI', slip.potonganKoperasi,
+                      labelWidth: 195),
+                  _pdfRowItem(
+                      'POTONGAN DARMA WANITA', slip.potonganDarmaWanita,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN REKENING AIR MINUM',
+                      slip.potonganRekeningAirMinum,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN KAS', slip.potonganKas,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BANK BJB', slip.potonganBankBjb,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BANK BJBS', slip.potonganBankBjbs,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BANK BTN', slip.potonganBankBtn,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN BANK BPR', slip.potonganBankBpr,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN ASURANSI', slip.potonganAsuransi,
+                      labelWidth: 195),
+                  _pdfRowItem('POTONGAN ZAKAT PROFESI',
+                      slip.potonganZakatProfesi,
+                      labelWidth: 195),
+                  _pdfRowItem('JUMLAH POTONGAN NON-INSENTIF',
+                      slip.jumlahPotonganNonInsentif,
+                      bold: true, labelWidth: 195),
+                  _pdfRowItem(
+                      'JUMLAH INSENTIF DITERIMA', slip.jumlahDiterima,
+                      bold: true, labelWidth: 195),
+                ],
+              ),
+            ),
           ],
-        ),
-        pw.SizedBox(height: 20),
-        pw.Divider(color: greyColor),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          'Dokumen ini dibuat otomatis oleh aplikasi SIMPEG Mobile dan sah tanpa tanda tangan basah.',
-          style: pw.TextStyle(fontSize: 8.5, color: greyColor),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _pdfRow(String label, String value, PdfColor navyColor) {
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Text(label, style: const pw.TextStyle(fontSize: 11)),
-        pw.Text(
-          value,
-          style: pw.TextStyle(
-              fontSize: 11, fontWeight: pw.FontWeight.bold, color: navyColor),
         ),
       ],
     );

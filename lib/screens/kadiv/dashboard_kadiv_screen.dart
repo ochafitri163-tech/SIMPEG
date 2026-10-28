@@ -130,12 +130,16 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
               child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+                ),
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                 decoration: BoxDecoration(
                   color: AppColors.card(context),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: Column(
+                child: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -336,7 +340,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   ],
                 ),
               ),
-            );
+            ),
+          );
           },
         );
       },
@@ -386,6 +391,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     final rekomendasiController = TextEditingController();
     String kesimpulanInvestigasi = p.kesimpulanInvestigasi ?? 'terbukti';
     final mediaController = MediaLampiranController();
+    String? errorKirim;
 
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -399,6 +405,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
               child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+                ),
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                 decoration: BoxDecoration(
                   color: AppColors.card(context),
@@ -455,24 +464,15 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                                     width: kesimpulanInvestigasi == 'terbukti' ? 1.5 : 1,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.gavel_rounded,
-                                        size: 16,
+                                child: Center(
+                                  child: Text('Terbukti',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
                                         color: kesimpulanInvestigasi == 'terbukti'
                                             ? const Color(0xFFE74C3C)
-                                            : AppColors.textSecondary(context)),
-                                    const SizedBox(width: 6),
-                                    Text('Terbukti',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: kesimpulanInvestigasi == 'terbukti'
-                                              ? const Color(0xFFE74C3C)
-                                              : AppColors.textPrimary(context),
-                                        )),
-                                  ],
+                                            : AppColors.textPrimary(context),
+                                      )),
                                 ),
                               ),
                             ),
@@ -496,24 +496,15 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                                     width: kesimpulanInvestigasi == 'tidak_terbukti' ? 1.5 : 1,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.verified_user_rounded,
-                                        size: 16,
+                                child: Center(
+                                  child: Text('Tidak Terbukti',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
                                         color: kesimpulanInvestigasi == 'tidak_terbukti'
                                             ? const Color(0xFF0284C7)
-                                            : AppColors.textSecondary(context)),
-                                    const SizedBox(width: 6),
-                                    Text('Tidak Terbukti',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: kesimpulanInvestigasi == 'tidak_terbukti'
-                                              ? const Color(0xFF0284C7)
-                                              : AppColors.textPrimary(context),
-                                        )),
-                                  ],
+                                            : AppColors.textPrimary(context),
+                                      )),
                                 ),
                               ),
                             ),
@@ -521,19 +512,70 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      Text(
-                        'Hasil Investigasi (Foto / Video / Voice Note / Dokumen)',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary(context),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Hasil Investigasi (Foto / Dokumen) *',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ),
+                          if (mediaController.foto.isNotEmpty ||
+                              mediaController.dokumen.isNotEmpty)
+                            Text(
+                              '${mediaController.foto.length} Foto, ${mediaController.dokumen.length} Dokumen',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF27AE60),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
+                      if (mediaController.foto.isEmpty &&
+                          mediaController.dokumen.isEmpty &&
+                          mediaController.isEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFFE74C3C).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: Color(0xFFE74C3C), size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Pemberitahuan: Foto bukti investigasi belum diinput. Harap lampirkan bukti foto temuan atau dokumen pendukung.',
+                                  style: TextStyle(
+                                    color: Color(0xFFE74C3C),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       MediaLampiranPicker(
                         controller: mediaController,
                         prefix: p.nomorPengaduan,
                         bucket: 'pengaduan-bukti',
+                        onChanged: () => setSheetState(() {
+                          if (errorKirim != null) errorKirim = null;
+                        }),
                       ),
                       const SizedBox(height: 10),
                       TextField(
@@ -584,20 +626,70 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       TextField(
                         controller: rekomendasiController,
                         maxLines: 3,
+                        onChanged: (_) {
+                          if (errorKirim != null) {
+                            setSheetState(() => errorKirim = null);
+                          }
+                        },
                         decoration: InputDecoration(
                           labelText: 'Surat rekomendasi ke Dirut',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
+                      if (errorKirim != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFFE74C3C).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  color: Color(0xFFE74C3C), size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  errorKirim!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFE74C3C),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            if (mediaController.isEmpty ||
-                                rekomendasiController.text.trim().isEmpty) {
+                            if (mediaController.foto.isEmpty &&
+                                mediaController.dokumen.isEmpty &&
+                                mediaController.isEmpty) {
+                              setSheetState(() {
+                                errorKirim =
+                                    'Foto bukti investigasi belum diinput! Harap lampirkan bukti foto atau dokumen hasil investigasi.';
+                              });
                               _showSnack(
-                                  'Lampiran hasil investigasi & surat rekomendasi wajib diisi.',
+                                  'Foto bukti investigasi belum diinput!',
+                                  const Color(0xFFE74C3C));
+                              return;
+                            }
+                            if (rekomendasiController.text.trim().isEmpty) {
+                              setSheetState(() {
+                                errorKirim =
+                                    'Surat rekomendasi wajib diisi.';
+                              });
+                              _showSnack(
+                                  'Surat rekomendasi wajib diisi.',
                                   const Color(0xFFE74C3C));
                               return;
                             }
@@ -677,77 +769,82 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: BoxDecoration(
               color: AppColors.card(context),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                      color: AppColors.divider(context),
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                const Text('Selesaikan Tindak Lanjut',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(p.nomorPengaduan,
-                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted(context),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Instruksi Direktur',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary(context))),
-                      const SizedBox(height: 4),
-                      Text(p.tindakLanjutDiminta ?? '-',
-                          style: const TextStyle(fontSize: 12.5)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: catatanController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: 'Keterangan penyelesaian (opsional)',
-                    border: OutlineInputBorder(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                        color: AppColors.divider(context),
                         borderRadius: BorderRadius.circular(10)),
                   ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    icon: const Icon(Icons.task_alt_rounded, size: 18),
-                    label: const Text('Tandai Selesai'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E8449),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
+                  const Text('Selesaikan Tindak Lanjut',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(p.nomorPengaduan,
+                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: AppColors.surfaceMuted(context),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Instruksi Direktur',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondary(context))),
+                        const SizedBox(height: 4),
+                        Text(p.tindakLanjutDiminta ?? '-',
+                            style: const TextStyle(fontSize: 12.5)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: catatanController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Keterangan penyelesaian (opsional)',
+                      border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.task_alt_rounded, size: 18),
+                      label: const Text('Tandai Selesai'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E8449),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

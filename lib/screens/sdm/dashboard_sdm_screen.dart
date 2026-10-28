@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../login_screen.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
-import '../pegawai/dokumen_resmi_screen.dart';
 import '../shared/detail_pengaduan_screen.dart';
-import '../shared/riwayat_pengaduan_screen.dart';
 import '../shared/surat_detail_pengaduan_screen.dart';
-import 'kelola_pengumuman_screen.dart';
 import 'terbitkan_sk_screen.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 
 import '../../theme/app_colors.dart';
-import '../../services/theme_controller.dart';
-import '../../services/api_service.dart';
 
 enum _SdmClusterFilter {
   semua,
@@ -61,14 +55,6 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     await _future;
   }
 
-  Future<void> _logout() async {
-    await ApiService.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
-  }
 
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -106,10 +92,13 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: BoxDecoration(
               color: AppColors.card(context),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: builder(ctx, setSheetState),
           ),
@@ -493,14 +482,15 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   ),
                 ),
               ),
-              // Header dibuat ringkas: hanya notifikasi + satu tombol menu.
-              // Aksi lain (pengumuman, SK, riwayat, tema, muat ulang, keluar)
-              // dipindah ke menu tiga titik supaya tidak terlihat penuh.
               IconTheme(
                 data: const IconThemeData(color: Colors.white),
                 child: NotificationBell(role: UserRole.sdm, user: widget.user),
               ),
-              _buildMenuAksi(),
+              IconButton(
+                tooltip: 'Muat ulang',
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                onPressed: _refresh,
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -516,103 +506,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     );
   }
 
-  /// Menu ringkas berisi seluruh aksi header SDM.
-  Widget _buildMenuAksi() {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.instance.themeMode,
-      builder: (context, mode, _) {
-        final isDark = mode == ThemeMode.dark;
-        return PopupMenuButton<String>(
-          tooltip: 'Menu',
-          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
-          position: PopupMenuPosition.under,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          onSelected: (nilai) {
-            switch (nilai) {
-              case 'pengumuman':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => KelolaPengumumanScreen(user: widget.user),
-                  ),
-                );
-                break;
-              case 'dokumen':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DokumenResmiScreen(user: widget.user),
-                  ),
-                );
-                break;
-              case 'riwayat':
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RiwayatPengaduanScreen(user: widget.user),
-                  ),
-                );
-                break;
-              case 'tema':
-                ThemeController.instance.setDark(!isDark);
-                break;
-              case 'refresh':
-                _refresh();
-                break;
-              case 'logout':
-                _logout();
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            _itemMenu('dokumen', Icons.description_rounded,
-                'Dokumen Surat Pegawai'),
-            _itemMenu('pengumuman', Icons.campaign_rounded,
-                'Kelola Pengumuman'),
-            _itemMenu('riwayat', Icons.history_rounded, 'Riwayat Pengaduan'),
-            const PopupMenuDivider(),
-            _itemMenu(
-              'tema',
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              isDark ? 'Mode Terang' : 'Mode Gelap',
-            ),
-            _itemMenu('refresh', Icons.refresh_rounded, 'Muat ulang'),
-            const PopupMenuDivider(),
-            _itemMenu('logout', Icons.logout_rounded, 'Keluar',
-                warna: const Color(0xFFE74C3C)),
-          ],
-        );
-      },
-    );
-  }
 
-  PopupMenuItem<String> _itemMenu(
-    String nilai,
-    IconData ikon,
-    String label, {
-    Color? warna,
-  }) {
-    return PopupMenuItem<String>(
-      value: nilai,
-      height: 44,
-      child: Row(
-        children: [
-          Icon(ikon, size: 18, color: warna ?? _navy),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: warna,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildEmptyState(String text) {
     return Container(
