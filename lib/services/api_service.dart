@@ -108,6 +108,19 @@ class ApiService {
     }
   }
 
+  /// 5a. Get Tunjangan Pendidikan (Regulasi 2026)
+  static Future<Map<String, dynamic>> getTunjanganPendidikan({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/payroll/tunjangan-pendidikan').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
   /// 5b. Get Insentif Pegawai
   static Future<Map<String, dynamic>> getInsentif({String? nik}) async {
     final uri = Uri.parse('$baseUrl/payroll/insentif').replace(

@@ -145,7 +145,24 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
   }
 
   if (userId != null) {
-    // 2a. Prioritas Utama: Tabel payroll di Supabase (data resmi disetujui dengan rincian potongan lengkap)
+    final List<InsentifItem> combined = [];
+
+    // 2a. Tabel insentif di Supabase (Insentif Pendidikan 2026 & Insentif Khusus dari SDM)
+    try {
+      final rows = await Supabase.instance.client
+          .from('insentif')
+          .select()
+          .eq('pegawai_id', userId)
+          .order('created_at', ascending: false);
+
+      if ((rows as List).isNotEmpty) {
+        for (final row in (rows as List)) {
+          combined.add(_rowToInsentifItem(Map<String, dynamic>.from(row as Map), user));
+        }
+      }
+    } catch (_) {}
+
+    // 2b. Tabel payroll di Supabase (Insentif Bulanan)
     try {
       final payrollRows = await Supabase.instance.client
           .from('payroll')
@@ -155,26 +172,15 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
           .order('bulan', ascending: false);
 
       if ((payrollRows as List).isNotEmpty) {
-        return (payrollRows as List)
-            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
-            .toList();
+        for (final row in (payrollRows as List)) {
+          combined.add(_rowToInsentifItem(Map<String, dynamic>.from(row as Map), user));
+        }
       }
     } catch (_) {}
 
-    // 2b. Fallback: Tabel insentif di Supabase
-    try {
-      final rows = await Supabase.instance.client
-          .from('insentif')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false);
-
-      if ((rows as List).isNotEmpty) {
-        return (rows as List)
-            .map((row) => _rowToInsentifItem(Map<String, dynamic>.from(row as Map), user))
-            .toList();
-      }
-    } catch (_) {}
+    if (combined.isNotEmpty) {
+      return combined;
+    }
   }
 
   return [];
