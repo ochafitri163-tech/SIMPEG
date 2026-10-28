@@ -147,11 +147,13 @@ class _AbsensiCheckScreenState extends State<AbsensiCheckScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Ajukan Izin Hari Ini'),
-        content: TextField(
-          controller: c,
-          maxLines: 3,
-          decoration: const InputDecoration(
-              hintText: 'Alasan izin (mis. sakit, keperluan keluarga)'),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: c,
+            maxLines: 3,
+            decoration: const InputDecoration(
+                hintText: 'Alasan izin (mis. sakit, keperluan keluarga)'),
+          ),
         ),
         actions: [
           TextButton(

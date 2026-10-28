@@ -20,6 +20,7 @@ class MediaLampiranController {
 
   bool get isEmpty =>
       foto.isEmpty && video.isEmpty && voice.isEmpty && dokumen.isEmpty;
+  bool get isNotEmpty => !isEmpty;
 }
 
 /// Widget pemilih lampiran: Foto (galeri), Video, Voice Note (rekam langsung
@@ -30,12 +31,17 @@ class MediaLampiranPicker extends StatefulWidget {
   final String bucket;
   final String prefix;
   final bool includeFoto;
+  final VoidCallback? onChanged;
+  final String? errorText;
+
   const MediaLampiranPicker({
     super.key,
     required this.controller,
     required this.prefix,
     this.bucket = 'pengaduan-bukti',
     this.includeFoto = true,
+    this.onChanged,
+    this.errorText,
   });
 
   @override
@@ -72,6 +78,7 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
     setState(() => _uploading = true);
     try {
       await aksi();
+      widget.onChanged?.call();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,6 +210,36 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
         ],
         const SizedBox(height: 12),
         _lampiranPreview(),
+        if (widget.errorText != null && widget.errorText!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFFE74C3C).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: Color(0xFFE74C3C), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.errorText!,
+                    style: const TextStyle(
+                      color: Color(0xFFE74C3C),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -336,7 +373,10 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
                 icon: Icons.videocam_rounded,
                 label: 'Video ${i + 1} · ${_namaFile(c.video[i])}',
                 onTap: () => _bukaUrl(c.video[i]),
-                onHapus: () => setState(() => c.video.removeAt(i)),
+                onHapus: () {
+                  setState(() => c.video.removeAt(i));
+                  widget.onChanged?.call();
+                },
               ),
             const SizedBox(height: 6),
           ],
@@ -348,7 +388,10 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
                 icon: Icons.graphic_eq_rounded,
                 label: 'Voice Note ${i + 1}',
                 onTap: () => _bukaUrl(c.voice[i]),
-                onHapus: () => setState(() => c.voice.removeAt(i)),
+                onHapus: () {
+                  setState(() => c.voice.removeAt(i));
+                  widget.onChanged?.call();
+                },
               ),
             const SizedBox(height: 6),
           ],
@@ -360,7 +403,10 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
                 icon: Icons.description_rounded,
                 label: _namaFile(c.dokumen[i]),
                 onTap: () => _bukaUrl(c.dokumen[i]),
-                onHapus: () => setState(() => c.dokumen.removeAt(i)),
+                onHapus: () {
+                  setState(() => c.dokumen.removeAt(i));
+                  widget.onChanged?.call();
+                },
               ),
           ],
         ],
@@ -414,7 +460,10 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
           top: -6,
           right: -6,
           child: GestureDetector(
-            onTap: () => setState(() => c.foto.removeAt(index)),
+            onTap: () {
+              setState(() => c.foto.removeAt(index));
+              widget.onChanged?.call();
+            },
             child: Container(
               width: 20,
               height: 20,

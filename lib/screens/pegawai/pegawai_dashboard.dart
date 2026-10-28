@@ -15,7 +15,6 @@ import '../shared/pengumuman_list_screen.dart';
 import '../../widgets/pengumuman_card.dart';
 import '../../widgets/floating_nav_bar.dart';
 import 'tunjangan_pendidikan_screen.dart';
-import 'insentif_screen.dart';
 import 'lembur_screen.dart';
 import 'pengaduan_pegawai_screen.dart';
 import 'payroll_screen.dart';
@@ -103,40 +102,6 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
 
   int _bottomNavIndex = 0;
   late Future<AttendanceSummary> _attendanceFuture;
-
-  /// True kalau user login sebagai role approval (Kadiv, KSPI, TPDPK,
-  /// Direktur, SDM) — bukan Pegawai biasa. Role-role ini tetap punya
-  /// dashboard pegawai standar (Beranda/Status Pengaduan/Profil), hanya
-  /// ditambah satu tab khusus di footer untuk fitur verifikasi/approval
-  /// pengaduan sesuai role masing-masing.
-  Widget _getRoleTasksPage(AppUser user) {
-    switch (user.role) {
-      case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: user, showBackButton: true);
-      case UserRole.kspi:
-        return DashboardKspiScreen(user: user, showBackButton: true);
-      case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: user, showBackButton: true);
-      case UserRole.direktur:
-        return DashboardDirutScreen(user: user, showBackButton: true);
-      case UserRole.sdm:
-        return DashboardSdmScreen(user: user, showBackButton: true);
-      default:
-        if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
-          return DashboardTpdpkScreen(user: user, showBackButton: true);
-        }
-        if (user.nik == '1711251' || user.nik == '1711571' ||
-            user.name.toLowerCase().contains('ghani') ||
-            user.name.toLowerCase().contains('nurkhuliyah') ||
-            user.name.toLowerCase().contains('nukhuliyah')) {
-          return DashboardKadivScreen(user: user, showBackButton: true);
-        }
-        if (user.name.toLowerCase().contains('hedy')) {
-          return DashboardSdmScreen(user: user, showBackButton: true);
-        }
-        return StatusPengaduanScreen(user: user, showBackButton: true);
-    }
-  }
 
   @override
   void initState() {
@@ -293,12 +258,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           builder: (_) => LemburScreen(user: widget.user)),
       _QuickMenuItem(
           label: 'Tunjangan\nPendidikan',
-          icon: Icons.description_rounded,
-          builder: (_) => const TunjanganPendidikanScreen()),
-      _QuickMenuItem(
-          label: 'Insentif',
-          icon: Icons.star_rounded,
-          builder: (_) => InsentifScreen(user: widget.user)),
+          icon: Icons.school_rounded,
+          builder: (_) => TunjanganPendidikanScreen(user: widget.user)),
       if (widget.user.role == UserRole.sdm)
         _QuickMenuItem(
             label: 'Kelola\nPengumuman',

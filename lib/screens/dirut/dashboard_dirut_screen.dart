@@ -109,10 +109,13 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: BoxDecoration(
               color: AppColors.card(context),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: builder(ctx, setSheetState),
           ),
@@ -366,26 +369,15 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   color: (isTerbukti ? _red : _accent).withOpacity(0.3),
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    isTerbukti ? Icons.gavel_rounded : Icons.verified_user_rounded,
+              child: Text(
+                isTerbukti
+                    ? 'Hasil Investigasi: TERBUKTI.\nJika diterima, diteruskan ke SDM untuk surat putusan sanksi.'
+                    : 'Hasil Investigasi: TIDAK TERBUKTI.\nJika diterima, otomatis diarsipkan & nama baik dipulihkan.',
+                style: TextStyle(
+                    fontSize: 11.5,
                     color: isTerbukti ? _red : _accent,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isTerbukti
-                          ? 'Hasil Investigasi: TERBUKTI.\nJika diterima, diteruskan ke SDM untuk surat putusan sanksi.'
-                          : 'Hasil Investigasi: TIDAK TERBUKTI.\nJika diterima, otomatis diarsipkan & nama baik dipulihkan.',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          color: AppColors.textPrimary(context),
-                          height: 1.35),
-                    ),
-                  ),
-                ],
+                    fontWeight: FontWeight.w600,
+                    height: 1.35),
               ),
             ),
             const SizedBox(height: 14),

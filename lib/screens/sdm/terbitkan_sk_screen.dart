@@ -158,7 +158,7 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
         if (pegawai.golongan.isNotEmpty) {
           _golonganLamaController.text = pegawai.golongan;
         }
-        _pesanPegawai = 'Ditemukan: ${pegawai.nama}';
+        _pesanPegawai = null;
       });
     } catch (e) {
       if (mounted) setState(() => _pesanPegawai = 'Gagal mencari pegawai: $e');
@@ -194,7 +194,7 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
         if (pegawai.golongan.isNotEmpty) {
           _golonganLamaController.text = pegawai.golongan;
         }
-        _pesanPegawai = 'Ditemukan: ${pegawai.nama} (NIK: ${pegawai.nik})';
+        _pesanPegawai = null;
       });
     } catch (e) {
       if (mounted) setState(() => _pesanPegawai = 'Gagal mencari pegawai: $e');
@@ -324,40 +324,28 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
             children: [
               _judulBagian('1. Pegawai Terlapor', icon: Icons.badge_rounded),
               _kartu([
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _field(
-                        controller: _nikController,
-                        label: 'NIK pegawai terlapor',
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _mencariPegawai ? null : _cariPegawai,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _accent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: _mencariPegawai
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.search_rounded, size: 20),
-                      ),
-                    ),
-                  ],
+                _field(
+                  controller: _nikController,
+                  label: 'NIK pegawai terlapor',
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (_) => _cariPegawai(),
                 ),
-                if (_pesanPegawai != null) ...[
+                if (_mencariPegawai) ...[
+                  const SizedBox(height: 8),
+                  const Row(
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Mencari data pegawai...',
+                          style: TextStyle(fontSize: 11.5, color: _accent)),
+                    ],
+                  ),
+                ] else if (_pesanPegawai != null &&
+                    !_pesanPegawai!.toLowerCase().startsWith('ditemukan:')) ...[
                   const SizedBox(height: 8),
                   Text(
                     _pesanPegawai!,
@@ -574,11 +562,13 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
     TextInputType? keyboardType,
     String? prefixText,
     int maxLines = 1,
+    ValueChanged<String>? onSubmitted,
   }) =>
       TextField(
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        onSubmitted: onSubmitted,
         style: const TextStyle(fontSize: 13),
         decoration: _dekorasi(label, prefixText: prefixText),
       );

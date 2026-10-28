@@ -585,23 +585,6 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
     );
   }
 
-  Widget _pillBadge(String text, Color color, {bool filled = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: filled ? color : color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w800,
-          color: filled ? Colors.white : color,
-        ),
-      ),
-    );
-  }
 
   Widget _statusBadge(bool aktif) {
     final color = aktif ? _success : _muted;

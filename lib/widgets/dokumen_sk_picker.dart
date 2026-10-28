@@ -155,77 +155,9 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final kurang = c.belumLengkap;
-    final lengkap = kurang.isEmpty;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: (lengkap ? _green : _accent).withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: (lengkap ? _green : _accent).withValues(alpha: 0.25),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      lengkap
-                          ? 'Dokumen wajib lengkap \u00b7 ${c.total} berkas'
-                          : 'Kelengkapan dokumen wajib',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: lengkap ? _green : AppColors.textPrimary(context),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${4 - kurang.length}/4',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: lengkap ? _green : _accent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: LinearProgressIndicator(
-                  value: (4 - kurang.length) / 4,
-                  minHeight: 6,
-                  backgroundColor:
-                      AppColors.divider(context).withValues(alpha: 0.6),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      lengkap ? _green : _accent),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Jumlah berkas bebas \u2014 satu file boleh memuat beberapa '
-                'dokumen, atau diunggah terpisah. Di luar dokumen wajib, SDM '
-                'boleh menambah dokumen pendukung lain sebanyak yang '
-                'diperlukan.',
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.35,
-                  color: AppColors.textSecondary(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
         for (final jenis in JenisDokumenSk.values) ...[
           _slotDokumen(jenis),
           const SizedBox(height: 12),
@@ -297,48 +229,50 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Dokumen tambahan',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Beri nama dokumen pendukung yang ingin ditambahkan.',
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'mis. Berita Acara Pemeriksaan',
-                hintStyle: const TextStyle(fontSize: 12.5),
-                isDense: true,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Beri nama dokumen pendukung yang ingin ditambahkan.',
+                style: TextStyle(fontSize: 12),
               ),
-              onSubmitted: (v) => Navigator.pop(ctx, v),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final saran in const [
-                  'Berita Acara Pemeriksaan',
-                  'Surat Panggilan',
-                  'Notulen Rapat',
-                  'Foto Lapangan',
-                ])
-                  ActionChip(
-                    label: Text(saran,
-                        style: const TextStyle(fontSize: 10.5)),
-                    onPressed: () => Navigator.pop(ctx, saran),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'mis. Berita Acara Pemeriksaan',
+                  hintStyle: const TextStyle(fontSize: 12.5),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (v) => Navigator.pop(ctx, v),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final saran in const [
+                    'Berita Acara Pemeriksaan',
+                    'Surat Panggilan',
+                    'Notulen Rapat',
+                    'Foto Lapangan',
+                  ])
+                    ActionChip(
+                      label: Text(saran,
+                          style: const TextStyle(fontSize: 10.5)),
+                      onPressed: () => Navigator.pop(ctx, saran),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
