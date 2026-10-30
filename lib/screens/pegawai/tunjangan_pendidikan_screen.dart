@@ -644,7 +644,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
     );
   }
 
-  /// Page 2: Dokumen Resmi Insentif Pendidikan
+  /// Page 2: Dokumen Resmi Insentif Pekerjaan
   static pw.Widget _buildInsentifPdfContent(InsentifSlipDetail slip) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -659,7 +659,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'DAFTAR INSENTIF & POTONGAN BULAN : ${slip.bulanLabel}',
+          'DAFTAR INSENTIF PEKERJAAN & POTONGAN BULAN : ${slip.bulanLabel}',
           style: pw.TextStyle(
             fontSize: 10,
             fontWeight: pw.FontWeight.bold,
@@ -860,7 +860,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
     }
   }
 
-  /// Mengunduh SATU file PDF gabungan: Page 1 Tunjangan Pendidikan, Page 2 Insentif Pendidikan
+  /// Mengunduh SATU file PDF gabungan: Page 1 Tunjangan Pendidikan, Page 2 Insentif Pekerjaan
   Future<void> _downloadCombinedPdf(
     TunjanganPendidikanItem? pendItem,
     InsentifItem? insItem,
@@ -908,7 +908,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
         ),
       );
 
-      // Page 2: Rincian Insentif Pendidikan
+      // Page 2: Rincian Insentif Pekerjaan
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
@@ -1058,7 +1058,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Insentif Pegawai · ${item.periode}',
+                  'Insentif Pekerjaan · ${item.periode}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12.5,
@@ -1235,7 +1235,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
         const SizedBox(height: 8),
         Center(
           child: Text(
-            'Tombol di atas mengunduh slip resmi gabungan Tunjangan Pendidikan & Insentif (1 file PDF)',
+            'Tombol di atas mengunduh slip resmi gabungan Tunjangan Pendidikan & Insentif Pekerjaan (1 file PDF)',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
@@ -1255,7 +1255,7 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
   Widget build(BuildContext context) {
     return FeatureScaffold(
       title: 'Tunjangan Pendidikan',
-      subtitle: 'Riwayat pencairan tunjangan pendidikan & insentif pegawai',
+      subtitle: 'Riwayat pencairan tunjangan pendidikan & insentif pekerjaan',
       icon: Icons.school_rounded,
       child: RefreshIndicator(
         onRefresh: _refresh,
@@ -1498,12 +1498,12 @@ class _TunjanganPendidikanScreenState extends State<TunjanganPendidikanScreen> {
                     const SizedBox(height: 22),
 
                     // ========================================================
-                    // BAGIAN 2: RINCIAN INSENTIF PENDIDIKAN
+                    // BAGIAN 2: RINCIAN INSENTIF PEKERJAAN
                     // ========================================================
                     _buildSectionHeader(
-                      title: 'RINCIAN INSENTIF PENDIDIKAN',
+                      title: 'RINCIAN INSENTIF PEKERJAAN',
                       subtitle:
-                          'Ketuk kartu hero/riwayat untuk unduh slip PDF resmi insentif',
+                          'Ketuk kartu hero/riwayat untuk unduh slip PDF resmi insentif pekerjaan',
                       icon: Icons.stars_rounded,
                       accentColor: const Color(0xFF8E44AD),
                     ),

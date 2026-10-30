@@ -5,6 +5,7 @@ import 'user_role.dart';
 import '../services/notification_service.dart';
 import '../services/onesignal_service.dart';
 import '../services/audit_log_service.dart';
+import '../services/api_service.dart';
 // Diberi prefix karena file ini juga mengimpor `services/notification_service.dart`
 // yang KEBETULAN punya nama kelas sama (NotificationService) tapi untuk hal
 // berbeda (local push notification, dipakai sbg `NotificationService.instance`).
@@ -87,7 +88,10 @@ class Pengumuman {
     if (!aktif || sudahKedaluwarsa) return false;
     if (terbitPada != null) {
       final now = DateTime.now().toUtc();
-      if (now.isBefore(terbitPada!)) return false;
+      // Toleransi 1 menit jika jam terbit disetel ke menit berjalan pada server web
+      if (now.isBefore(terbitPada!.subtract(const Duration(minutes: 1)))) {
+        return false;
+      }
     }
     return true;
   }
@@ -111,50 +115,81 @@ class Pengumuman {
           clean == 'semua' ||
           clean == 'all' ||
           clean.contains(rName) ||
-          clean.contains(rKode);
+          clean.contains(rKode) ||
+          (clean.contains('kadiv') && rName.contains('kadiv')) ||
+          (clean.contains('dirut') && (rName.contains('direktur') || rKode.contains('dirut'))) ||
+          (clean.contains('direktur') && (rName.contains('direktur') || rKode.contains('dirut')));
     });
   }
 
   factory Pengumuman.fromRow(Map<String, dynamic> row) {
     DateTime? parse(dynamic v) =>
         v == null ? null : DateTime.tryParse(v.toString())?.toUtc();
+
+    bool parseBool(dynamic v, {bool fallback = false}) {
+      if (v == null) return fallback;
+      if (v is bool) return v;
+      if (v is num) return v != 0;
+      final s = v.toString().trim().toLowerCase();
+      if (s == 'true' || s == '1' || s == 't' || s == 'yes') return true;
+      if (s == 'false' || s == '0' || s == 'f' || s == 'no') return false;
+      return fallback;
+    }
+
+    int parseId(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
     List<String> parseRoles(dynamic v) {
       if (v == null) return const [];
       if (v is List) {
-        return v.map((e) => e.toString().replaceAll('"', '').replaceAll("'", '').trim()).toList();
+        return v
+            .map((e) => e.toString().replaceAll('"', '').replaceAll("'", '').trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
       }
       if (v is String) {
-        final trimmed = v.replaceAll('{', '').replaceAll('}', '').replaceAll('"', '').replaceAll("'", '').trim();
+        final trimmed = v
+            .replaceAll('{', '')
+            .replaceAll('}', '')
+            .replaceAll('"', '')
+            .replaceAll("'", '')
+            .trim();
         if (trimmed.isEmpty) return const [];
-        return trimmed.split(',').map((e) => e.trim()).toList();
+        return trimmed.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       }
       return const [];
     }
 
+    final isPenting = row['prioritas'] == true ||
+        row['prioritas'] == 'penting' ||
+        row['prioritas'] == 1 ||
+        row['prioritas'] == '1';
+
     return Pengumuman(
-      id: (row['id'] as num).toInt(),
-      judul: (row['judul'] ?? '') as String,
-      isi: (row['isi'] ?? '') as String,
-      aktif: (row['aktif'] ?? true) as bool,
-      prioritas: (row['prioritas'] == true || row['prioritas'] == 'penting')
-          ? 'penting'
-          : 'umum',
-      disematkan: (row['disematkan'] ?? false) as bool,
+      id: parseId(row['id']),
+      judul: (row['judul'] ?? '').toString(),
+      isi: (row['isi'] ?? '').toString(),
+      aktif: parseBool(row['aktif'], fallback: true),
+      prioritas: isPenting ? 'penting' : 'umum',
+      disematkan: parseBool(row['disematkan'] ?? row['is_pinned']),
       targetRoles: parseRoles(row['target_roles']),
-      pembuat: (row['pembuat'] ?? 'SDM') as String,
-      pembuatId: row['pembuat_id'] as String?,
+      pembuat: (row['pembuat'] ?? row['penulis'] ?? 'SDM').toString(),
+      pembuatId: row['pembuat_id']?.toString(),
       tanggalPublikasi: parse(row['created_at']) ?? DateTime.now().toUtc(),
       terbitPada: parse(row['terbit_pada']),
       kedaluwarsaPada: parse(row['kedaluwarsa_pada']),
-      lampiranUrl: row['lampiran_url'] as String?,
-      lampiranNama: row['lampiran_nama'] as String?,
+      lampiranUrl: row['lampiran_url']?.toString(),
+      lampiranNama: row['lampiran_nama']?.toString(),
       tanggalUbah: parse(row['updated_at']),
     );
   }
 }
 
 /// =============================================================
-/// PengumumanService — akses tunggal ke tabel `pengumuman`.
+/// PengumumanService — akses data pengumuman (Supabase & Web API).
 /// =============================================================
 class PengumumanService {
   PengumumanService._();
@@ -197,60 +232,92 @@ class PengumumanService {
       yield initial;
     } catch (_) {}
 
-    // 2. Dengarkan Supabase Realtime stream
-    try {
-      await for (final rows in _client
-          .from(_table)
-          .stream(primaryKey: ['id'])
-          .order('created_at', ascending: false)) {
-        final list = rows
-            .map(Pengumuman.fromRow)
-            .where((p) => p.sedangTayang && p.untukRole(role))
-            .toList();
-        list.sort((a, b) {
-          if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
-          return b.tanggalTayang.compareTo(a.tanggalTayang);
-        });
-        yield list;
-      }
-    } catch (_) {
-      // Fallback polling berkala jika Realtime WebSocket tidak aktif
-      while (true) {
-        await Future.delayed(const Duration(seconds: 5));
-        try {
-          final pollingList = await tayangSekali(role);
-          yield pollingList;
-        } catch (_) {}
-      }
+    // 2. Hybrid Stream: Supabase Realtime + Polling Berkala
+    // Menjamin pengumuman yang baru diinput dari web langsung muncul di HP
+    final controller = StreamController<List<Pengumuman>>();
+    Timer? pollingTimer;
+    RealtimeChannel? realtimeChannel;
+
+    void updateData() async {
+      try {
+        final list = await tayangSekali(role);
+        if (!controller.isClosed) {
+          controller.add(list);
+        }
+      } catch (_) {}
     }
+
+    // Polling setiap 4 detik untuk update langsung data dari web
+    pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) => updateData());
+
+    // Listener Realtime Supabase
+    try {
+      realtimeChannel = _client.channel('public:pengumuman_channel_${role.name}');
+      realtimeChannel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: _table,
+        callback: (_) => updateData(),
+      ).subscribe();
+    } catch (_) {}
+
+    controller.onCancel = () {
+      pollingTimer?.cancel();
+      if (realtimeChannel != null) {
+        _client.removeChannel(realtimeChannel);
+      }
+      controller.close();
+    };
+
+    yield* controller.stream;
   }
 
   static Future<List<Pengumuman>> semua() async {
     await autoNonaktifkanExpired();
-    final rows = await _client
-        .from(_table)
-        .select()
-        .order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
-        .toList();
-  }
+    final List<Pengumuman> list = [];
+    final Set<int> seenIds = {};
 
-  static Future<List<Pengumuman>> tayangSekali(UserRole role) async {
-    await autoNonaktifkanExpired();
-    final rows = await _client
-        .from(_table)
-        .select()
-        .order('created_at', ascending: false);
-    final list = (rows as List)
-        .map((r) => Pengumuman.fromRow(r as Map<String, dynamic>))
-        .where((p) => p.sedangTayang && p.untukRole(role))
-        .toList();
+    // 1. Ambil dari database Supabase (sumber utama)
+    try {
+      final rows = await _client
+          .from(_table)
+          .select()
+          .order('created_at', ascending: false);
+      for (final r in (rows as List)) {
+        final p = Pengumuman.fromRow(r as Map<String, dynamic>);
+        if (p.id != 0 && !seenIds.contains(p.id)) {
+          seenIds.add(p.id);
+          list.add(p);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error mengambil pengumuman dari Supabase: $e');
+    }
+
+    // 2. Ambil dari REST API Laravel (jika backend web aktif)
+    try {
+      final res = await ApiService.getPengumuman();
+      if (res['success'] == true && res['data'] is List) {
+        for (final r in (res['data'] as List)) {
+          final p = Pengumuman.fromRow(r as Map<String, dynamic>);
+          if (p.id != 0 && !seenIds.contains(p.id)) {
+            seenIds.add(p.id);
+            list.add(p);
+          }
+        }
+      }
+    } catch (_) {}
+
     list.sort((a, b) {
       if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
       return b.tanggalTayang.compareTo(a.tanggalTayang);
     });
     return list;
+  }
+
+  static Future<List<Pengumuman>> tayangSekali(UserRole role) async {
+    final list = await semua();
+    return list.where((p) => p.sedangTayang && p.untukRole(role)).toList();
   }
 
   static Future<Pengumuman?> ambilById(int id) async {

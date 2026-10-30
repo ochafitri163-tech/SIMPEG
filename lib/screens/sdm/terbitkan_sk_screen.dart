@@ -306,6 +306,10 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.user.isManajerSdm) {
+      return AccessDeniedScreen(user: widget.user);
+    }
+
     return RoleGuard(
       user: widget.user,
       allowedRoles: const [UserRole.sdm],

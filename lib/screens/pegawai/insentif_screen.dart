@@ -340,7 +340,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Insentif Pegawai',
+                    'Insentif Pekerjaan',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 17,
@@ -379,7 +379,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
       child: Column(
         children: [
           Text(
-            'Insentif Pegawai · ${item.periode}',
+            'Insentif Pekerjaan · ${item.periode}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12.5,
@@ -680,7 +680,7 @@ class _InsentifScreenState extends State<InsentifScreen> {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'DAFTAR INSENTIF & POTONGAN BULAN : ${slip.bulanLabel}',
+          'DAFTAR INSENTIF PEKERJAAN & POTONGAN BULAN : ${slip.bulanLabel}',
           style: pw.TextStyle(
             fontSize: 10,
             fontWeight: pw.FontWeight.bold,
