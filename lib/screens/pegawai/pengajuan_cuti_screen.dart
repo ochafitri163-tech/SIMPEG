@@ -230,126 +230,131 @@ class _FormCutiSheetState extends State<_FormCutiSheet> {
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1B2230) : Colors.white,
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(22)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(2)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2)),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text('Ajukan Cuti / Izin',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            const Text('Jenis',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: JenisCuti.values.map((j) {
-                final aktif = _jenis == j;
-                return ChoiceChip(
-                  label: Text(j.label),
-                  selected: aktif,
-                  selectedColor: _accent.withValues(alpha: 0.2),
-                  onSelected: (_) => setState(() => _jenis = j),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _tanggalPicker('Mulai', _mulai,
-                      () => _pilihTanggal(mulai: true)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _tanggalPicker('Selesai', _selesai,
-                      () => _pilihTanggal(mulai: false)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _alasanC,
-              maxLines: 3,
-              onChanged: (_) {
-                if (_errorMessage != null) {
-                  setState(() => _errorMessage = null);
-                }
-              },
-              decoration: InputDecoration(
-                labelText: 'Alasan *',
-                errorText: _errorMessage,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 16),
+              const Text('Ajukan Cuti / Izin',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text('Jenis',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: JenisCuti.values.map((j) {
+                  final aktif = _jenis == j;
+                  return ChoiceChip(
+                    label: Text(j.label),
+                    selected: aktif,
+                    selectedColor: _accent.withValues(alpha: 0.2),
+                    onSelected: (_) => setState(() => _jenis = j),
+                  );
+                }).toList(),
               ),
-            ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE74C3C).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _tanggalPicker('Mulai', _mulai,
+                        () => _pilihTanggal(mulai: true)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _tanggalPicker('Selesai', _selesai,
+                        () => _pilihTanggal(mulai: false)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _alasanC,
+                maxLines: 3,
+                onChanged: (_) {
+                  if (_errorMessage != null) {
+                    setState(() => _errorMessage = null);
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Alasan *',
+                  errorText: _errorMessage,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFFE74C3C),
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE74C3C).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE74C3C).withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Color(0xFFE74C3C), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Color(0xFFE74C3C),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _kirim ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _kirim
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Kirim Pengajuan',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _kirim ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _kirim
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Kirim Pengajuan',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

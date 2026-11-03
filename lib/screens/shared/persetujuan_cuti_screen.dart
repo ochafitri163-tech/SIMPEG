@@ -39,18 +39,21 @@ class _PersetujuanCutiScreenState extends State<PersetujuanCutiScreen> {
         title: Text(keputusan == StatusCuti.disetujui
             ? 'Setujui Pengajuan'
             : 'Tolak Pengajuan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('${c.namaPegawai} — ${c.jenis.label} (${c.jumlahHari} hari)'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: catatanC,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                  hintText: 'Catatan (opsional)'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${c.namaPegawai} — ${c.jenis.label} (${c.jumlahHari} hari)'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: catatanC,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    hintText: 'Catatan (opsional)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

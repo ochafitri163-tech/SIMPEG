@@ -782,6 +782,7 @@ class ProfileDetailScreen extends StatelessWidget {
           titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
           contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
           actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          actionsOverflowButtonSpacing: 8,
           title: Row(
             children: [
               Container(
@@ -797,13 +798,15 @@ class ProfileDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              Text(
-                'Keluar Akun?',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary(context),
-                  letterSpacing: -0.3,
+              Expanded(
+                child: Text(
+                  'Keluar Akun?',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary(context),
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
             ],

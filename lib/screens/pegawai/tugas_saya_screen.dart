@@ -873,17 +873,71 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                         const SizedBox(height: 14),
 
                         // Media Lampiran Bukti
-                        const Text(
-                          'Lampiran Bukti foto & dokumen (Opsional)',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Lampiran Bukti Investigasi *',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (mediaController.foto.isNotEmpty ||
+                                mediaController.dokumen.isNotEmpty)
+                              Text(
+                                '${mediaController.foto.length} Foto, ${mediaController.dokumen.length} Dokumen',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: _green,
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 6),
+
+                        // Announcement banner ketika bukti belum diinput
+                        if (mediaController.foto.isEmpty &&
+                            mediaController.dokumen.isEmpty &&
+                            mediaController.isEmpty) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color:
+                                      Colors.amber.shade700.withOpacity(0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded,
+                                    color: Colors.amber.shade800, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Pemberitahuan: Foto bukti atau dokumen investigasi belum diinput. Mohon lampirkan bukti hasil pemeriksaan lapangan sebelum menyelesaikan tugas.',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Colors.amber.shade900,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
                         MediaLampiranPicker(
                           controller: mediaController,
                           prefix: 'task_${task.id}',
+                          onChanged: () => setSheetState(() {}),
                         ),
                         const SizedBox(height: 18),
 
@@ -959,6 +1013,35 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
                                           content: Text(
                                               'Harap isi catatan hasil investigasi terlebih dahulu.'),
                                           backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    // Announcement & validasi foto / bukti investigasi
+                                    if (mediaController.foto.isEmpty &&
+                                        mediaController.dokumen.isEmpty &&
+                                        mediaController.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Row(
+                                            children: [
+                                              Icon(Icons.warning_amber_rounded,
+                                                  color: Colors.white),
+                                              SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  'Foto bukti investigasi belum diinput! Harap lampirkan bukti foto atau dokumen hasil investigasi.',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          backgroundColor: Colors.red,
+                                          duration: Duration(seconds: 4),
                                         ),
                                       );
                                       return;

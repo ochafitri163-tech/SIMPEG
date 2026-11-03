@@ -119,6 +119,8 @@ class FeatureScaffold extends StatelessWidget {
                                           fontWeight: FontWeight.bold,
                                           letterSpacing: isV2 ? 0.3 : 0,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
@@ -128,6 +130,8 @@ class FeatureScaffold extends StatelessWidget {
                                           fontSize: 11.5,
                                           fontWeight: isV2 ? FontWeight.w400 : FontWeight.normal,
                                         ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),

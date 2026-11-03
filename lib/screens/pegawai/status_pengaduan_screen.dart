@@ -117,16 +117,17 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
     if (user.role == UserRole.direktur ||
         user.role == UserRole.kspi ||
         user.role == UserRole.tpdpk ||
-        user.role == UserRole.kadivKategori ||
-        user.role == UserRole.sdm) {
+        user.role == UserRole.kadivKategori) {
       return true;
     }
+    // Tugas Tindak Lanjut SDM hanya untuk Manajer SDM (NIK 1711254)
+    if (user.isManajerSdm) return true;
+
     final nik = user.nik.trim();
     final name = user.name.toLowerCase();
     if (nik == '1711161' || name.contains('dodi')) return true;
     if (nik == '1711251' || name.contains('nurkhuliyah') || name.contains('nukhuliyah')) return true;
     if (nik == '1711571' || name.contains('ghani')) return true;
-    if (name.contains('hedy')) return true;
     return false;
   }
 
@@ -141,7 +142,10 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case UserRole.direktur:
         return DashboardDirutScreen(user: user, showBackButton: true);
       case UserRole.sdm:
-        return DashboardSdmScreen(user: user, showBackButton: true);
+        if (user.isManajerSdm) {
+          return DashboardSdmScreen(user: user, showBackButton: true);
+        }
+        return StatusPengaduanScreen(user: user, showBackButton: true);
       default:
         if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
           return DashboardTpdpkScreen(user: user, showBackButton: true);
@@ -152,7 +156,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
             user.name.toLowerCase().contains('nukhuliyah')) {
           return DashboardKadivScreen(user: user, showBackButton: true);
         }
-        if (user.name.toLowerCase().contains('hedy')) {
+        if (user.isManajerSdm) {
           return DashboardSdmScreen(user: user, showBackButton: true);
         }
         return StatusPengaduanScreen(user: user, showBackButton: true);

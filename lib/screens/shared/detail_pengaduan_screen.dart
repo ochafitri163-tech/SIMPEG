@@ -780,53 +780,30 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                           : const Color(0xFF0284C7).withOpacity(0.3),
                     ),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
+                      Text(
+                        p.isTerbukti
+                            ? 'KESIMPULAN: TERBUKTI'
+                            : 'KESIMPULAN: TIDAK TERBUKTI',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
                           color: p.isTerbukti
-                              ? red.withOpacity(0.12)
-                              : const Color(0xFF0284C7).withOpacity(0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          p.isTerbukti
-                              ? Icons.gavel_rounded
-                              : Icons.verified_user_rounded,
-                          size: 20,
-                          color: p.isTerbukti ? red : const Color(0xFF0284C7),
+                              ? red
+                              : const Color(0xFF0284C7),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.isTerbukti
-                                  ? 'KESIMPULAN: TERBUKTI'
-                                  : 'KESIMPULAN: TIDAK TERBUKTI',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: p.isTerbukti
-                                    ? red
-                                    : const Color(0xFF0284C7),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              p.isTerbukti
-                                  ? 'Dugaan pelanggaran terbukti sah berdasarkan hasil investigasi & diteruskan ke SDM.'
-                                  : 'Tidak ditemukan bukti yang cukup atas dugaan pelanggaran.',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: hintGrey,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 2),
+                      Text(
+                        p.isTerbukti
+                            ? 'Dugaan pelanggaran terbukti sah berdasarkan hasil investigasi & diteruskan ke SDM.'
+                            : 'Tidak ditemukan bukti yang cukup atas dugaan pelanggaran.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: p.isTerbukti ? red : hintGrey,
+                          height: 1.3,
                         ),
                       ),
                     ],
@@ -1853,23 +1830,16 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
               color: (isTerbukti ? red : const Color(0xFF0284C7)).withOpacity(0.3),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                isTerbukti ? Icons.gavel_rounded : Icons.verified_user_rounded,
-                color: isTerbukti ? red : const Color(0xFF0284C7),
-                size: 22,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isTerbukti
-                      ? 'Hasil Investigasi: TERBUKTI.\nBila disetujui, pengaduan akan diteruskan ke Bagian SDM untuk pembuatan Surat Putusan Sanksi resmi.'
-                      : 'Hasil Investigasi: TIDAK TERBUKTI.\nBila disetujui, pengaduan akan langsung diarsipkan dan nama baik terlapor dipulihkan.',
-                  style: TextStyle(fontSize: 12, color: labelDark, height: 1.4),
-                ),
-              ),
-            ],
+          child: Text(
+            isTerbukti
+                ? 'Hasil Investigasi: TERBUKTI.\nBila disetujui, pengaduan akan diteruskan ke Bagian SDM untuk pembuatan Surat Putusan Sanksi resmi.'
+                : 'Hasil Investigasi: TIDAK TERBUKTI.\nBila disetujui, pengaduan akan langsung diarsipkan dan nama baik terlapor dipulihkan.',
+            style: TextStyle(
+              fontSize: 12,
+              color: isTerbukti ? red : const Color(0xFF0284C7),
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -1971,19 +1941,14 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: red.withOpacity(0.2)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.gavel_rounded, size: 18, color: red),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Pengaduan ini telah terbukti bersalah berdasarkan investigasi dan disetujui Direktur Utama. Bagian SDM berwenang menetapkan Surat Putusan Sanksi resmi.',
-                  style:
-                      TextStyle(fontSize: 11.5, color: labelDark, height: 1.4),
-                ),
-              ),
-            ],
+          child: Text(
+            'Pengaduan ini telah terbukti bersalah berdasarkan investigasi dan disetujui Direktur Utama. Bagian SDM berwenang menetapkan Surat Putusan Sanksi resmi.',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: red,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -2293,26 +2258,17 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       width: _kesimpulanInvestigasi == 'terbukti' ? 1.8 : 1,
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.gavel_rounded,
-                          size: 18,
-                          color: _kesimpulanInvestigasi == 'terbukti'
-                              ? red
-                              : hintGrey),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Terbukti',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _kesimpulanInvestigasi == 'terbukti'
-                              ? red
-                              : labelDark,
-                        ),
+                  child: Center(
+                    child: Text(
+                      'Terbukti',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kesimpulanInvestigasi == 'terbukti'
+                            ? red
+                            : labelDark,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -2342,26 +2298,17 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                           _kesimpulanInvestigasi == 'tidak_terbukti' ? 1.8 : 1,
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.verified_user_rounded,
-                          size: 18,
-                          color: _kesimpulanInvestigasi == 'tidak_terbukti'
-                              ? const Color(0xFF0284C7)
-                              : hintGrey),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Tidak Terbukti',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _kesimpulanInvestigasi == 'tidak_terbukti'
-                              ? const Color(0xFF0284C7)
-                              : labelDark,
-                        ),
+                  child: Center(
+                    child: Text(
+                      'Tidak Terbukti',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kesimpulanInvestigasi == 'tidak_terbukti'
+                            ? const Color(0xFF0284C7)
+                            : labelDark,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -2416,13 +2363,62 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Unggah Bukti (Foto, Video, Voice Note, Dokumen BAP)',
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Unggah Bukti Investigasi (Foto / Dokumen) *',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: labelDark)),
+            if (_investigasiMedia.foto.isNotEmpty ||
+                _investigasiMedia.dokumen.isNotEmpty)
+              Text(
+                '${_investigasiMedia.foto.length} Foto, ${_investigasiMedia.dokumen.length} Dokumen',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF27AE60),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 6),
+        if (_investigasiMedia.foto.isEmpty &&
+            _investigasiMedia.dokumen.isEmpty &&
+            _investigasiMedia.isEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFFE74C3C).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.warning_amber_rounded,
+                    color: Color(0xFFE74C3C), size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Pemberitahuan: Foto bukti investigasi belum diinput. Harap lampirkan bukti foto temuan atau dokumen hasil investigasi sebelum dikirim ke Dirut.',
+                    style: TextStyle(
+                      color: Color(0xFFE74C3C),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         MediaLampiranPicker(
           controller: _investigasiMedia,
           prefix: 'inv_${p.nomorPengaduan}',
+          onChanged: () => setState(() {}),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -2437,6 +2433,14 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     if (hasil.isEmpty || rekomendasi.isEmpty) {
                       _showSnack(
                           'Hasil investigasi & surat rekomendasi wajib diisi.',
+                          red);
+                      return;
+                    }
+                    if (_investigasiMedia.foto.isEmpty &&
+                        _investigasiMedia.dokumen.isEmpty &&
+                        _investigasiMedia.isEmpty) {
+                      _showSnack(
+                          'Foto bukti investigasi belum diinput! Harap lampirkan bukti foto atau dokumen hasil investigasi.',
                           red);
                       return;
                     }

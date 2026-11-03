@@ -10,12 +10,10 @@ import '../kadiv/dashboard_kadiv_screen.dart';
 import '../kspi/dashboard_kspi_screen.dart';
 import '../tpdpk/dashboard_tpdpk_screen.dart';
 import '../sdm/dashboard_sdm_screen.dart';
-import '../sdm/kelola_pengumuman_screen.dart';
 import '../shared/pengumuman_list_screen.dart';
 import '../../widgets/pengumuman_card.dart';
 import '../../widgets/floating_nav_bar.dart';
 import 'tunjangan_pendidikan_screen.dart';
-import 'insentif_screen.dart';
 import 'lembur_screen.dart';
 import 'pengaduan_pegawai_screen.dart';
 import 'payroll_screen.dart';
@@ -104,52 +102,15 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
   int _bottomNavIndex = 0;
   late Future<AttendanceSummary> _attendanceFuture;
 
-  /// True kalau user login sebagai role approval (Kadiv, KSPI, TPDPK,
-  /// Direktur, SDM) — bukan Pegawai biasa. Role-role ini tetap punya
-  /// dashboard pegawai standar (Beranda/Status Pengaduan/Profil), hanya
-  /// ditambah satu tab khusus di footer untuk fitur verifikasi/approval
-  /// pengaduan sesuai role masing-masing.
-  Widget _getRoleTasksPage(AppUser user) {
-    switch (user.role) {
-      case UserRole.kadivKategori:
-        return DashboardKadivScreen(user: user, showBackButton: true);
-      case UserRole.kspi:
-        return DashboardKspiScreen(user: user, showBackButton: true);
-      case UserRole.tpdpk:
-        return DashboardTpdpkScreen(user: user, showBackButton: true);
-      case UserRole.direktur:
-        return DashboardDirutScreen(user: user, showBackButton: true);
-      case UserRole.sdm:
-        return DashboardSdmScreen(user: user, showBackButton: true);
-      default:
-        if (user.nik == '1711161' || user.name.toLowerCase().contains('dodi')) {
-          return DashboardTpdpkScreen(user: user, showBackButton: true);
-        }
-        if (user.nik == '1711251' || user.nik == '1711571' ||
-            user.name.toLowerCase().contains('ghani') ||
-            user.name.toLowerCase().contains('nurkhuliyah') ||
-            user.name.toLowerCase().contains('nukhuliyah')) {
-          return DashboardKadivScreen(user: user, showBackButton: true);
-        }
-        if (user.name.toLowerCase().contains('hedy')) {
-          return DashboardSdmScreen(user: user, showBackButton: true);
-        }
-        return StatusPengaduanScreen(user: user, showBackButton: true);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _attendanceFuture = _fetchAttendanceBulanIni();
     // Pop-up pengumuman otomatis SETIAP KALI aplikasi/dashboard dibuka
-    // (hanya untuk 5 role penerima, bukan SDM). Tidak memakai penanda
-    // "sudah dibaca" agar pop-up selalu muncul tiap buka aplikasi.
-    if (widget.user.role != UserRole.sdm) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _tampilkanPopupPengumuman();
-      });
-    }
+    // jika ada pengumuman aktif dari web yang ditujukan untuk role pengguna.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tampilkanPopupPengumuman();
+    });
   }
 
   /// Menampilkan pop-up detail pengumuman teratas yang sedang tayang.
@@ -172,6 +133,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     setState(() {
       _attendanceFuture = _fetchAttendanceBulanIni();
     });
+    _tampilkanPopupPengumuman();
     await _attendanceFuture;
   }
 
@@ -228,8 +190,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
         widget.user.name.toLowerCase().contains('ghani') ||
         widget.user.name.toLowerCase().contains('nurkhuliyah') ||
         widget.user.name.toLowerCase().contains('nukhuliyah');
-    final isSdm = widget.user.role == UserRole.sdm ||
-        widget.user.name.toLowerCase().contains('hedy');
+    // 5. Manajer SDM: hanya untuk NIK 1711254 (Heddy Kelana)
+    final isSdm = widget.user.isManajerSdm;
 
     final menuItems = <_QuickMenuItem>[
       // Menu Tugas hanya untuk yang berkepentingan dan memiliki wewenang:
@@ -267,7 +229,7 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           icon: Icons.assignment_turned_in_rounded,
           builder: (_) => DashboardKadivScreen(user: widget.user, showBackButton: true),
         )
-      // 5. Manajer SDM (Hedy Kelana)
+      // 5. Manajer SDM (Heddy Kelana, NIK: 1711254)
       else if (isSdm)
         _QuickMenuItem(
           label: 'Tugas SDM',
@@ -293,17 +255,8 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
           builder: (_) => LemburScreen(user: widget.user)),
       _QuickMenuItem(
           label: 'Tunjangan\nPendidikan',
-          icon: Icons.description_rounded,
-          builder: (_) => const TunjanganPendidikanScreen()),
-      _QuickMenuItem(
-          label: 'Insentif',
-          icon: Icons.star_rounded,
-          builder: (_) => InsentifScreen(user: widget.user)),
-      if (widget.user.role == UserRole.sdm)
-        _QuickMenuItem(
-            label: 'Kelola\nPengumuman',
-            icon: Icons.edit_notifications_rounded,
-            builder: (_) => KelolaPengumumanScreen(user: widget.user)),
+          icon: Icons.school_rounded,
+          builder: (_) => TunjanganPendidikanScreen(user: widget.user)),
     ];
 
     return FutureBuilder<AttendanceSummary>(
@@ -430,19 +383,17 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
                 ),
               ),
               // ============== BERITA & PENGUMUMAN (paling bawah) ==============
-              // Tampil untuk 5 role (bukan SDM). Kartu banner + tap = pop-up
-              // detail. Hanya muncul bila ada pengumuman aktif; otomatis
-              // ter-update via stream realtime Supabase.
-              if (widget.user.role != UserRole.sdm)
-                PengumumanCard(
-                  role: widget.user.role,
-                  onLihatSemua: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          PengumumanListScreen(role: widget.user.role),
-                    ),
+              // Menampilkan banner berita & pengumuman kantor yang diinput dari web.
+              // Hanya muncul bila ada pengumuman aktif; otomatis ter-update via stream.
+              PengumumanCard(
+                role: widget.user.role,
+                onLihatSemua: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        PengumumanListScreen(role: widget.user.role),
                   ),
                 ),
+              ),
               const SizedBox(height: 24),
             ],
           ),

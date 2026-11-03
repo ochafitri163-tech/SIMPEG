@@ -452,13 +452,14 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
     transitionDuration: const Duration(milliseconds: 320),
     pageBuilder: (ctx, anim, secondaryAnim) {
       final Size screen = MediaQuery.of(ctx).size;
-      final double popupWidth = (screen.width - 40).clamp(320.0, 390.0);
+      final double horizontalPad = screen.width < 360 ? 12.0 : 20.0;
+      final double popupWidth = (screen.width - (horizontalPad * 2)).clamp(280.0, 390.0);
 
       return Material(
         type: MaterialType.transparency,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 24),
             child: Container(
               width: popupWidth,
               decoration: BoxDecoration(
@@ -723,25 +724,32 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                     ],
                                   ),
                                 ),
-                                const Spacer(),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.schedule_rounded,
-                                      size: 13,
-                                      color: subColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      formatTanggalJam(p.tanggalTayang),
-                                      style: TextStyle(
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_rounded,
+                                        size: 13,
                                         color: subColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          formatTanggalJam(p.tanggalTayang),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: subColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

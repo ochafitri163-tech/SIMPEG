@@ -175,6 +175,13 @@ class AppUser {
   String get nama => name;
   String get golonganUntukSlip => golonganDetail ?? 'GOL. $golongan';
 
+  /// Hanya Manajer SDM (Heddy Kelana, NIK: 1711254) yang berwenang
+  /// mengakses Tugas Tindak Lanjut SDM.
+  bool get isManajerSdm =>
+      nik.trim() == '1711254' ||
+      name.toLowerCase().contains('heddy') ||
+      name.toLowerCase().contains('hedy');
+
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '';

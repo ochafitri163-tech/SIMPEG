@@ -444,70 +444,78 @@ class _RiwayatPengumumanScreenState extends State<RiwayatPengumumanScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (p.isPenting) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2.5),
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'PENTING',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (p.disematkan) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2.5),
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: _navy.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.push_pin_rounded,
-                              size: 11, color: _navy),
-                          SizedBox(width: 3),
-                          Text(
-                            'Semat',
-                            style: TextStyle(
-                              color: _navy,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (p.isPenting)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDC2626),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'PENTING',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2.5),
-                    decoration: BoxDecoration(
-                      color: _accent.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      targetLabel,
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                        color: _accent,
-                      ),
+                        if (p.disematkan)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: _navy.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.push_pin_rounded,
+                                    size: 11, color: _navy),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Semat',
+                                  style: TextStyle(
+                                    color: _navy,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2.5),
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          decoration: BoxDecoration(
+                            color: _accent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            targetLabel,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: _accent,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
@@ -599,12 +607,15 @@ class _RiwayatPengumumanScreenState extends State<RiwayatPengumumanScreen> {
                       color: statusColor,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      'Berakhir: ${formatTanggalJam(p.kedaluwarsaPada!)}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: statusColor,
+                    Expanded(
+                      child: Text(
+                        'Berakhir: ${formatTanggalJam(p.kedaluwarsaPada!)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: statusColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -666,15 +677,18 @@ class _RiwayatPengumumanScreenState extends State<RiwayatPengumumanScreen> {
                     color: AppColors.textSecondary(context),
                   ),
                   const SizedBox(width: 5),
-                  Text(
-                    'Ketuk untuk lihat detail lengkap pengumuman',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary(context),
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      'Ketuk untuk lihat detail lengkap pengumuman',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 6),
                   const Icon(
                     Icons.chevron_right_rounded,
                     size: 16,

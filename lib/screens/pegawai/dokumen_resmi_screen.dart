@@ -617,6 +617,7 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                     title: Text(
                       d.judul,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
                     ),
                     backgroundColor: navy,
                     foregroundColor: Colors.white,
@@ -629,9 +630,16 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
                       ),
                     ],
                   ),
-                  InteractiveViewer(
-                    maxScale: 4.0,
-                    child: Image.memory(bytes!, fit: BoxFit.contain),
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+                      ),
+                      child: InteractiveViewer(
+                        maxScale: 4.0,
+                        child: Image.memory(bytes!, fit: BoxFit.contain),
+                      ),
+                    ),
                   ),
                 ],
               ),
