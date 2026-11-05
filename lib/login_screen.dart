@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/user_role.dart';
@@ -10,6 +10,7 @@ import 'services/onesignal_service.dart';
 import 'services/audit_log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'widgets/turnstile_captcha_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,10 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final TextEditingController _nikController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _captchaController = TextEditingController();
+  final GlobalKey<TurnstileCaptchaWidgetState> _turnstileKey =
+      GlobalKey<TurnstileCaptchaWidgetState>();
 
   bool _obscurePassword = true;
-  late String _captchaCode;
+  String? _captchaToken;
   bool _isLoading = false;
 
   /// Status batas percobaan gagal & penguncian (lockout)
@@ -64,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _captchaCode = _generateCaptcha();
+
     _muatAkunTersimpan();
     _checkLockoutStatus();
   }
@@ -74,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _lockoutTimer?.cancel();
     _nikController.dispose();
     _passwordController.dispose();
-    _captchaController.dispose();
+
     super.dispose();
   }
 
@@ -281,6 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
         nik: user.nik,
         nama: user.name,
         password: _passwordController.text,
+
       );
       // Beri tahu OS/browser agar Password Manager menawarkan simpan.
       TextInput.finishAutofillContext();
@@ -319,16 +322,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  String _generateCaptcha() {
-    final rnd = Random();
-    return List.generate(6, (_) => rnd.nextInt(10)).join();
+  void _resetCaptcha() {
+    setState(() => _captchaToken = null);
+    _turnstileKey.currentState?.reset();
   }
 
   void _refreshCaptcha() {
-    setState(() {
-      _captchaCode = _generateCaptcha();
-      _captchaController.clear();
-    });
+    _resetCaptcha();
   }
 
   Future<void> _login() async {
@@ -345,8 +345,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnackBar('NIK dan Kata Sandi wajib diisi', Colors.red);
       return;
     }
-    if (_captchaController.text != _captchaCode) {
-      await _recordFailedAttempt(reason: 'Kode keamanan salah');
+    if (_captchaToken == null || _captchaToken!.isEmpty) {
+      _showSnackBar(
+        'Harap selesaikan verifikasi Cloudflare Turnstile terlebih dahulu',
+        Colors.orange,
+      );
       return;
     }
 
@@ -380,6 +383,7 @@ class _LoginScreenState extends State<LoginScreen> {
         res = await sb.auth.signInWithPassword(
           email: emailLogin,
           password: _passwordController.text,
+          captchaToken: _captchaToken,
         );
       } catch (e) {
         if (emailLogin != '${nik.toLowerCase()}@gmail.com') {
@@ -387,6 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
             res = await sb.auth.signInWithPassword(
               email: '${nik.toLowerCase()}@gmail.com',
               password: _passwordController.text,
+              captchaToken: _captchaToken,
             );
           } catch (_) {
             rethrow;
@@ -828,13 +833,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// Kode Keamanan + Captcha terintegrasi dalam 1 baris hemat ruang
+
+  /// Widget Cloudflare Turnstile Captcha Asli
   Widget _buildCaptchaSection(bool isSmallScreen, [bool isV2 = false]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Kode Keamanan',
+          'Verifikasi Keamanan',
           style: TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
@@ -842,111 +848,19 @@ class _LoginScreenState extends State<LoginScreen> {
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            // Kotak kode captcha dengan tombol refresh
-            Container(
-              height: 40,
-              padding: const EdgeInsets.only(left: 10, right: 4),
-              decoration: BoxDecoration(
-                color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
-                  width: 1.2,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _captchaCode,
-                    style: TextStyle(
-                      color: isV2 ? const Color(0xFF0F172A) : _navy,
-                      fontSize: isSmallScreen ? 14 : 15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 3,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: _refreshCaptcha,
-                    icon: Icon(
-                      Icons.refresh_rounded,
-                      color: isV2 ? const Color(0xFF0284C7) : _navy,
-                      size: 16,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 26, minHeight: 26),
-                    splashRadius: 14,
-                    tooltip: 'Acak kode',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Input 6 angka
-            Expanded(
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isV2 ? const Color(0xFFF8FAFC) : _fieldBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isV2 ? const Color(0xFFCBD5E1) : _borderColor,
-                    width: 1.2,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.verified_user_outlined,
-                      color: isV2
-                          ? const Color(0xFF0284C7)
-                          : _navy.withValues(alpha: 0.65),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextField(
-                        controller: _captchaController,
-                        cursorColor: isV2 ? const Color(0xFF0284C7) : _navy,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(6),
-                        ],
-                        style: TextStyle(
-                          color: _textDark,
-                          fontSize: isSmallScreen ? 13 : 13.5,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                        ),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: '6 angka',
-                          hintStyle: TextStyle(
-                            color: Color(0xFFA3AEBF),
-                            fontSize: 11.5,
-                            letterSpacing: 0,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 9,
-                            horizontal: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 6),
+        TurnstileCaptchaWidget(
+          key: _turnstileKey,
+          siteKey: '0x4AAAAAAFxqVhtKbDN5l1rq',
+          onVerified: (token) {
+            setState(() => _captchaToken = token);
+          },
+          onExpired: () {
+            setState(() => _captchaToken = null);
+          },
+          onError: (err) {
+            setState(() => _captchaToken = null);
+          },
         ),
       ],
     );
