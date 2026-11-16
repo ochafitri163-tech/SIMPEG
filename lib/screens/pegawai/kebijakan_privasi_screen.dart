@@ -24,7 +24,7 @@ class KebijakanPrivasiScreen extends StatelessWidget {
     ),
     (
       'Penyimpanan Data',
-      'Seluruh data disimpan pada infrastruktur database Supabase yang '
+      'Seluruh data disimpan pada infrastruktur database PostgreSQL lokal yang '
           'dikelola oleh PERUMDAM Tirta Darma Ayu, dan hanya dapat diakses '
           'oleh pegawai yang bersangkutan setelah login menggunakan NIK & '
           'kata sandi.',

@@ -1,17 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import '../services/notification_service.dart';
 import '../services/onesignal_service.dart';
 import '../services/audit_log_service.dart';
 import '../services/api_service.dart';
-// Diberi prefix karena file ini juga mengimpor `services/notification_service.dart`
-// yang KEBETULAN punya nama kelas sama (NotificationService) tapi untuk hal
-// berbeda (local push notification, dipakai sbg `NotificationService.instance`).
-// NotificationService di pengaduan_service.dart adalah yang menyimpan
-// notifikasi in-app ke tabel Supabase `notifikasi` -- inilah yang dibaca oleh
-// tombol lonceng (NotificationBell) di semua dashboard.
 import 'pengaduan_service.dart' as db_notif;
 
 /// =============================================================
@@ -19,7 +15,7 @@ import 'pengaduan_service.dart' as db_notif;
 ///
 /// Dibuat & dikelola oleh role SDM, dipublikasikan (kolom `aktif`) lalu
 /// otomatis tampil pada dashboard kelima role: Pegawai, Kadiv, KSPI,
-/// TPDPK, Direktur. SATU sumber data (tabel Supabase `pengumuman`).
+/// TPDPK, Direktur. SATU sumber data (tabel `pengumuman`).
 /// =============================================================
 class Pengumuman {
   final int id;
@@ -58,6 +54,8 @@ class Pengumuman {
 
   bool get isPenting => prioritas == 'penting';
   bool get adaLampiran => (lampiranUrl != null && lampiranUrl!.isNotEmpty);
+  DateTime get dibuatPada => tanggalPublikasi;
+  DateTime? get diubahPada => tanggalUbah;
 
   /// Ringkasan isi untuk card dashboard (dipangkas rapi).
   String get ringkasan {
@@ -189,18 +187,14 @@ class Pengumuman {
 }
 
 /// =============================================================
-/// PengumumanService — akses data pengumuman (Supabase & Web API).
+/// PengumumanService — akses data pengumuman via Laravel API & lokal.
 /// =============================================================
 class PengumumanService {
   PengumumanService._();
 
-  static final _client = Supabase.instance.client;
-  static const _table = 'pengumuman';
-  static const _tableDibaca = 'pengumuman_dibaca';
-  static const _bucket = 'pengumuman';
-
   static final Map<int, Timer> _activeTimers = {};
   static final Map<int, Timer> _activeExpiryTimers = {};
+  static final List<Pengumuman> _localCache = [];
 
   static const List<UserRole> roleTujuan = [
     UserRole.pegawai,
@@ -212,60 +206,26 @@ class PengumumanService {
     UserRole.keuangan,
   ];
 
-  static Future<void> autoNonaktifkanExpired() async {
-    try {
-      final nowStr = DateTime.now().toUtc().toIso8601String();
-      await _client
-          .from(_table)
-          .update({'aktif': false, 'updated_at': nowStr})
-          .eq('aktif', true)
-          .not('kedaluwarsa_pada', 'is', null)
-          .lte('kedaluwarsa_pada', nowStr);
-    } catch (_) {}
-  }
+  static Future<void> autoNonaktifkanExpired() async {}
 
   static Stream<List<Pengumuman>> streamTayang(UserRole role) async* {
-    autoNonaktifkanExpired();
-    // 1. Langsung yield data dari REST API agar UI instan dan tidak blank
     try {
       final initial = await tayangSekali(role);
       yield initial;
     } catch (_) {}
 
-    // 2. Hybrid Stream: Supabase Realtime + Polling Berkala
-    // Menjamin pengumuman yang baru diinput dari web langsung muncul di HP
     final controller = StreamController<List<Pengumuman>>();
-    Timer? pollingTimer;
-    RealtimeChannel? realtimeChannel;
-
-    void updateData() async {
+    final pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       try {
         final list = await tayangSekali(role);
         if (!controller.isClosed) {
           controller.add(list);
         }
       } catch (_) {}
-    }
-
-    // Polling setiap 4 detik untuk update langsung data dari web
-    pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) => updateData());
-
-    // Listener Realtime Supabase
-    try {
-      realtimeChannel = _client.channel('public:pengumuman_channel_${role.name}');
-      realtimeChannel.onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: _table,
-        callback: (_) => updateData(),
-      ).subscribe();
-    } catch (_) {}
+    });
 
     controller.onCancel = () {
-      pollingTimer?.cancel();
-      if (realtimeChannel != null) {
-        _client.removeChannel(realtimeChannel);
-      }
+      pollingTimer.cancel();
       controller.close();
     };
 
@@ -273,33 +233,14 @@ class PengumumanService {
   }
 
   static Future<List<Pengumuman>> semua() async {
-    await autoNonaktifkanExpired();
     final List<Pengumuman> list = [];
     final Set<int> seenIds = {};
 
-    // 1. Ambil dari database Supabase (sumber utama)
-    try {
-      final rows = await _client
-          .from(_table)
-          .select()
-          .order('created_at', ascending: false);
-      for (final r in (rows as List)) {
-        final p = Pengumuman.fromRow(r as Map<String, dynamic>);
-        if (p.id != 0 && !seenIds.contains(p.id)) {
-          seenIds.add(p.id);
-          list.add(p);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error mengambil pengumuman dari Supabase: $e');
-    }
-
-    // 2. Ambil dari REST API Laravel (jika backend web aktif)
     try {
       final res = await ApiService.getPengumuman();
       if (res['success'] == true && res['data'] is List) {
         for (final r in (res['data'] as List)) {
-          final p = Pengumuman.fromRow(r as Map<String, dynamic>);
+          final p = Pengumuman.fromRow(Map<String, dynamic>.from(r as Map));
           if (p.id != 0 && !seenIds.contains(p.id)) {
             seenIds.add(p.id);
             list.add(p);
@@ -307,6 +248,13 @@ class PengumumanService {
         }
       }
     } catch (_) {}
+
+    for (final loc in _localCache) {
+      if (!seenIds.contains(loc.id)) {
+        seenIds.add(loc.id);
+        list.add(loc);
+      }
+    }
 
     list.sort((a, b) {
       if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
@@ -321,38 +269,34 @@ class PengumumanService {
   }
 
   static Future<Pengumuman?> ambilById(int id) async {
-    try {
-      final row = await _client.from(_table).select().eq('id', id).maybeSingle();
-      if (row == null) return null;
-      return Pengumuman.fromRow(row);
-    } catch (_) {
-      return null;
+    final list = await semua();
+    for (final p in list) {
+      if (p.id == id) return p;
     }
+    return null;
   }
 
   static Future<Set<int>> idSudahDibaca() async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return {};
-    final rows = await _client
-        .from(_tableDibaca)
-        .select('pengumuman_id')
-        .eq('pegawai_id', uid);
-    return (rows as List)
-        .map((r) => (r['pengumuman_id'] as num).toInt())
-        .toSet();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('pengumuman_dibaca_ids') ?? [];
+      return list.map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toSet();
+    } catch (_) {
+      return {};
+    }
   }
 
   static Future<void> tandaiDibaca(int pengumumanId) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return;
-    await _client.from(_tableDibaca).upsert(
-      {
-        'pengumuman_id': pengumumanId,
-        'pegawai_id': uid,
-        'dibaca_pada': DateTime.now().toUtc().toIso8601String(),
-      },
-      onConflict: 'pengumuman_id,pegawai_id',
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('pengumuman_dibaca_ids') ?? [];
+      final idStr = pengumumanId.toString();
+      if (!list.contains(idStr)) {
+        list.add(idStr);
+        await prefs.setStringList('pengumuman_dibaca_ids', list);
+      }
+      await ApiService.markPengumumanRead(pengumumanId);
+    } catch (_) {}
   }
 
   static Future<String> uploadLampiran({
@@ -360,21 +304,14 @@ class PengumumanService {
     required String fileName,
     String? contentType,
   }) async {
-    final ext = fileName.split('.').last.toLowerCase();
-    final uniqueName =
-        '${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}.$ext';
-    final path = 'lampiran/$uniqueName';
-
-    await _client.storage.from(_bucket).uploadBinary(
-          path,
-          bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
-          fileOptions: FileOptions(
-            contentType: contentType,
-            upsert: false,
-          ),
-        );
-
-    return _client.storage.from(_bucket).getPublicUrl(path);
+    try {
+      if (bytes.isNotEmpty) {
+        return 'data:${contentType ?? 'application/octet-stream'};base64,${base64Encode(bytes)}';
+      }
+      return '';
+    } catch (_) {
+      return '';
+    }
   }
 
   static Future<Pengumuman> buat({
@@ -399,35 +336,32 @@ class PengumumanService {
     final pembuatName =
         pembuat is AppUser ? pembuat.name : pembuat.toString();
     final pembuatId =
-        pembuat is AppUser ? pembuat.nik : _client.auth.currentUser?.id;
+        pembuat is AppUser ? pembuat.nik : 'SDM';
 
-    final res = await _client
-        .from(_table)
-        .insert({
-          'judul': j,
-          'isi': i,
-          'aktif': aktif,
-          'prioritas': prioritas == 'penting',
-          'disematkan': disematkan,
-          'target_roles': targetNames,
-          'pembuat': pembuatName,
-          'pembuat_id': pembuatId,
-          'terbit_pada': terbitPada?.toUtc().toIso8601String(),
-          'kedaluwarsa_pada': kedaluwarsaPada?.toUtc().toIso8601String(),
-          'lampiran_url': lampiranUrl,
-          'lampiran_nama': lampiranNama,
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .select()
-        .single();
+    final newP = Pengumuman(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+      judul: j,
+      isi: i,
+      prioritas: prioritas,
+      disematkan: disematkan,
+      aktif: aktif,
+      targetRoles: targetNames,
+      pembuat: pembuatName,
+      pembuatId: pembuatId?.toString(),
+      tanggalPublikasi: DateTime.now(),
+      terbitPada: terbitPada,
+      kedaluwarsaPada: kedaluwarsaPada,
+      lampiranUrl: lampiranUrl,
+      lampiranNama: lampiranNama,
+      tanggalUbah: DateTime.now(),
+    );
 
-    final p = Pengumuman.fromRow(res);
-    _jadwalkanTimerPengumuman(p);
+    _localCache.insert(0, newP);
+    _jadwalkanTimerPengumuman(newP);
 
-    if (p.sedangTayang) {
+    if (newP.sedangTayang) {
       await _kirimNotifikasi(
-          pengumumanId: p.id,
+          pengumumanId: newP.id,
           judul: j,
           target: target.isEmpty ? roleTujuan : target);
     }
@@ -438,10 +372,10 @@ class PengumumanService {
       role: 'SDM',
       action: 'CREATE',
       module: 'Pengumuman',
-      description: 'Membuat pengumuman baru ID #${p.id}: "$j"',
+      description: 'Membuat pengumuman baru ID #${newP.id}: "$j"',
     );
 
-    return p;
+    return newP;
   }
 
   static Future<void> ubah({
@@ -460,91 +394,96 @@ class PengumumanService {
     final i = isi.trim();
     final targetNames = target.map((r) => r.name).toList();
 
-    await _client.from(_table).update({
-      'judul': j,
-      'isi': i,
-      'prioritas': prioritas == 'penting',
-      'disematkan': disematkan,
-      'target_roles': targetNames,
-      'terbit_pada': terbitPada?.toUtc().toIso8601String(),
-      'kedaluwarsa_pada': kedaluwarsaPada?.toUtc().toIso8601String(),
-      'lampiran_url': lampiranUrl,
-      'lampiran_nama': lampiranNama,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', id);
+    final idx = _localCache.indexWhere((p) => p.id == id);
+    if (idx != -1) {
+      final old = _localCache[idx];
+      final updated = Pengumuman(
+        id: old.id,
+        judul: j,
+        isi: i,
+        prioritas: prioritas,
+        disematkan: disematkan,
+        aktif: old.aktif,
+        targetRoles: targetNames,
+        pembuat: old.pembuat,
+        pembuatId: old.pembuatId,
+        tanggalPublikasi: old.tanggalPublikasi,
+        terbitPada: terbitPada ?? old.terbitPada,
+        kedaluwarsaPada: kedaluwarsaPada ?? old.kedaluwarsaPada,
+        lampiranUrl: lampiranUrl ?? old.lampiranUrl,
+        lampiranNama: lampiranNama ?? old.lampiranNama,
+        tanggalUbah: DateTime.now(),
+      );
+      _localCache[idx] = updated;
+      _jadwalkanTimerPengumuman(updated);
+    }
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userNik: 'SDM',
       userName: 'Pengelola SDM',
       role: 'SDM',
       action: 'UPDATE',
       module: 'Pengumuman',
       description: 'Mengubah pengumuman ID #$id: "$j"',
     );
-
-    try {
-      final res = await _client.from(_table).select().eq('id', id).single();
-      final p = Pengumuman.fromRow(res);
-      _jadwalkanTimerPengumuman(p);
-    } catch (_) {}
   }
 
   static Future<void> setAktif({required int id, required bool aktif}) async {
-    await _client.from(_table).update({
-      'aktif': aktif,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', id);
+    final idx = _localCache.indexWhere((p) => p.id == id);
+    if (idx != -1) {
+      final old = _localCache[idx];
+      final updated = Pengumuman(
+        id: old.id,
+        judul: old.judul,
+        isi: old.isi,
+        prioritas: old.prioritas,
+        disematkan: old.disematkan,
+        aktif: aktif,
+        targetRoles: old.targetRoles,
+        pembuat: old.pembuat,
+        pembuatId: old.pembuatId,
+        tanggalPublikasi: old.tanggalPublikasi,
+        terbitPada: old.terbitPada,
+        kedaluwarsaPada: old.kedaluwarsaPada,
+        lampiranUrl: old.lampiranUrl,
+        lampiranNama: old.lampiranNama,
+        tanggalUbah: DateTime.now(),
+      );
+      _localCache[idx] = updated;
+      if (aktif) {
+        _jadwalkanTimerPengumuman(updated);
+        if (updated.sedangTayang) {
+          await _kirimNotifikasi(
+              pengumumanId: updated.id, judul: updated.judul, target: roleTujuan);
+        }
+      } else {
+        _batalkanTimerPengumuman(id);
+        await NotificationService.instance.cancelPengumuman(id);
+      }
+    }
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userNik: 'SDM',
       userName: 'Pengelola SDM',
       role: 'SDM',
       action: 'UPDATE',
       module: 'Pengumuman',
       description: '${aktif ? 'Mengaktifkan' : 'Menonaktifkan'} pengumuman ID #$id',
     );
-
-    if (aktif) {
-      try {
-        final res = await _client
-            .from(_table)
-            .select()
-            .eq('id', id)
-            .single();
-        final p = Pengumuman.fromRow(res);
-        _jadwalkanTimerPengumuman(p);
-
-        if (p.sedangTayang) {
-          await _kirimNotifikasi(
-              pengumumanId: p.id, judul: p.judul, target: roleTujuan);
-        }
-      } catch (_) {}
-    } else {
-      _batalkanTimerPengumuman(id);
-      await NotificationService.instance.cancelPengumuman(id);
-    }
   }
 
   static Future<void> hapus({required int id}) async {
     _batalkanTimerPengumuman(id);
     await NotificationService.instance.cancelPengumuman(id);
-
-    // Ambil info judul sebelum dihapus untuk detail log
-    String detailJudul = '';
-    try {
-      final res = await _client.from(_table).select('judul').eq('id', id).maybeSingle();
-      if (res != null) detailJudul = ' ("${res['judul']}")';
-    } catch (_) {}
-
-    await _client.from(_table).delete().eq('id', id);
+    _localCache.removeWhere((p) => p.id == id);
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userNik: 'SDM',
       userName: 'Pengelola SDM',
       role: 'SDM',
       action: 'DELETE',
       module: 'Pengumuman',
-      description: 'Menghapus pengumuman ID #$id$detailJudul',
+      description: 'Menghapus pengumuman ID #$id',
     );
   }
 
@@ -586,15 +525,7 @@ class PengumumanService {
         _activeExpiryTimers[p.id] = Timer(expiryDelay, () async {
           _activeExpiryTimers.remove(p.id);
           NotificationService.instance.cancelPengumuman(p.id);
-          try {
-            await _client
-                .from(_table)
-                .update({
-                  'aktif': false,
-                  'updated_at': DateTime.now().toUtc().toIso8601String(),
-                })
-                .eq('id', p.id);
-          } catch (_) {}
+          await setAktif(id: p.id, aktif: false);
         });
       }
     }
@@ -609,30 +540,21 @@ class PengumumanService {
 
   static Future<void> sinkronkanJadwalPengumuman() async {
     try {
-      await autoNonaktifkanExpired();
-      final rows = await _client
-          .from(_table)
-          .select()
-          .eq('aktif', true);
-      for (final r in (rows as List)) {
-        final p = Pengumuman.fromRow(r as Map<String, dynamic>);
+      final list = await semua();
+      for (final p in list.where((x) => x.aktif)) {
         _jadwalkanTimerPengumuman(p);
       }
     } catch (_) {}
   }
 
-  /// Mengirim notifikasi pengumuman baru ke SEMUA channel:
-  /// 1) Push notification (FCM) -- notifikasi sistem/OS saat app di-background.
-  /// 2) Notifikasi in-app ke tabel Supabase `notifikasi` -- INI yang tampil
-  ///    di tombol lonceng (NotificationBell) pada semua dashboard. Sebelumnya
-  ///    langkah ini TIDAK ADA, sehingga pengumuman yang dibuat/dipublikasikan
-  ///    SDM tidak pernah muncul di daftar notifikasi walau push FCM terkirim.
+  /// Mengirim notifikasi pengumuman baru:
+  /// 1) Push notification (OneSignal).
+  /// 2) Notifikasi in-app ke notification bell.
   static Future<void> _kirimNotifikasi({
     required int pengumumanId,
     required String judul,
     required List<UserRole> target,
   }) async {
-    // 1) Push notification via OneSignal (best-effort, tidak boleh menggagalkan alur utama).
     try {
       await OneSignalService.sendBroadcastNotification(
         title: 'Pengumuman Baru',
@@ -641,11 +563,6 @@ class PengumumanService {
       );
     } catch (_) {}
 
-    // 2) Simpan ke tabel `notifikasi` supaya masuk ke NotificationBell
-    //    (in-app notification center) setiap pegawai pada role target.
-    //    target kosong / == roleTujuan berarti "semua role". pengumumanId
-    //    disertakan supaya notifikasi bisa DIPENCET dan langsung membuka
-    //    pengumuman terkait (lihat NotificationBell & NotificationNavHelper).
     try {
       final semuaRole = target.isEmpty || target.length == roleTujuan.length;
       await db_notif.NotificationService.kirimKeBanyakRole(
@@ -654,9 +571,6 @@ class PengumumanService {
         pesan: judul,
         pengumumanId: pengumumanId,
       );
-    } catch (_) {
-      // Diamkan -- kegagalan simpan notifikasi in-app tidak boleh
-      // menggagalkan proses publikasi pengumuman itu sendiri.
-    }
+    } catch (_) {}
   }
 }

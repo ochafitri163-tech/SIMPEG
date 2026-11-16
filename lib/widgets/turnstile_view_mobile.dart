@@ -17,7 +17,7 @@ class TurnstilePlatformView extends StatefulWidget {
     this.onExpired,
     this.onError,
     this.onLoaded,
-    this.baseUrl = 'https://jyywrknlkqwmiqokmcju.supabase.co',
+    this.baseUrl = 'http://127.0.0.1:8000',
   });
 
   @override

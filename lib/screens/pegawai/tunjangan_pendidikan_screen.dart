@@ -3,7 +3,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
@@ -167,33 +166,6 @@ InsentifItem _rowToInsentifItem(
   );
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-
-  String? nik = user?.nik;
-  if (nik == null || nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik');
-    } catch (_) {}
-  }
-
-  if (nik != null && nik.isNotEmpty) {
-    try {
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        return peg['id'].toString();
-      }
-    } catch (_) {}
-  }
-
-  return userId;
-}
-
 Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
   String nik = user?.nik ?? '';
   String nama = user?.name ?? '';
@@ -201,26 +173,14 @@ Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
   String unitKerja = user?.unitKerja ?? '';
   String jabatan = user?.jabatan ?? '';
 
-  try {
-    final userId = await _resolvePegawaiId(user);
-    if (userId != null) {
-      final row = await Supabase.instance.client
-          .from('pegawai')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-      if (row != null) {
-        if (nik.isEmpty) nik = (row['nik'] ?? '').toString();
-        if (nama.isEmpty) nama = (row['name'] ?? '').toString();
-        if (golongan.isEmpty) {
-          golongan =
-              (row['golongan_detail'] ?? row['golongan'] ?? '').toString();
-        }
-        if (unitKerja.isEmpty) unitKerja = (row['unit_kerja'] ?? '').toString();
-        if (jabatan.isEmpty) jabatan = (row['jabatan'] ?? '').toString();
-      }
-    }
-  } catch (_) {}
+  if (nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik') ?? '';
+      nama = prefs.getString('user_nama') ?? nama;
+      jabatan = prefs.getString('user_jabatan') ?? jabatan;
+    } catch (_) {}
+  }
 
   return {
     'nik': nik.isEmpty ? '-' : nik,
@@ -235,7 +195,6 @@ Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
 /// yang memuat rincian asli GAPOK, Tunjangan Istri/Anak, dan Potongan
 Future<List<TunjanganPendidikanItem>> _fetchTunjanganPendidikan(
     AppUser? user) async {
-  // 0. ApiService Laravel Backend (jika NIK tersedia)
   final nik = user?.nik;
   if (nik != null && nik.isNotEmpty && nik != '-') {
     try {
@@ -243,9 +202,9 @@ Future<List<TunjanganPendidikanItem>> _fetchTunjanganPendidikan(
       if (res['success'] == true && res['data'] != null) {
         final data = res['data'];
         final List<TunjanganPendidikanItem> items = [];
-        if (data['tunjangan_pendidikan'] is List &&
-            (data['tunjangan_pendidikan'] as List).isNotEmpty) {
-          for (final item in (data['tunjangan_pendidikan'] as List)) {
+        final rawList = data['tunjangan_pendidikan'] ?? data['list'];
+        if (rawList is List && rawList.isNotEmpty) {
+          for (final item in rawList) {
             final map = Map<String, dynamic>.from(item as Map);
             final bulanLabel = (map['bulan_label'] ?? '2026').toString();
             final yearMatch = RegExp(r'\b(20\d\d)\b').firstMatch(bulanLabel);
@@ -284,90 +243,10 @@ Future<List<TunjanganPendidikanItem>> _fetchTunjanganPendidikan(
           if (items.isNotEmpty) return items;
         }
       }
-    } catch (_) {}
-  }
-
-  final userId = await _resolvePegawaiId(user);
-  if (userId == null) return [];
-
-  // 1. Prioritas Utama: Tabel `tunjangan_pendidikan`
-  try {
-    final rows = await Supabase.instance.client
-        .from('tunjangan_pendidikan')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('created_at', ascending: false);
-
-    if ((rows as List).isNotEmpty) {
-      return (rows as List).map((r) {
-        final map = Map<String, dynamic>.from(r as Map);
-        final bulanLabel = (map['bulan_label'] ?? '2026').toString();
-        final yearMatch = RegExp(r'\b(20\d\d)\b').firstMatch(bulanLabel);
-        final tahun = yearMatch?.group(1) ??
-            (map['tahun'] ?? DateTime.now().year).toString();
-
-        String tanggalCair = (map['tanggal_cair'] ?? '').toString();
-        if (tanggalCair.isEmpty || tanggalCair == '-') {
-          final createdAt = (map['created_at'] ?? '').toString();
-          if (createdAt.isNotEmpty) {
-            try {
-              final dt = DateTime.parse(createdAt);
-              tanggalCair =
-                  '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-            } catch (_) {
-              tanggalCair = '-';
-            }
-          } else {
-            tanggalCair = '-';
-          }
-        }
-
-        return TunjanganPendidikanItem(
-          id: map['id'] as int?,
-          tahun: tahun,
-          bulanLabel: bulanLabel,
-          tanggalCair: tanggalCair,
-          status: (map['status'] ?? 'Diterbitkan').toString(),
-          gapok: _toInt(map['gapok']),
-          tunjanganIstri: _toInt(map['tunjangan_istri']),
-          tunjanganAnak: _toInt(map['tunjangan_anak']),
-          potonganKoperasi: _toInt(map['potongan_koperasi']),
-          potonganKas: _toInt(map['potongan_kas']),
-        );
-      }).toList();
+    } catch (e) {
+      debugPrint('Gagal fetch tunjangan_pendidikan: $e');
     }
-  } catch (e) {
-    debugPrint('Gagal fetch tunjangan_pendidikan: $e');
   }
-
-  // 2. Fallback: tabel `gaji_13` jika belum ada di tabel `tunjangan_pendidikan`
-  try {
-    final rows13 = await Supabase.instance.client
-        .from('gaji_13')
-        .select()
-        .eq('pegawai_id', userId)
-        .order('tahun', ascending: false);
-
-    if ((rows13 as List).isNotEmpty) {
-      return (rows13 as List).map((r) {
-        final map = Map<String, dynamic>.from(r as Map);
-        final jumlah = _toInt(map['jumlah']);
-        final tahun = (map['tahun'] ?? DateTime.now().year).toString();
-        return TunjanganPendidikanItem(
-          id: map['id'] as int?,
-          tahun: tahun,
-          bulanLabel: 'TAHUN $tahun',
-          tanggalCair: (map['tanggal_cair'] ?? '-').toString(),
-          status: (map['status'] ?? 'Diterbitkan').toString(),
-          gapok: jumlah,
-          tunjanganIstri: 0,
-          tunjanganAnak: 0,
-          potonganKoperasi: 0,
-          potonganKas: 0,
-        );
-      }).toList();
-    }
-  } catch (_) {}
 
   return [];
 }
@@ -376,7 +255,6 @@ Future<List<InsentifItem>> _fetchInsentif(
     AppUser? user, Map<String, String> profile) async {
   final nik = profile['nik'] ?? user?.nik ?? '';
 
-  // 1. ApiService Laravel Backend
   if (nik.isNotEmpty && nik != '-') {
     try {
       final res = await ApiService.getInsentif(nik: nik);
@@ -402,42 +280,9 @@ Future<List<InsentifItem>> _fetchInsentif(
           return items;
         }
       }
-    } catch (_) {}
-  }
-
-  // 2. Supabase Fallback
-  final userId = await _resolvePegawaiId(user);
-  if (userId != null) {
-    try {
-      final payrollRows = await Supabase.instance.client
-          .from('payroll')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('tahun', ascending: false)
-          .order('bulan', ascending: false);
-
-      if ((payrollRows as List).isNotEmpty) {
-        return (payrollRows as List)
-            .map((row) => _rowToInsentifItem(
-                Map<String, dynamic>.from(row as Map), profile))
-            .toList();
-      }
-    } catch (_) {}
-
-    try {
-      final rows = await Supabase.instance.client
-          .from('insentif')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false);
-
-      if ((rows as List).isNotEmpty) {
-        return (rows as List)
-            .map((row) => _rowToInsentifItem(
-                Map<String, dynamic>.from(row as Map), profile))
-            .toList();
-      }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Gagal fetch insentif: $e');
+    }
   }
 
   return [];

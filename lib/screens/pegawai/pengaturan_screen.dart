@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/notification_service.dart';
 import '../../services/theme_controller.dart';
 import '../../widgets/feature_scaffold.dart';
@@ -27,43 +27,25 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
   }
 
   Future<void> _muatPreferensi() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) {
-      setState(() => _isLoadingPref = false);
-      return;
-    }
-
     try {
-      final row = await Supabase.instance.client
-          .from('preferensi_pegawai')
-          .select()
-          .eq('pegawai_id', userId)
-          .maybeSingle();
-
-      if (row != null && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
         setState(() {
-          _notifAbsensi = (row['notif_absensi'] as bool?) ?? true;
-          _notifPengumuman = (row['notif_pengumuman'] as bool?) ?? true;
+          _notifAbsensi = prefs.getBool('pref_notif_absensi') ?? true;
+          _notifPengumuman = prefs.getBool('pref_notif_pengumuman') ?? true;
         });
       }
     } catch (_) {
-      // Kalau gagal fetch, tetap pakai default (true/true) tanpa error UI.
     } finally {
       if (mounted) setState(() => _isLoadingPref = false);
     }
   }
 
   Future<void> _simpanPreferensiNotif() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
     try {
-      await Supabase.instance.client.from('preferensi_pegawai').upsert({
-        'pegawai_id': userId,
-        'notif_absensi': _notifAbsensi,
-        'notif_pengumuman': _notifPengumuman,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('pref_notif_absensi', _notifAbsensi);
+      await prefs.setBool('pref_notif_pengumuman', _notifPengumuman);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

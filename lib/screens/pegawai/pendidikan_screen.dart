@@ -4,109 +4,65 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
 import '../../theme/app_colors.dart';
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  final authId = Supabase.instance.client.auth.currentUser?.id;
-  if (authId != null && authId.isNotEmpty) return authId;
-
-  String nik = user?.nik ?? '';
-  if (nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik') ?? '';
-    } catch (_) {}
-  }
-  if (nik.isNotEmpty) {
-    try {
-      final res = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (res != null && res['id'] != null) {
-        return res['id'].toString();
-      }
-    } catch (_) {}
-  }
-  return null;
-}
-
-/// Ambil riwayat pendidikan pegawai yang sedang login, urut sesuai kolom
-/// `urutan` (0 = jenjang terakhir/tertinggi) atau tahun_lulus.
+/// Ambil riwayat pendidikan pegawai yang sedang login dari REST API Laravel lokal.
 Future<List<PendidikanItem>> _fetchPendidikan(AppUser? user) async {
-  final targetId = await _resolvePegawaiId(user);
-  if (targetId == null) return [];
-
   try {
-    final rows = await Supabase.instance.client
-        .from('pendidikan')
-        .select()
-        .eq('pegawai_id', targetId)
-        .order('tahun_lulus', ascending: false);
-
-    return (rows as List).map((row) {
-      return PendidikanItem(
-        jenjang: (row['jenjang'] ?? '-').toString(),
-        jurusan: row['jurusan']?.toString(),
-        namaSekolah: (row['nama_sekolah'] ?? row['institusi'])?.toString(),
-        kotaLulus: row['kota_lulus']?.toString(),
-        tahunLulus: (row['tahun_lulus'] ?? '-').toString(),
-        noIjazah: row['no_ijazah']?.toString(),
-      );
-    }).toList();
+    final res = await ApiService.getProfile();
+    if (res['success'] == true && res['data'] != null && res['data']['pendidikan'] is List) {
+      final list = res['data']['pendidikan'] as List;
+      return list.map((row) {
+        return PendidikanItem(
+          jenjang: (row['jenjang'] ?? '-').toString(),
+          jurusan: row['jurusan']?.toString(),
+          namaSekolah: (row['nama_sekolah'] ?? row['institusi'])?.toString(),
+          kotaLulus: row['kota_lulus']?.toString(),
+          tahunLulus: (row['tahun_lulus'] ?? '-').toString(),
+          noIjazah: row['no_ijazah']?.toString(),
+        );
+      }).toList();
+    }
   } catch (e) {
-    return [];
+    debugPrint('Error fetch pendidikan: $e');
   }
+  return [];
 }
 
 /// Ambil slip Tunjangan Pendidikan terbaru milik pegawai yang sedang
-/// login, digabung dengan identitas dari tabel `pegawai` untuk kop PDF.
-/// Return null kalau belum ada data slip untuk pegawai ini.
+/// login dari API Laravel lokal.
 Future<PendidikanTunjanganDetail?> _fetchTunjanganSlip(AppUser? user) async {
-  final targetId = await _resolvePegawaiId(user);
-  if (targetId == null) return null;
-
   try {
-    final pegawai = await Supabase.instance.client
-        .from('pegawai')
-        .select()
-        .eq('id', targetId)
-        .maybeSingle();
-    if (pegawai == null) return null;
-
-    final slipRow = await Supabase.instance.client
-        .from('tunjangan_pendidikan')
-        .select()
-        .eq('pegawai_id', targetId)
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    if (slipRow == null) return null;
-
-    return PendidikanTunjanganDetail(
-      bulanLabel: (slipRow['bulan_label'] as String).toUpperCase(),
-      nik: pegawai['nik'] as String,
-      nama: (pegawai['name'] as String).toUpperCase(),
-      golongan:
-          (pegawai['golongan_detail'] ?? pegawai['golongan'] ?? '') as String,
-      unitKerja: (pegawai['unit_kerja'] as String).toUpperCase(),
-      jabatan: (pegawai['jabatan'] as String).toUpperCase(),
-      gapok: (slipRow['gapok'] ?? 0) as int,
-      tunjanganIstri: (slipRow['tunjangan_istri'] ?? 0) as int,
-      tunjanganAnak: (slipRow['tunjangan_anak'] ?? 0) as int,
-      potonganKoperasi: (slipRow['potongan_koperasi'] ?? 0) as int,
-      potonganKas: (slipRow['potongan_kas'] ?? 0) as int,
-    );
-  } catch (_) {
-    return null;
+    final res = await ApiService.getTunjanganPendidikan(nik: user?.nik);
+    if (res['success'] == true && res['data'] != null) {
+      final data = res['data'];
+      final list = data['tunjangan_pendidikan'] as List?;
+      if (list != null && list.isNotEmpty) {
+        final slipRow = list.first as Map<String, dynamic>;
+        return PendidikanTunjanganDetail(
+          bulanLabel: (slipRow['bulan_label'] as String? ?? '2026').toUpperCase(),
+          nik: user?.nik ?? (slipRow['nik'] as String? ?? ''),
+          nama: (user?.name ?? (slipRow['name'] as String? ?? 'Pegawai')).toUpperCase(),
+          golongan: (user?.golonganUntukSlip ?? '').toUpperCase(),
+          unitKerja: (user?.unitKerja ?? '').toUpperCase(),
+          jabatan: (user?.jabatan ?? '').toUpperCase(),
+          gapok: (slipRow['gapok'] as num?)?.toInt() ?? 0,
+          tunjanganIstri: (slipRow['tunjangan_istri'] as num?)?.toInt() ?? 0,
+          tunjanganAnak: (slipRow['tunjangan_anak'] as num?)?.toInt() ?? 0,
+          potonganKoperasi: (slipRow['potongan_koperasi'] as num?)?.toInt() ?? 0,
+          potonganKas: (slipRow['potongan_kas'] as num?)?.toInt() ?? 0,
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint('Error fetch tunjangan slip: $e');
   }
+  return null;
 }
 
 /// Halaman Pendidikan — riwayat jenjang pendidikan pegawai, ditutup dengan

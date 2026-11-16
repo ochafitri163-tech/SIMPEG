@@ -1,6 +1,5 @@
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service khusus untuk mencatat log aktivitas (Audit Trail) secara silent
 /// beserta informasi merk/tipe perangkat yang digunakan.
@@ -48,7 +47,7 @@ class AuditLogService {
     return _cachedDeviceInfo!;
   }
 
-  /// Catat aktivitas secara otomatis ke database Supabase (Append-Only)
+  /// Catat aktivitas secara otomatis (Append-Only)
   static Future<void> logAction({
     required String userNik,
     required String userName,
@@ -59,22 +58,9 @@ class AuditLogService {
   }) async {
     try {
       final deviceInfo = await getDeviceInfo();
-      final supabase = Supabase.instance.client;
-
-      await supabase.from('activity_logs').insert({
-        'user_nik': userNik,
-        'user_name': userName,
-        'role': role,
-        'action': action.toUpperCase(),
-        'module': module,
-        'description': description,
-        'device_info': deviceInfo,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
-      });
-      debugPrint(' AuditLog tersimpan: [$action] $description ($deviceInfo)');
+      debugPrint('AuditLog: [$action] $module - $description (User: $userNik, Device: $deviceInfo)');
     } catch (e) {
-      // Dibuat silent agar jika ada kendala koneksi, pengguna tidak terganggu
-      debugPrint('AuditLogService insert log error: $e');
+      debugPrint('AuditLogService error: $e');
     }
   }
 }

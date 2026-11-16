@@ -9,7 +9,7 @@ import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
 import 'services/audit_log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'widgets/turnstile_captcha_widget.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -345,83 +345,40 @@ class _LoginScreenState extends State<LoginScreen> {
       _showSnackBar('NIK dan Kata Sandi wajib diisi', Colors.red);
       return;
     }
-    if (_captchaToken == null || _captchaToken!.isEmpty) {
-      _showSnackBar(
-        'Harap selesaikan verifikasi Cloudflare Turnstile terlebih dahulu',
-        Colors.orange,
-      );
-      return;
+    // Verifikasi captcha jika bukan mode debug atau environment lokal
+    if (!kDebugMode && !ApiService.baseUrl.contains('127.0.0.1') && !ApiService.baseUrl.contains('10.0.2.2')) {
+      if (_captchaToken == null || _captchaToken!.isEmpty) {
+        _showSnackBar(
+          'Harap selesaikan verifikasi Cloudflare Turnstile terlebih dahulu',
+          Colors.orange,
+        );
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
 
     final nik = _nikController.text.trim();
-    final sb = Supabase.instance.client;
 
     try {
-      // 1. Cari email terdaftar berdasarkan NIK — jangan ditebak.
-      //    Email bisa berubah, NIK tidak.
-      String? emailLogin;
-      try {
-        final hasil = await sb.rpc('cari_email_by_nik', params: {'p_nik': nik});
-        emailLogin = hasil as String?;
-      } catch (_) {
-        emailLogin = null;
-      }
+      // 1. Autentikasi langsung ke API Laravel PostgreSQL Lokal
+      final res = await ApiService.login(nik, _passwordController.text);
 
-      // Cadangan: pola lama, untuk akun yang belum punya kolom email.
-      emailLogin ??= '${nik.toLowerCase()}@tirtadarmaayu.local';
-
-      if (emailLogin.isEmpty) {
-        await _recordFailedAttempt(reason: 'NIK tidak terdaftar. Hubungi SDM.');
+      if (res['success'] != true) {
+        final msg = res['message']?.toString() ?? 'NIK atau Kata Sandi salah';
+        await _recordFailedAttempt(reason: msg);
         return;
       }
 
-      // 2. Login ke Supabase Auth — coba emailLogin atau @gmail.com
-      AuthResponse? res;
-      try {
-        res = await sb.auth.signInWithPassword(
-          email: emailLogin,
-          password: _passwordController.text,
-          captchaToken: _captchaToken,
-        );
-      } catch (e) {
-        if (emailLogin != '${nik.toLowerCase()}@gmail.com') {
-          try {
-            res = await sb.auth.signInWithPassword(
-              email: '${nik.toLowerCase()}@gmail.com',
-              password: _passwordController.text,
-              captchaToken: _captchaToken,
-            );
-          } catch (_) {
-            rethrow;
-          }
-        } else {
-          rethrow;
-        }
-      }
-
-      if (res.user == null) {
-        await _recordFailedAttempt(reason: 'NIK atau Kata Sandi salah');
-        return;
-      }
-
-      // 3. Ambil profil ASLI dari tabel pegawai.
-      final profil = await sb
-          .from('pegawai')
-          .select()
-          .eq('id', res.user!.id)
-          .maybeSingle();
-
-      if (profil == null) {
-        await sb.auth.signOut();
+      final userData = res['data']?['user'] as Map<String, dynamic>?;
+      if (userData == null) {
         await _recordFailedAttempt(
-            reason: 'Data pegawai tidak ditemukan. Hubungi SDM.');
+            reason: 'Data pegawai tidak ditemukan dari server.');
         return;
       }
 
-      // 4. Parse divisi kadiv
-      final divisiStr = (profil['divisi_kadiv'] ?? '').toString();
+      // 2. Parse divisi kadiv
+      final divisiStr = (userData['divisi_kadiv'] ?? '').toString();
       final divisi = divisiStr == 'administrasi'
           ? DivisiKadiv.administrasi
           : divisiStr == 'teknik'
@@ -429,27 +386,27 @@ class _LoginScreenState extends State<LoginScreen> {
               : null;
 
       final user = AppUser(
-        nik: profil['nik']?.toString() ?? nik,
-        name: profil['name']?.toString() ?? 'Pegawai',
-        gelar: profil['gelar']?.toString() ?? '',
-        jabatan: profil['jabatan']?.toString() ?? '-',
-        unitKerja: profil['unit_kerja']?.toString() ?? '-',
-        unitKerjaSingkat: profil['unit_kerja_singkat']?.toString() ?? '-',
-        golongan: profil['golongan']?.toString() ?? '-',
-        status: profil['status']?.toString() ?? 'Pegawai Tetap',
-        tempatTanggalLahir: (profil['tempat_tanggal_lahir'] ?? '').toString().isNotEmpty ? profil['tempat_tanggal_lahir'].toString() : '-',
-        statusPernikahan: (profil['status_pernikahan'] ?? '').toString().isNotEmpty ? profil['status_pernikahan'].toString() : '-',
-        alamat: (profil['alamat'] ?? '').toString().isNotEmpty ? profil['alamat'].toString() : '-',
-        noTelp: (profil['no_telp'] ?? '').toString().isNotEmpty ? profil['no_telp'].toString() : '-',
-        fotoUrl: profil['foto_url']?.toString(),
-        role: UserRoleX.fromKode(profil['role']?.toString() ?? 'pegawai'),
+        nik: userData['nik']?.toString() ?? nik,
+        name: (userData['nama'] ?? userData['name'] ?? 'Pegawai').toString(),
+        gelar: (userData['gelar'] ?? '').toString(),
+        jabatan: (userData['jabatan'] ?? '-').toString(),
+        unitKerja: (userData['unit_kerja'] ?? '-').toString(),
+        unitKerjaSingkat: (userData['unit_kerja_singkat'] ?? '-').toString(),
+        golongan: (userData['golongan'] ?? '-').toString(),
+        status: (userData['status'] ?? 'Pegawai Tetap').toString(),
+        tempatTanggalLahir: (userData['tempat_tanggal_lahir'] ?? '').toString().isNotEmpty ? userData['tempat_tanggal_lahir'].toString() : '-',
+        statusPernikahan: (userData['status_pernikahan'] ?? '').toString().isNotEmpty ? userData['status_pernikahan'].toString() : '-',
+        alamat: (userData['alamat'] ?? '').toString().isNotEmpty ? userData['alamat'].toString() : '-',
+        noTelp: (userData['no_telp'] ?? '').toString().isNotEmpty ? userData['no_telp'].toString() : '-',
+        fotoUrl: userData['foto_url']?.toString(),
+        role: UserRoleX.fromKode((userData['role'] ?? 'pegawai').toString()),
         divisiKadiv: divisi,
       );
 
       await ApiService.saveUserSession(user.toJson());
 
-      // 5. Password awal masih = NIK -> ingatkan untuk ganti.
-      if (profil['must_change_password'] == true) {
+      // 3. Password awal masih = NIK -> ingatkan untuk ganti
+      if (userData['must_change_password'] == true) {
         if (!mounted) return;
         _showSnackBar(
           'Silakan ganti kata sandi Anda terlebih dahulu',
@@ -459,13 +416,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
       await _selesaikanLogin(user);
-    } on AuthException catch (e) {
-      final isWrongCreds = e.message.toLowerCase().contains('invalid login') ||
-          e.message.toLowerCase().contains('invalid_credentials');
-      final msg = isWrongCreds
-          ? 'NIK atau Kata Sandi salah'
-          : 'Gagal masuk: ${e.message}';
-      await _recordFailedAttempt(reason: msg);
     } catch (e) {
       _showSnackBar('Terjadi kesalahan koneksi: $e', Colors.red);
       _refreshCaptcha();

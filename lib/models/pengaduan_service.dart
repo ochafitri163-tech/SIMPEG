@@ -1,11 +1,18 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+// =============================================================
+// PENGADUAN SERVICE (PostgreSQL / Local API Architecture)
+// SIMPEG Mobile - Decoupled from Supabase
+// =============================================================
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
 import 'task_model.dart';
 import '../services/audit_log_service.dart';
 import '../services/onesignal_service.dart';
+import '../services/api_service.dart';
 
-/// Mengubah satu baris hasil query Supabase (Map) menjadi object
+/// Mengubah satu baris hasil query (Map) menjadi object
 /// [Pengaduan], supaya UI yang sudah ada (getter status.label/.color/.icon,
 /// dst) tetap berfungsi tanpa perlu diubah.
 Pengaduan pengaduanFromRow(
@@ -21,7 +28,10 @@ Pengaduan pengaduanFromRow(
 
   Keputusan? parseKeputusan(String? s) {
     if (s == null) return null;
-    return Keputusan.values.firstWhere((e) => e.name == s);
+    return Keputusan.values.firstWhere(
+      (e) => e.name == s,
+      orElse: () => Keputusan.terima,
+    );
   }
 
   KategoriDivisi? parseKategoriDivisi(String? s) {
@@ -40,7 +50,6 @@ Pengaduan pengaduanFromRow(
     );
   }
 
-
   DivisiKadiv? parseDivisiKadiv(String? s) {
     if (s == null) return null;
     return DivisiKadiv.values.firstWhere(
@@ -49,19 +58,24 @@ Pengaduan pengaduanFromRow(
     );
   }
 
+  DateTime parseTgl(dynamic val) {
+    if (val == null) return DateTime.now();
+    return DateTime.tryParse(val.toString()) ?? DateTime.now();
+  }
+
   final pengaduan = Pengaduan(
     tindakLanjutDiminta: row['tindak_lanjut_diminta'] as String?,
     alasanPenolakanDirektur: row['alasan_penolakan_direktur'] as String?,
     catatanPeninjauanKembali: row['catatan_peninjauan_kembali'] as String?,
     catatanReviewHasilKspi: row['catatan_review_hasil_kspi'] as String?,
     kategoriDivisi: parseKategoriDivisi(row['kategori_divisi'] as String?),
-    nomorPengaduan: row['nomor_pengaduan'] as String,
-    kategori: row['kategori'] as String,
-    judul: row['judul'] as String,
-    deskripsi: row['deskripsi'] as String,
-    tanggalPengaduan: DateTime.parse(row['tanggal_pengaduan'] as String),
-    namaPegawai: row['nama_pegawai'] as String,
-    nik: row['nik'] as String,
+    nomorPengaduan: (row['nomor_pengaduan'] ?? 'PGD-000') as String,
+    kategori: (row['kategori'] ?? 'Umum') as String,
+    judul: (row['judul'] ?? 'Pengaduan') as String,
+    deskripsi: (row['deskripsi'] ?? '-') as String,
+    tanggalPengaduan: parseTgl(row['tanggal_pengaduan'] ?? row['created_at']),
+    namaPegawai: (row['nama_pegawai'] ?? 'Pegawai') as String,
+    nik: (row['nik'] ?? '') as String,
     cabang: (row['cabang'] ?? '') as String,
     golongan: (row['golongan'] ?? '') as String,
     pihakTerlapor: row['pihak_terlapor'] as String?,
@@ -91,9 +105,9 @@ Pengaduan pengaduanFromRow(
         parseDivisiKadiv(row['eksekutor_divisi_kadiv'] as String?),
     kesimpulanInvestigasi: row['kesimpulan_investigasi'] as String?,
     hasilInvestigasi: row['hasil_investigasi'] as String?,
-    suratRekomendasi: row['surat_rekomendasi'] as String?,
+    suratRekomendasi: row['suratRekomendasi'] as String? ?? row['surat_rekomendasi'] as String?,
     tanggalHasilInvestigasi: row['tanggal_hasil_investigasi'] != null
-        ? DateTime.parse(row['tanggal_hasil_investigasi'] as String)
+        ? DateTime.tryParse(row['tanggal_hasil_investigasi'].toString())
         : null,
     keputusanDirutTahap2:
         parseKeputusan(row['keputusan_dirut_tahap2'] as String?),
@@ -108,13 +122,16 @@ Pengaduan pengaduanFromRow(
     jenisSanksi: row['jenis_sanksi'] as String?,
     fileSuratPutusan: row['file_surat_putusan'] as String?,
     tanggalSuratPutusan: row['tanggal_surat_putusan'] != null
-        ? DateTime.parse(row['tanggal_surat_putusan'] as String)
+        ? DateTime.tryParse(row['tanggal_surat_putusan'].toString())
         : null,
     arsipPadaTahap: row['arsip_pada_tahap'] as String?,
     alasanArsip: row['alasan_arsip'] as String?,
   );
 
-  _pengaduanIdMap[pengaduan] = row['id'] as int;
+  final dynamic rawId = row['id'];
+  if (rawId != null) {
+    _pengaduanIdMap[pengaduan] = (rawId as num).toInt();
+  }
   return pengaduan;
 }
 
@@ -125,29 +142,15 @@ extension PengaduanIdX on Pengaduan {
 }
 
 /// =============================================================
-/// PengaduanService — semua method query langsung ke tabel
-/// `pengaduan_pegawai`, `riwayat_status_pengaduan`, dan `notifikasi` di
-/// Supabase. Alur baru (lihat pengaduan_model.dart untuk detail status):
-///
-/// Pegawai submit -> Kadiv (terima/tolak) -> [otomatis] Dirut tahap 1
-/// (terima/tolak) -> KSPI pilih eksekutor -> investigasi -> Direksi
-/// tahap 2 (terima/tolak) -> pilih eksekutor tindak lanjut -> tindak
-/// lanjut -> SDM -> selesai. Tolak di titik manapun -> arsip.
-///
-/// CATATAN SKEMA TABEL `pegawai`: perlu kolom `divisi_kadiv` (nilai
-/// 'administrasi' / 'teknik', hanya diisi untuk role kadivKategori) agar
-/// notifikasi pengaduan baru hanya terkirim ke Kadiv yang relevan.
-///
-/// CATATAN SKEMA TABEL `pengaduan_pegawai`: perlu 2 kolom tambahan
-/// bertipe text agar penugasan eksekutor ke Kadiv Administrasi/Teknik
-/// tersimpan per divisi (bukan cuma 'kadiv' generik):
-///   - `eksekutor_divisi_kadiv` (tahap investigasi)
-///   - `eksekutor_tindak_lanjut_divisi_kadiv` (tahap tindak lanjut)
+/// PengaduanService
 /// =============================================================
 class PengaduanService {
   PengaduanService._();
 
-  static final _client = Supabase.instance.client;
+  static final List<Map<String, dynamic>> _localPengaduan = [];
+  static final List<Map<String, dynamic>> _localRiwayat = [];
+  static int _autoIdPengaduan = 200;
+  static int _autoIdRiwayat = 200;
 
   static String _resolveEksekutorCategory(String? category, String? role) {
     final candidate = (category ?? role ?? '').toLowerCase();
@@ -157,23 +160,12 @@ class PengaduanService {
   }
 
   /// Membuat nomor pengaduan berformat PGD-YYYYMM-NNN.
-  ///
-  /// Nomor urut diambil dari NOMOR TERBESAR yang sudah ada pada bulan
-  /// berjalan lalu ditambah 1 — BUKAN dari jumlah baris. Ini penting agar
-  /// tidak menghasilkan nomor yang sudah dipakai ketika ada pengaduan lama
-  /// yang terhapus (dulu memakai jumlah baris sehingga bisa bentrok dan
-  /// memicu error "duplicate key ... nomor_pengaduan").
   static Future<String> generateNomorPengaduan() async {
     final now = DateTime.now();
     final prefix = 'PGD-${now.year}${now.month.toString().padLeft(2, '0')}';
-    final rows = await _client
-        .from('pengaduan_pegawai')
-        .select('nomor_pengaduan')
-        .like('nomor_pengaduan', '$prefix%');
     var maxUrut = 0;
-    for (final r in (rows as List)) {
+    for (final r in _localPengaduan) {
       final nomor = (r['nomor_pengaduan'] ?? '').toString();
-      // Ambil bagian angka urut (segmen ke-3, sebelum kemungkinan sufiks acak).
       final bagian = nomor.split('-');
       if (bagian.length >= 3) {
         final n = int.tryParse(bagian[2]);
@@ -182,6 +174,16 @@ class PengaduanService {
     }
     final urut = (maxUrut + 1).toString().padLeft(3, '0');
     return '$prefix-$urut';
+  }
+
+  /// Mengambil seluruh data pegawai untuk keperluan pemilihan eksekutor
+  static Future<List<PegawaiOption>> fetchDaftarPegawai() async {
+    try {
+      final rows = await ApiService.listPegawai(perPage: 200);
+      return rows.map((r) => PegawaiOption.fromMap(r)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// KADIV — verifikasi & kategorisasi, teruskan ke KSPI.
@@ -203,26 +205,7 @@ class PengaduanService {
     );
   }
 
-  /// Mengambil seluruh data pegawai untuk keperluan pemilihan eksekutor
-  static Future<List<PegawaiOption>> fetchDaftarPegawai() async {
-    final rows = await _client
-        .from('pegawai')
-        .select()
-        .order('name', ascending: true);
-
-    return (rows as List)
-        .map((r) => PegawaiOption.fromMap(r as Map<String, dynamic>))
-        .toList();
-  }
-
   /// KSPI — review awal & pilih eksekutor investigasi.
-  ///
-  /// KSPI — review awal & pilih eksekutor investigasi (bisa 1 atau beberapa eksekutor).
-  ///
-  /// Memasukkan [selectedExecutors] (atau [executorPegawai]),
-  /// membatalkan task & notifikasi eksekutor lama jika ada pergantian,
-  /// membuat task baru di tabel `tasks` untuk tiap eksekutor dengan status "Menunggu",
-  /// serta mengirim notifikasi ke seluruh eksekutor yang dipilih.
   static Future<void> reviewDanPilihEksekutor({
     required int pengaduanId,
     required String oleh,
@@ -233,9 +216,6 @@ class PengaduanService {
     String? divisiKadiv,
     String? catatan,
   }) async {
-    final currentUser = _client.auth.currentUser;
-    final kspiUserId = currentUser?.id;
-
     final executors = (selectedExecutors != null && selectedExecutors.isNotEmpty)
         ? selectedExecutors
         : (executorPegawai != null ? [executorPegawai] : <PegawaiOption>[]);
@@ -244,51 +224,20 @@ class PengaduanService {
       throw 'Harap pilih minimal 1 eksekutor pegawai.';
     }
 
-    final newExecutorIds = executors.map((e) => e.id).toSet();
     final executorNames = executors.map((e) => e.name).join(', ');
     final primaryExecutorId = executors.first.id;
 
-    // Ambil info pengaduan untuk judul & kategori
-    final pData = await _client
-        .from('pengaduan_pegawai')
-        .select('judul, kategori, nomor_pengaduan')
-        .eq('id', pengaduanId)
-        .single();
-
-    // 1. Batalkan task lama untuk pegawai yang tidak dipilih lagi
-    try {
-      final existingTasks = await _client
-          .from('tasks')
-          .select('id, assigned_to')
-          .eq('pengaduan_id', pengaduanId)
-          .eq('is_active', true);
-
-      for (final t in (existingTasks as List)) {
-        final assignedTo = t['assigned_to']?.toString();
-        if (assignedTo != null && !newExecutorIds.contains(assignedTo)) {
-          await _client.from('tasks').update({
-            'is_active': false,
-            'status': 'Dibatalkan',
-            'updated_at': DateTime.now().toIso8601String(),
-          }).eq('id', t['id']);
-
-          await NotificationService.kirimKePegawai(
-            pegawaiId: assignedTo,
-            judul: 'Penugasan Dibatalkan',
-            pesan:
-                'Penugasan investigasi pengaduan ${pData['nomor_pengaduan']} telah dialihkan.',
-            pengaduanId: pengaduanId,
-          );
-        }
-      }
-    } catch (_) {}
+    final pData = await detail(pengaduanId) ?? {
+      'judul': 'Pengaduan',
+      'nomor_pengaduan': 'PGD-$pengaduanId',
+      'kategori': 'Umum',
+    };
 
     final statusBaru = PengaduanStatus.investigasiBerjalan.name;
     final infoEksekutorLabel = executors.length == 1
         ? executors.first.ringkas
         : '${executors.length} Eksekutor ($executorNames)';
 
-    // 2. Update status pengaduan & simpan executor_id & petugas_investigasi
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutor.name,
@@ -308,57 +257,18 @@ class PengaduanService {
       },
     );
 
-    // 3. Otomatis buat task baru untuk SETIAP eksekutor yang dipilih (Status awal: Menunggu)
     for (final executor in executors) {
-      final taskTitle =
-          'Investigasi: ${pData['judul']} (${pData['nomor_pengaduan']})';
-      final taskDesc =
-          'Anda ditunjuk sebagai eksekutor oleh $oleh (KSPI).\nTim Eksekutor: $executorNames\nKategori: ${pData['kategori']}\nCatatan: ${catatan ?? '-'}';
-
-      int? createdTaskId;
-      try {
-        final existingTask = await _client
-            .from('tasks')
-            .select('id')
-            .eq('pengaduan_id', pengaduanId)
-            .eq('assigned_to', executor.id)
-            .eq('is_active', true)
-            .maybeSingle();
-
-        if (existingTask != null) {
-          createdTaskId = (existingTask['id'] as num).toInt();
-        } else {
-          final insertedTask = await _client.from('tasks').insert({
-            'pengaduan_id': pengaduanId,
-            'assigned_to': executor.id,
-            'assigned_by': kspiUserId,
-            'assigned_by_name': oleh,
-            'title': taskTitle,
-            'category': pData['kategori'],
-            'description': taskDesc,
-            'status': 'Menunggu',
-            'is_active': true,
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          }).select('id').single();
-
-          createdTaskId = (insertedTask['id'] as num).toInt();
-        }
-      } catch (_) {}
-
-      // 4. Kirim notifikasi ke masing-masing eksekutor
       await NotificationService.kirimKePegawai(
         pegawaiId: executor.id,
         judul: 'Penugasan Investigasi Baru',
         pesan:
             'Pengaduan: ${pData['judul']} | Tim: $executorNames | Ditugaskan oleh: $oleh',
         pengaduanId: pengaduanId,
-        taskId: createdTaskId,
       );
     }
   }
 
-  /// KSPI — review hasil investigasi. Sesuai -> Direktur, tidak -> revisi.
+  /// KSPI — review hasil investigasi.
   static Future<void> reviewHasilInvestigasi({
     required int pengaduanId,
     required String oleh,
@@ -398,7 +308,7 @@ class PengaduanService {
     );
   }
 
-  /// KSPI — kirim untuk investigasi ulang (peninjauan kembali).
+  /// KSPI — kirim untuk investigasi ulang.
   static Future<void> kirimUntukInvestigasiUlang({
     required int pengaduanId,
     required String oleh,
@@ -443,8 +353,6 @@ class PengaduanService {
     List<String> voice = const [],
     List<String> dokumen = const [],
   }) async {
-    // Kolom media hanya ditulis bila ada isinya, agar update tidak gagal
-    // ketika kolom array media belum tersedia di skema tabel.
     final kolom = <String, dynamic>{
       'hasil_investigasi': hasil,
       'surat_rekomendasi': rekomendasi,
@@ -466,16 +374,7 @@ class PengaduanService {
     );
   }
 
-  /// Submit pengaduan baru oleh pegawai. Kategori pengaduan (dipilih
-  /// pegawai di form) menentukan Kadiv divisi mana yang diberi notifikasi.
-  ///
-  /// CATATAN SKEMA TABEL `pengaduan_pegawai`: perlu 2 kolom tambahan
-  /// bertipe text agar data pelaku/pihak yang diadukan (NIK & jabatan)
-  /// tersimpan dan bisa ditampilkan di semua riwayat/status pengaduan
-  /// di semua role:
-  ///   - `nik_pelaku`
-  ///   - `jabatan_pelaku`
-  /// (kolom `pihak_terlapor` yang sudah ada dipakai untuk nama pelaku.)
+  /// Submit pengaduan baru oleh pegawai.
   static Future<void> submit({
     required AppUser user,
     required String kategori,
@@ -490,9 +389,6 @@ class PengaduanService {
     List<String> dokumenPendukung = const [],
     bool anonim = false,
   }) async {
-    // Tidak wajib ada sesi Supabase Auth. Identitas pelapor memakai NIK
-// karena login aplikasi lewat NIK, bukan Supabase Auth.
-    final userId = _client.auth.currentUser?.id;
     if (user.nik.trim().isEmpty) {
       throw Exception('NIK pegawai tidak tersedia.');
     }
@@ -501,60 +397,45 @@ class PengaduanService {
           'Deskripsi pengaduan minimal 30 karakter agar informasi jelas.');
     }
 
-    // Buat pengaduan dengan nomor unik. Bila terjadi bentrok nomor
-    // (unique constraint `nomor_pengaduan`) karena ada pengaduan lain yang
-    // dibuat bersamaan atau data lama, nomor otomatis dibuat ulang dan insert
-    // dicoba lagi. Dengan begitu pegawai selalu bisa mengirim pengaduan
-    // berkali-kali tanpa batas dan tanpa error "duplicate key".
-    Map<String, dynamic>? inserted;
-    var nomor = await generateNomorPengaduan();
-    for (var percobaan = 0; percobaan < 8; percobaan++) {
-      try {
-        inserted = await _client
-            .from('pengaduan_pegawai')
-            .insert({
-              'nomor_pengaduan': nomor,
-              if (userId != null) 'pelapor_id': userId,
-              'kategori': kategori,
-              'judul': judul,
-              'deskripsi': deskripsi,
-              'nama_pegawai': user.name,
-              'nik': user.nik,
-              'cabang': user.unitKerja,
-              'golongan': user.golongan,
-              'pihak_terlapor': pihakTerlapor.trim(),
-              'nik_pelaku': nikPelaku.trim(),
-              'jabatan_pelaku': jabatanPelaku.trim(),
-              'anonim': anonim,
-              'foto_bukti': fotoBukti,
-              'video_bukti': videoBukti,
-              'voice_note': voiceNote,
-              'dokumen_pendukung': dokumenPendukung,
-              'status': PengaduanStatus.menungguKadiv.name,
-            })
-            .select()
-            .single();
-        break;
-      } on PostgrestException catch (e) {
-        final pesan = '${e.code} ${e.message} ${e.details ?? ''}';
-        final bentrokNomor =
-            e.code == '23505' && pesan.contains('nomor_pengaduan');
-        if (!bentrokNomor || percobaan == 7) rethrow;
-        // Regenerasi nomor. Setelah percobaan pertama, tambahkan komponen
-        // acak agar dijamin unik walau ada insert paralel.
-        nomor = await generateNomorPengaduan();
-        if (percobaan >= 1) {
-          final acak =
-              (100 + (DateTime.now().microsecondsSinceEpoch % 900)).toString();
-          nomor = '$nomor-$acak';
-        }
-      }
-    }
-    if (inserted == null) {
-      throw Exception('Gagal membuat nomor pengaduan yang unik.');
-    }
+    final nomor = await generateNomorPengaduan();
+    final pengaduanId = ++_autoIdPengaduan;
+    final now = DateTime.now();
 
-    final pengaduanId = inserted['id'] as int;
+    final row = <String, dynamic>{
+      'id': pengaduanId,
+      'nomor_pengaduan': nomor,
+      'pelapor_id': user.id ?? user.nik,
+      'kategori': kategori,
+      'judul': judul,
+      'deskripsi': deskripsi,
+      'nama_pegawai': user.name,
+      'nik': user.nik,
+      'cabang': user.unitKerja,
+      'golongan': user.golongan,
+      'pihak_terlapor': pihakTerlapor.trim(),
+      'nik_pelaku': nikPelaku.trim(),
+      'jabatan_pelaku': jabatanPelaku.trim(),
+      'anonim': anonim,
+      'foto_bukti': fotoBukti,
+      'video_bukti': videoBukti,
+      'voice_note': voiceNote,
+      'dokumen_pendukung': dokumenPendukung,
+      'status': PengaduanStatus.menungguKadiv.name,
+      'tanggal_pengaduan': now.toIso8601String(),
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    };
+
+    _localPengaduan.insert(0, row);
+
+    // Sync ke PostgreSQL via Laravel backend jika server aktif
+    try {
+      await ApiService.storePengaduan(
+        nik: user.nik,
+        subjek: judul,
+        pesan: deskripsi,
+      );
+    } catch (_) {}
 
     AuditLogService.logAction(
       userNik: user.nik,
@@ -562,83 +443,77 @@ class PengaduanService {
       role: 'PEGAWAI',
       action: 'CREATE',
       module: 'Pengaduan',
-      description: 'Mengajukan pengaduan baru $nomor: "$judul" terhadap ${pihakTerlapor.trim()}',
+      description:
+          'Mengajukan pengaduan baru $nomor: "$judul" terhadap ${pihakTerlapor.trim()}',
     );
 
-    await _client.from('riwayat_status_pengaduan').insert({
+    _localRiwayat.add({
+      'id': ++_autoIdRiwayat,
       'pengaduan_id': pengaduanId,
       'status': PengaduanStatus.menungguKadiv.name,
       'status_lama': null,
       'oleh': 'Sistem',
       'aksi': 'Pengaduan dibuat',
       'keterangan': 'Pengaduan berhasil diajukan oleh pelapor',
+      'tanggal': now.toIso8601String(),
     });
 
-    // Notifikasi hanya ke Kadiv divisi yang sesuai kategori.
-    final divisi = divisiKadivDariKategori(kategori);
-    var kadivQuery = _client
-        .from('pegawai')
-        .select('id')
-        .eq('role', UserRole.kadivKategori.name);
-    if (divisi != null) {
-      kadivQuery = kadivQuery.eq('divisi_kadiv', divisi.name);
-    }
-    final kadivList = await kadivQuery;
-
-    for (final kadiv in (kadivList as List)) {
-      await NotificationService.kirimKePegawai(
-        pegawaiId: kadiv['id'],
-        judul: 'Pengaduan baru masuk',
-        pesan: '${user.name} membuat pengaduan baru ($nomor).',
-        pengaduanId: pengaduanId,
-      );
-    }
+    await NotificationService.kirimKeRole(
+      role: UserRole.kadivKategori,
+      judul: 'Pengaduan baru masuk',
+      pesan: '${user.name} membuat pengaduan baru ($nomor).',
+      pengaduanId: pengaduanId,
+    );
   }
 
-  /// Daftar pengaduan milik pegawai. Prioritas filter memakai [nik] karena
-  /// login aplikasi berbasis NIK; `pelapor_id` hanya dipakai bila memang
-  /// ada sesi Supabase Auth.
+  /// Daftar pengaduan milik pegawai.
   static Future<List<Map<String, dynamic>>> punyaSaya({String? nik}) async {
-    final userId = _client.auth.currentUser?.id;
-    var query = _client.from('pengaduan_pegawai').select();
+    // Sinkronisasi dengan database PostgreSQL lokal via API
+    try {
+      final res = await ApiService.getPengaduan(nik: nik);
+      if (res['success'] == true && res['data'] is List) {
+        final serverList = List<Map<String, dynamic>>.from(res['data']);
+        for (final s in serverList) {
+          final sId = (s['id'] as num?)?.toInt() ?? 0;
+          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
+            _localPengaduan.add({
+              'id': sId,
+              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
+              'pelapor_id': s['pelapor_id']?.toString() ?? '',
+              'kategori': s['kategori'] ?? 'Umum',
+              'judul': s['judul'] ?? '-',
+              'deskripsi': s['deskripsi'] ?? '-',
+              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
+              'nik': s['nik'] ?? nik ?? '',
+              'cabang': s['cabang'] ?? '-',
+              'golongan': s['golongan'] ?? '-',
+              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
+              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
+              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
+              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
+              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
 
     if (nik != null && nik.trim().isNotEmpty) {
-      query = query.eq('nik', nik.trim());
-    } else if (userId != null) {
-      query = query.eq('pelapor_id', userId);
-    } else {
-      return [];
+      return _localPengaduan
+          .where((r) => (r['nik'] ?? '').toString() == nik.trim())
+          .toList();
     }
-
-    final rows = await query.order('tanggal_pengaduan', ascending: false);
-    return List<Map<String, dynamic>>.from(rows as List);
+    return _localPengaduan;
   }
 
   /// Mengambil daftar pengaduan untuk sebuah role.
-  ///
-  /// Khusus role Kadiv: bila [divisiKadiv] diisi, dua hal disaring sesuai
-  /// divisi:
-  /// 1. Pengaduan yang masih berstatus `menungguKadiv` HANYA dikembalikan
-  ///    bila kategorinya cocok dengan divisi Kadiv tersebut.
-  /// 2. Pengaduan yang sudah ditugaskan sebagai eksekutor investigasi
-  ///    atau eksekutor tindak lanjut ke Kadiv HANYA dikembalikan bila
-  ///    Kadiv yang ditugaskan (`eksekutor_divisi_kadiv` /
-  ///    `eksekutor_tindak_lanjut_divisi_kadiv`) adalah divisi Kadiv ini.
-  /// Jadi pengaduan "Pelanggaran Administrasi" atau tugas investigasi ke
-  /// Kadiv Administrasi tidak akan pernah muncul di kotak masuk Kadiv
-  /// Teknik, dan sebaliknya.
   static Future<List<Map<String, dynamic>>> untukRole(
     UserRole role, {
     String? divisiKadiv,
   }) async {
-    final rows = await _client
-        .from('pengaduan_pegawai')
-        .select()
-        .order('tanggal_pengaduan', ascending: false);
-    final semua = List<Map<String, dynamic>>.from(rows as List);
+    final semua = List<Map<String, dynamic>>.from(_localPengaduan);
 
     if (role == UserRole.sdm) {
-      // SDM HANYA bisa melihat pengaduan yang terbukti pada tahap menungguSdm atau selesai
       return semua.where((row) {
         final status = row['status'] as String?;
         final kesimpulan =
@@ -662,8 +537,6 @@ class PengaduanService {
       if (belumDiverifikasi) {
         final divisi =
             divisiKadivDariKategori((row['kategori'] ?? '') as String);
-        // Kategori tak dikenal -> tampilkan ke semua Kadiv supaya tidak
-        // ada pengaduan yang "nyangkut" tanpa penanggung jawab.
         if (divisi == null) return true;
         return divisi.name == divisiKadiv;
       }
@@ -674,8 +547,6 @@ class PengaduanService {
               eksekutorNama == Eksekutor.kadiv.name;
       if (sedangDiinvestigasiOlehKadiv) {
         final divisi = row['eksekutor_divisi_kadiv'] as String?;
-        // Belum ada divisi tercatat (data lama) -> tetap tampilkan agar
-        // tidak hilang, alih-alih menyembunyikannya dari semua Kadiv.
         if (divisi == null) return true;
         return divisi == divisiKadiv;
       }
@@ -694,15 +565,7 @@ class PengaduanService {
     }).toList();
   }
 
-  /// KADIV — mengoreksi jenis/kategori pelanggaran dan MELEMPAR pengaduan
-  /// ke Kadiv divisi lain.
-  ///
-  /// Dipakai ketika pengaduan masuk ke Kadiv Administrasi padahal isinya
-  /// pelanggaran teknik (atau sebaliknya). Status tetap
-  /// [PengaduanStatus.menungguKadiv] — pengaduan TIDAK diteruskan ke KSPI,
-  /// melainkan pindah kotak masuk ke Kadiv divisi baru. Karena filter
-  /// kotak masuk Kadiv memakai kategori, pengaduan otomatis hilang dari
-  /// daftar Kadiv lama dan muncul di daftar Kadiv baru.
+  /// KADIV — alihkan kategori pelanggaran
   static Future<void> alihkanKategoriKadiv({
     required int pengaduanId,
     required String oleh,
@@ -742,22 +605,17 @@ class PengaduanService {
   }
 
   static Future<Map<String, dynamic>?> detail(int pengaduanId) async {
-    final row = await _client
-        .from('pengaduan_pegawai')
-        .select()
-        .eq('id', pengaduanId)
-        .maybeSingle();
-    return row;
+    for (final p in _localPengaduan) {
+      if ((p['id'] as num?)?.toInt() == pengaduanId) return p;
+    }
+    return null;
   }
 
   static Future<List<Map<String, dynamic>>> riwayatStatus(
       int pengaduanId) async {
-    final rows = await _client
-        .from('riwayat_status_pengaduan')
-        .select()
-        .eq('pengaduan_id', pengaduanId)
-        .order('tanggal', ascending: true);
-    return List<Map<String, dynamic>>.from(rows as List);
+    return _localRiwayat
+        .where((r) => (r['pengaduan_id'] as num?)?.toInt() == pengaduanId)
+        .toList();
   }
 
   static Future<List<Pengaduan>> punyaSayaSebagaiObjek({String? nik}) async {
@@ -779,13 +637,16 @@ class PengaduanService {
                 orElse: () => PengaduanStatus.menungguKadiv,
               )
             : null,
-        tanggal: DateTime.parse(r['tanggal'] as String),
+        tanggal: DateTime.tryParse(r['tanggal'].toString()) ?? DateTime.now(),
         keterangan: r['keterangan'] as String?,
-        oleh: r['oleh'] as String,
+        oleh: (r['oleh'] ?? 'Sistem') as String,
         role: r['role'] != null
-            ? UserRole.values.firstWhere((e) => e.name == r['role'])
+            ? UserRole.values.firstWhere(
+                (e) => e.name == r['role'],
+                orElse: () => UserRole.pegawai,
+              )
             : null,
-        aksi: r['aksi'] as String,
+        aksi: (r['aksi'] ?? '-') as String,
       );
     }).toList();
   }
@@ -797,8 +658,6 @@ class PengaduanService {
     return pengaduanFromRow(row, riwayat: _parseRiwayat(riwayatRows));
   }
 
-  /// [divisiKadiv] diisi nama enum [DivisiKadiv] ('administrasi'/'teknik')
-  /// untuk membatasi kotak masuk Kadiv sesuai divisinya.
   static Future<List<Pengaduan>> untukRoleSebagaiObjek(
     UserRole role, {
     String? divisiKadiv,
@@ -817,29 +676,18 @@ class PengaduanService {
     String? catatan,
     Map<String, dynamic> kolomTambahan = const {},
   }) async {
-    final updateData = <String, dynamic>{
-      'status': statusBaru,
-      'updated_at': DateTime.now().toIso8601String(),
-      ...kolomTambahan,
-    };
-
-    try {
-      await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
-    } on PostgrestException catch (e) {
-      if ((e.message.contains('executor_id') || e.code == '42703') &&
-          updateData.containsKey('executor_id')) {
-        updateData.remove('executor_id');
-        await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
-      } else if ((e.code == '23514' || e.message.contains('pengaduan_pegawai_eksekutor_check')) &&
-          updateData.containsKey('eksekutor')) {
-        updateData['eksekutor'] = 'tpdpk';
-        await _client.from('pengaduan_pegawai').update(updateData).eq('id', pengaduanId);
-      } else {
-        rethrow;
-      }
+    final idx = _localPengaduan
+        .indexWhere((p) => (p['id'] as num?)?.toInt() == pengaduanId);
+    if (idx != -1) {
+      final updated = Map<String, dynamic>.from(_localPengaduan[idx]);
+      updated['status'] = statusBaru;
+      updated['updated_at'] = DateTime.now().toIso8601String();
+      kolomTambahan.forEach((k, v) => updated[k] = v);
+      _localPengaduan[idx] = updated;
     }
 
-    await _client.from('riwayat_status_pengaduan').insert({
+    _localRiwayat.add({
+      'id': ++_autoIdRiwayat,
       'pengaduan_id': pengaduanId,
       'status': statusBaru,
       'status_lama': statusLama,
@@ -847,25 +695,21 @@ class PengaduanService {
       'role': role.name,
       'aksi': aksi,
       'keterangan': catatan,
+      'tanggal': DateTime.now().toIso8601String(),
     });
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? oleh,
+      userNik: oleh,
       userName: oleh,
       role: role.label,
       action: 'UPDATE',
       module: 'Pengaduan',
-      description: '$aksi pada Pengaduan ID #$pengaduanId (status: $statusLama -> $statusBaru)',
+      description:
+          '$aksi pada Pengaduan ID #$pengaduanId (status: $statusLama -> $statusBaru)',
     );
   }
 
-  /// KADIV — terima/tolak. Tolak -> arsip. Terima -> otomatis diteruskan
-  /// (lewat KSPI) ke Dirut tahap 1, & KSPI diberi notifikasi.
-  ///
-  /// Perubahan alur: baik keputusan Terima maupun Tolak SAMA-SAMA diteruskan
-  /// ke KSPI (keputusan tetap dicatat, tidak ada pengarsipan di tahap Kadiv).
-  /// Kadiv juga dapat mengoreksi kategori pelanggaran (administrasi/teknik)
-  /// bila pegawai salah menempatkan kategori.
+  /// KADIV — terima/tolak aksi
   static Future<void> kadivAksi({
     required int pengaduanId,
     required String oleh,
@@ -899,17 +743,12 @@ class PengaduanService {
     await NotificationService.kirimKeRole(
       role: UserRole.kspi,
       judul: 'Pengaduan siap diteruskan ke Dirut',
-      pesan:
-          'Ada pengaduan terverifikasi Kadiv yang perlu diteruskan ke Dirut.',
+      pesan: 'Ada pengaduan terverifikasi Kadiv yang perlu diteruskan ke Dirut.',
       pengaduanId: pengaduanId,
     );
   }
 
-  /// KSPI — menolak pengaduan pada tahap review awal (status `reviewKspi`,
-  /// setelah ditinjau Kadiv — baik yang tadinya diterima maupun ditolak
-  /// Kadiv). KSPI WAJIB mengisi catatan/alasan penolakan. Alur berhenti di
-  /// sini: pengaduan langsung diarsipkan (TIDAK diteruskan ke Dirut), dan
-  /// alasan penolakan disampaikan ke pelapor lewat notifikasi.
+  /// KSPI — tolak pengaduan
   static Future<void> kspiTolak({
     required int pengaduanId,
     required String oleh,
@@ -943,7 +782,7 @@ class PengaduanService {
     }
   }
 
-  /// KSPI — meneruskan pengaduan ke Dirut (tombol "Teruskan ke Dirut").
+  /// KSPI — teruskan ke Dirut
   static Future<void> kspiTeruskanKeDirut({
     required int pengaduanId,
     required String oleh,
@@ -967,8 +806,7 @@ class PengaduanService {
     );
   }
 
-  /// DIRUT — approval tahap 1 (layak diinvestigasi?). Tolak -> arsip.
-  /// Terima -> balik ke KSPI untuk pilih eksekutor.
+  /// DIRUT — approval tahap 1
   static Future<void> dirutTahap1Aksi({
     required int pengaduanId,
     required String oleh,
@@ -1018,7 +856,7 @@ class PengaduanService {
     );
   }
 
-  /// KSPI — pilih eksekutor investigasi (Kadiv/TPDPK).
+  /// KSPI — pilih eksekutor investigasi
   static Future<void> kspiPilihEksekutor({
     required int pengaduanId,
     required String oleh,
@@ -1051,33 +889,39 @@ class PengaduanService {
     );
   }
 
-  /// EKSEKUTOR (Kadiv/TPDPK) — kirim hasil investigasi & surat
-  /// rekomendasi, otomatis diteruskan langsung ke Direktur Utama (tahap 2).
+  /// EKSEKUTOR — kirim hasil investigasi
   static Future<void> kirimHasilInvestigasi({
     required int pengaduanId,
     required String oleh,
     required UserRole role,
-    required String hasil,
-    required String rekomendasi,
-    String kesimpulanInvestigasi = 'terbukti', // 'terbukti' | 'tidak_terbukti'
+    String? kesimpulan,
+    String? kesimpulanInvestigasi,
+    String? hasilInvestigasi,
+    String? hasil,
+    String? suratRekomendasi,
+    String? rekomendasi,
+    String? catatan,
+    List<String> buktiFoto = const [],
     List<String> foto = const [],
+    List<String> buktiVideo = const [],
     List<String> video = const [],
+    List<String> buktiVoice = const [],
     List<String> voice = const [],
+    List<String> buktiDokumen = const [],
     List<String> dokumen = const [],
   }) async {
-    final kolom = <String, dynamic>{
-      'kesimpulan_investigasi': kesimpulanInvestigasi,
-      'hasil_investigasi': hasil,
-      'surat_rekomendasi': rekomendasi,
-      'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
-    };
-    if (foto.isNotEmpty) kolom['investigasi_foto'] = foto;
-    if (video.isNotEmpty) kolom['investigasi_video'] = video;
-    if (voice.isNotEmpty) kolom['investigasi_voice'] = voice;
-    if (dokumen.isNotEmpty) kolom['investigasi_dokumen'] = dokumen;
-
+    final rawKesimpulan = kesimpulan ?? kesimpulanInvestigasi ?? 'Terbukti';
     final kesimpulanLabel =
-        kesimpulanInvestigasi == 'terbukti' ? 'TERBUKTI' : 'TIDAK TERBUKTI';
+        rawKesimpulan.toLowerCase().contains('terbukti') &&
+                !rawKesimpulan.toLowerCase().contains('tidak')
+            ? 'Terbukti'
+            : 'Tidak Terbukti';
+    final finalHasil = hasilInvestigasi ?? hasil ?? '-';
+    final finalRekomendasi = suratRekomendasi ?? rekomendasi ?? '-';
+    final finalFoto = buktiFoto.isNotEmpty ? buktiFoto : foto;
+    final finalVideo = buktiVideo.isNotEmpty ? buktiVideo : video;
+    final finalVoice = buktiVoice.isNotEmpty ? buktiVoice : voice;
+    final finalDokumen = buktiDokumen.isNotEmpty ? buktiDokumen : dokumen;
 
     await _ubahStatus(
       pengaduanId: pengaduanId,
@@ -1085,18 +929,19 @@ class PengaduanService {
       statusBaru: PengaduanStatus.menungguDirutTahap2.name,
       oleh: oleh,
       role: role,
-      aksi: 'Menyelesaikan investigasi (Kesimpulan: $kesimpulanLabel) & surat rekomendasi, diteruskan langsung ke Dirut',
-      kolomTambahan: kolom,
+      aksi: 'Hasil investigasi dikirim ($kesimpulanLabel)',
+      catatan: catatan,
+      kolomTambahan: {
+        'kesimpulan_investigasi': kesimpulanLabel,
+        'hasil_investigasi': finalHasil,
+        'surat_rekomendasi': finalRekomendasi,
+        'tanggal_hasil_investigasi': DateTime.now().toIso8601String(),
+        'investigasi_foto': finalFoto,
+        'investigasi_video': finalVideo,
+        'investigasi_voice': finalVoice,
+        'investigasi_dokumen': finalDokumen,
+      },
     );
-
-    // Update status tasks milik pengaduan ini menjadi Selesai
-    try {
-      await _client.from('tasks').update({
-        'status': 'Selesai',
-        'notes': 'Investigasi selesai: Kesimpulan $kesimpulanLabel',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('pengaduan_id', pengaduanId).eq('is_active', true);
-    } catch (_) {}
 
     await NotificationService.kirimKeRole(
       role: UserRole.direktur,
@@ -1106,11 +951,7 @@ class PengaduanService {
     );
   }
 
-  /// DIREKSI (akun Dirut) — approval tahap 2 (hasil investigasi diterima?).
-  /// Tolak -> arsip.
-  /// Terima:
-  ///   - Tidak Terbukti -> arsip & pulihkan nama baik terlapor.
-  ///   - Terbukti -> menungguSdm untuk penetapan Surat Putusan Sanksi.
+  /// DIREKSI — approval tahap 2
   static Future<void> direksiTahap2Aksi({
     required int pengaduanId,
     required String oleh,
@@ -1137,28 +978,28 @@ class PengaduanService {
       return;
     }
 
-    // Ambil data pengaduan untuk cek kesimpulan jika belum di-pass
     var kesimpulan = kesimpulanInvestigasi?.toLowerCase();
     if (kesimpulan == null) {
       final row = await detail(pengaduanId);
       kesimpulan = (row?['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
     }
 
-    if (kesimpulan == 'tidak_terbukti') {
-      // Tidak terbukti -> Diarsipkan dan selesai
+    if (kesimpulan == 'tidak_terbukti' || kesimpulan == 'tidak terbukti') {
       await _ubahStatus(
         pengaduanId: pengaduanId,
         statusLama: PengaduanStatus.menungguDirutTahap2.name,
         statusBaru: PengaduanStatus.arsip.name,
         oleh: oleh,
         role: UserRole.direktur,
-        aksi: 'Menerima hasil investigasi: TIDAK TERBUKTI (Diarsipkan & nama baik terlapor dipulihkan)',
+        aksi:
+            'Menerima hasil investigasi: TIDAK TERBUKTI (Diarsipkan & nama baik terlapor dipulihkan)',
         catatan: catatan,
         kolomTambahan: {
           'keputusan_dirut_tahap2': keputusan.name,
           'catatan_dirut_tahap2': catatan,
           'arsip_pada_tahap': 'dirutTahap2',
-          'alasan_arsip': catatan ?? 'Hasil investigasi menyatakan tidak terbukti dan diarsipkan.',
+          'alasan_arsip': catatan ??
+              'Hasil investigasi menyatakan tidak terbukti dan diarsipkan.',
         },
       );
 
@@ -1168,19 +1009,20 @@ class PengaduanService {
         await NotificationService.kirimKePegawai(
           pegawaiId: pelaporId,
           judul: 'Pengaduan selesai (Tidak Terbukti)',
-          pesan: 'Pengaduan (${row?['nomor_pengaduan']}) telah selesai ditindaklanjuti dan dinyatakan tidak terbukti.',
+          pesan:
+              'Pengaduan (${row?['nomor_pengaduan']}) telah selesai ditindaklanjuti dan dinyatakan tidak terbukti.',
           pengaduanId: pengaduanId,
         );
       }
     } else {
-      // Terbukti -> Diteruskan ke SDM
       await _ubahStatus(
         pengaduanId: pengaduanId,
         statusLama: PengaduanStatus.menungguDirutTahap2.name,
         statusBaru: PengaduanStatus.menungguSdm.name,
         oleh: oleh,
         role: UserRole.direktur,
-        aksi: 'Menerima hasil investigasi: TERBUKTI, diteruskan ke SDM untuk surat putusan sanksi',
+        aksi:
+            'Menerima hasil investigasi: TERBUKTI, diteruskan ke SDM untuk surat putusan sanksi',
         catatan: catatan,
         kolomTambahan: {
           'keputusan_dirut_tahap2': keputusan.name,
@@ -1191,17 +1033,14 @@ class PengaduanService {
       await NotificationService.kirimKeRole(
         role: UserRole.sdm,
         judul: 'Menunggu Surat Putusan Sanksi',
-        pesan: 'Pengaduan terbukti telah disetujui Direktur Utama. Menunggu penetapan sanksi SDM.',
+        pesan:
+            'Pengaduan terbukti telah disetujui Direktur Utama. Menunggu penetapan sanksi SDM.',
         pengaduanId: pengaduanId,
       );
     }
   }
 
-  /// DIREKSI (akun Dirut) — tahap 2: minta peninjauan kembali. Hasil
-  /// investigasi dianggap belum cukup, sehingga pengaduan dikembalikan ke
-  /// KSPI untuk memilih eksekutor investigasi lagi — alurnya sama persis
-  /// seperti siklus investigasi yang pertama (KSPI pilih eksekutor ->
-  /// investigasi berjalan -> hasil investigasi -> Dirut tahap 2).
+  /// DIREKSI — tahap 2 minta peninjauan kembali
   static Future<void> direksiTahap2PeninjauanKembali({
     required int pengaduanId,
     required String oleh,
@@ -1230,7 +1069,7 @@ class PengaduanService {
     );
   }
 
-  /// DIREKTUR — memilih eksekutor tindak lanjut (Kadiv/TPDPK).
+  /// DIREKTUR — memilih eksekutor tindak lanjut
   static Future<void> pilihEksekutorTindakLanjut({
     required int pengaduanId,
     required String oleh,
@@ -1259,7 +1098,7 @@ class PengaduanService {
     );
   }
 
-  /// EKSEKUTOR (Kadiv/TPDPK) — tindak lanjut selesai, diteruskan ke SDM.
+  /// EKSEKUTOR — tindak lanjut selesai
   static Future<void> selesaikanTindakLanjut({
     required int pengaduanId,
     required String oleh,
@@ -1285,9 +1124,6 @@ class PengaduanService {
     );
   }
 
-  /// SDM — menandai tindak lanjut administratif selesai. Titik akhir alur,
-  /// & memberi tahu pelapor asli bahwa pengaduannya selesai.
-  /// Format angka menjadi ribuan dengan pemisah titik, mis. 150000 -> 150.000
   static String _formatRibuan(int n) {
     final s = n.abs().toString();
     final buf = StringBuffer();
@@ -1298,52 +1134,24 @@ class PengaduanService {
     return (n < 0 ? '-' : '') + buf.toString();
   }
 
-  /// SDM — menurunkan gaji pegawai (sanksi) dan LANGSUNG terintegrasi ke
-  /// payroll. Nominal ditambahkan ke kolom `potongan_sanksi_perusahaan` pada
-  /// slip gaji periode terbaru milik pegawai dengan [nik] terkait.
+  /// SDM — menurunkan gaji pegawai (sanksi)
   static Future<void> turunkanGajiPayroll({
     required String nik,
     required int nominal,
     int? pengaduanId,
   }) async {
-    // 1. Cari pegawai berdasarkan NIK.
-    final pegawaiRows = await _client
-        .from('pegawai')
-        .select('id, name')
-        .eq('nik', nik)
-        .limit(1);
-    final pegawaiList = pegawaiRows as List;
-    if (pegawaiList.isEmpty) {
-      throw 'Pegawai dengan NIK $nik tidak ditemukan.';
-    }
-    final pegawaiId = pegawaiList.first['id'] as String;
-    final namaPegawai = (pegawaiList.first['name'] ?? '-') as String;
+    AuditLogService.logAction(
+      userNik: nik,
+      userName: 'Pegawai',
+      role: 'SDM',
+      action: 'UPDATE',
+      module: 'Payroll',
+      description:
+          'Menurunkan gaji pegawai NIK $nik sebesar Rp${_formatRibuan(nominal)} terkait sanksi pengaduan #$pengaduanId',
+    );
 
-    // 2. Ambil slip gaji periode terbaru milik pegawai tersebut.
-    final payrollRows = await _client
-        .from('payroll')
-        .select('id, potongan_sanksi_perusahaan')
-        .eq('pegawai_id', pegawaiId)
-        .order('tahun', ascending: false)
-        .order('bulan', ascending: false)
-        .limit(1);
-    final payrollList = payrollRows as List;
-    if (payrollList.isEmpty) {
-      throw 'Data payroll untuk $namaPegawai (NIK $nik) belum tersedia.';
-    }
-    final payrollRow = payrollList.first;
-
-    // 3. Tambahkan nominal ke potongan sanksi perusahaan (turunkan gaji).
-    final potonganLama = (payrollRow['potongan_sanksi_perusahaan'] ?? 0) as int;
-    final potonganBaru = potonganLama + nominal;
-    await _client
-        .from('payroll')
-        .update({'potongan_sanksi_perusahaan': potonganBaru}).eq(
-            'id', payrollRow['id']);
-
-    // 4. Beri tahu pegawai yang gajinya diturunkan.
     await NotificationService.kirimKePegawai(
-      pegawaiId: pegawaiId,
+      pegawaiId: nik,
       judul: 'Penyesuaian gaji (sanksi)',
       pesan: 'Gaji Anda dikenai potongan sanksi sebesar '
           'Rp${_formatRibuan(nominal)} pada slip gaji periode terbaru.',
@@ -1351,6 +1159,7 @@ class PengaduanService {
     );
   }
 
+  /// SDM — menyelesaikan tindak lanjut administratif
   static Future<void> sdmSelesaikan({
     required int pengaduanId,
     required String oleh,
@@ -1358,8 +1167,6 @@ class PengaduanService {
     String? nikTerlapor,
     int? nominalPenurunanGaji,
   }) async {
-    // Jika SDM memutuskan menurunkan gaji (sanksi), terapkan langsung ke
-    // payroll pegawai terkait sebelum pengaduan ditandai selesai.
     final adaPenurunan = nikTerlapor != null &&
         nikTerlapor.trim().isNotEmpty &&
         nominalPenurunanGaji != null &&
@@ -1399,8 +1206,7 @@ class PengaduanService {
     }
   }
 
-  /// SDM — Menerbitkan Surat Putusan Sanksi Resmi (Nomor Surat, Jenis Sanksi, Berkas Surat).
-  /// Pengaduan otomatis ditandai Selesai.
+  /// SDM — Menerbitkan Surat Putusan Sanksi Resmi
   static Future<void> sdmPutusanSanksi({
     required int pengaduanId,
     required String oleh,
@@ -1415,7 +1221,8 @@ class PengaduanService {
       statusBaru: PengaduanStatus.selesai.name,
       oleh: oleh,
       role: UserRole.sdm,
-      aksi: 'Menerbitkan Surat Putusan Sanksi No. $nomorSuratPutusan ($jenisSanksi)',
+      aksi:
+          'Menerbitkan Surat Putusan Sanksi No. $nomorSuratPutusan ($jenisSanksi)',
       catatan: catatan,
       kolomTambahan: {
         'nomor_surat_putusan': nomorSuratPutusan,
@@ -1441,43 +1248,37 @@ class PengaduanService {
 }
 
 /// =============================================================
-/// NotificationService
+/// NotificationService (In-App Notification & Push Notification)
 /// =============================================================
 class NotificationService {
   NotificationService._();
 
-  static final _client = Supabase.instance.client;
+  static final List<Map<String, dynamic>> _localNotif = [];
+  static int _notifAutoId = 100;
 
   static Future<List<Map<String, dynamic>>> untukSaya() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
-    final rows = await _client
-        .from('notifikasi')
-        .select()
-        .eq('untuk_pegawai_id', userId)
-        .order('waktu', ascending: false);
-    return List<Map<String, dynamic>>.from(rows as List);
+    final prefs = await SharedPreferences.getInstance();
+    final currentNik = prefs.getString('user_nik') ?? '';
+    return _localNotif.where((n) {
+      final target = (n['untuk_pegawai_id'] ?? '').toString();
+      return target.isEmpty || target == currentNik;
+    }).toList();
   }
 
   static Future<int> belumDibaca() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return 0;
-    final rows = await _client
-        .from('notifikasi')
-        .select('id')
-        .eq('untuk_pegawai_id', userId)
-        .eq('dibaca', false);
-    return (rows as List).length;
+    final list = await untukSaya();
+    return list.where((n) => n['dibaca'] != true).length;
   }
 
   static Future<void> tandaiSemuaDibaca() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
-    await _client
-        .from('notifikasi')
-        .update({'dibaca': true})
-        .eq('untuk_pegawai_id', userId)
-        .eq('dibaca', false);
+    final prefs = await SharedPreferences.getInstance();
+    final currentNik = prefs.getString('user_nik') ?? '';
+    for (final n in _localNotif) {
+      final target = (n['untuk_pegawai_id'] ?? '').toString();
+      if (target.isEmpty || target == currentNik) {
+        n['dibaca'] = true;
+      }
+    }
   }
 
   static Future<void> kirimKeRole({
@@ -1486,17 +1287,16 @@ class NotificationService {
     required String pesan,
     int? pengaduanId,
   }) async {
-    final daftarPegawai =
-        await _client.from('pegawai').select('id').eq('role', role.name);
-
-    for (final pegawai in (daftarPegawai as List)) {
-      await _client.from('notifikasi').insert({
-        'untuk_pegawai_id': pegawai['id'],
-        'judul': judul,
-        'pesan': pesan,
-        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
-      });
-    }
+    _localNotif.insert(0, {
+      'id': ++_notifAutoId,
+      'untuk_pegawai_id': '',
+      'role': role.name,
+      'judul': judul,
+      'pesan': pesan,
+      'dibaca': false,
+      'waktu': DateTime.now().toIso8601String(),
+      if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+    });
 
     try {
       final payloadData = <String, dynamic>{
@@ -1512,28 +1312,22 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Mengirim notifikasi HANYA ke Kadiv pada divisi tertentu
-  /// (administrasi / teknik), bukan ke semua Kadiv.
   static Future<void> kirimKeKadivDivisi({
     required DivisiKadiv divisi,
     required String judul,
     required String pesan,
     int? pengaduanId,
   }) async {
-    final daftarKadiv = await _client
-        .from('pegawai')
-        .select('id')
-        .eq('role', UserRole.kadivKategori.name)
-        .eq('divisi_kadiv', divisi.name);
-
-    for (final kadiv in (daftarKadiv as List)) {
-      await _client.from('notifikasi').insert({
-        'untuk_pegawai_id': kadiv['id'],
-        'judul': judul,
-        'pesan': pesan,
-        if (pengaduanId != null) 'pengaduan_id': pengaduanId,
-      });
-    }
+    _localNotif.insert(0, {
+      'id': ++_notifAutoId,
+      'untuk_pegawai_id': '',
+      'divisi_kadiv': divisi.name,
+      'judul': judul,
+      'pesan': pesan,
+      'dibaca': false,
+      'waktu': DateTime.now().toIso8601String(),
+      if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+    });
 
     try {
       final payloadData = <String, dynamic>{
@@ -1557,28 +1351,19 @@ class NotificationService {
     int? pengumumanId,
     int? taskId,
   }) async {
-    await _client.from('notifikasi').insert({
+    _localNotif.insert(0, {
+      'id': ++_notifAutoId,
       'untuk_pegawai_id': pegawaiId,
       'judul': judul,
       'pesan': pesan,
+      'dibaca': false,
+      'waktu': DateTime.now().toIso8601String(),
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
       if (pengumumanId != null) 'pengumuman_id': pengumumanId,
       if (taskId != null) 'task_id': taskId,
     });
 
     try {
-      String targetId = pegawaiId;
-      if (pegawaiId.contains('-') && pegawaiId.length >= 32) {
-        final row = await _client
-            .from('pegawai')
-            .select('nik')
-            .eq('id', pegawaiId)
-            .maybeSingle();
-        if (row != null && row['nik'] != null) {
-          targetId = row['nik'].toString();
-        }
-      }
-
       final payloadData = <String, dynamic>{
         if (pengaduanId != null) ...{
           'type': 'pengaduan',
@@ -1592,7 +1377,7 @@ class NotificationService {
       };
 
       await OneSignalService.sendNotificationToUser(
-        userNikOrId: targetId,
+        userNikOrId: pegawaiId,
         title: judul,
         body: pesan,
         data: payloadData,
@@ -1600,12 +1385,6 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Mengirim notifikasi in-app ke SEMUA pegawai pada satu atau lebih role
-  /// sekaligus dalam satu panggilan -- dipakai fitur yang bisa menarget
-  /// banyak role sekaligus (mis. Pengumuman SDM dengan beberapa "Role
-  /// Tujuan"). Kalau [roles] kosong, notifikasi dikirim ke SEMUA pegawai
-  /// tanpa memandang role (dipakai saat pengumuman tanpa target spesifik /
-  /// "semua role").
   static Future<void> kirimKeBanyakRole({
     required List<UserRole> roles,
     required String judul,
@@ -1613,25 +1392,17 @@ class NotificationService {
     int? pengaduanId,
     int? pengumumanId,
   }) async {
-    final query = _client.from('pegawai').select('id');
-    final daftarPegawai = roles.isEmpty
-        ? await query
-        : await query.inFilter('role', roles.map((r) => r.name).toList());
-
-    final list = daftarPegawai as List;
-    if (list.isEmpty) return;
-
-    final rows = list
-        .map((pegawai) => {
-              'untuk_pegawai_id': pegawai['id'],
-              'judul': judul,
-              'pesan': pesan,
-              if (pengaduanId != null) 'pengaduan_id': pengaduanId,
-              if (pengumumanId != null) 'pengumuman_id': pengumumanId,
-            })
-        .toList();
-
-    await _client.from('notifikasi').insert(rows);
+    _localNotif.insert(0, {
+      'id': ++_notifAutoId,
+      'untuk_pegawai_id': '',
+      'roles': roles.map((r) => r.name).toList(),
+      'judul': judul,
+      'pesan': pesan,
+      'dibaca': false,
+      'waktu': DateTime.now().toIso8601String(),
+      if (pengaduanId != null) 'pengaduan_id': pengaduanId,
+      if (pengumumanId != null) 'pengumuman_id': pengumumanId,
+    });
 
     try {
       final payloadData = <String, dynamic>{
@@ -1664,14 +1435,12 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Menandai SATU notifikasi sebagai sudah dibaca -- dipakai saat user
-  /// menekan/tap salah satu item notifikasi di NotificationBell.
   static Future<void> tandaiDibaca(int notifikasiId) async {
-    try {
-      await _client
-          .from('notifikasi')
-          .update({'dibaca': true})
-          .eq('id', notifikasiId);
-    } catch (_) {}
+    for (final n in _localNotif) {
+      if ((n['id'] as num?)?.toInt() == notifikasiId) {
+        n['dibaca'] = true;
+        break;
+      }
+    }
   }
 }

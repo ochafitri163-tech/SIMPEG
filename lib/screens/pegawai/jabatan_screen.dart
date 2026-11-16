@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 
@@ -27,49 +26,17 @@ class _JabatanRow {
   }
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  final authId = Supabase.instance.client.auth.currentUser?.id;
-  if (authId != null && authId.isNotEmpty) return authId;
-
-  String nik = user?.nik ?? '';
-  if (nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik') ?? '';
-    } catch (_) {}
-  }
-  if (nik.isNotEmpty) {
-    try {
-      final res = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (res != null && res['id'] != null) {
-        return res['id'].toString();
-      }
-    } catch (_) {}
-  }
-  return null;
-}
-
 Future<List<_JabatanRow>> _fetchRiwayatJabatan(AppUser? user) async {
-  final targetId = await _resolvePegawaiId(user);
-  if (targetId == null) return [];
-
   try {
-    final rows = await Supabase.instance.client
-        .from('riwayat_jabatan')
-        .select()
-        .eq('pegawai_id', targetId)
-        .order('tmt', ascending: false);
-
-    return (rows as List)
-        .map((r) => _JabatanRow.fromMap(r as Map<String, dynamic>))
-        .toList();
+    final res = await ApiService.getProfile();
+    if (res['success'] == true && res['data'] != null && res['data']['riwayat_jabatan'] is List) {
+      final list = res['data']['riwayat_jabatan'] as List;
+      return list.map((r) => _JabatanRow.fromMap(Map<String, dynamic>.from(r as Map))).toList();
+    }
   } catch (e) {
-    return [];
+    debugPrint('Error fetch riwayat jabatan: $e');
   }
+  return [];
 }
 
 /// Halaman "Jabatan & Golongan" — menampilkan riwayat jabatan dan unit

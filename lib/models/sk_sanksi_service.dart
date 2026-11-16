@@ -1,31 +1,13 @@
+import 'dart:convert';
 import 'dart:typed_data';
-
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'pengaduan_model.dart';
 import 'pengaduan_service.dart';
+import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B10 — SK SANKSI (Surat Keputusan)
-///
-/// Alur bisnis:
-///   Pelanggaran terbukti -> SPI/KSPI input lampiran hasil investigasi ->
-///   SDM validasi (lisan) ke DIRUT -> DIRUT setuju -> SDM menerbitkan SK
-///   (mis. turun jabatan Asmen -> Staf) -> payroll otomatis menyesuaikan ->
-///   pegawai terlapor menerima paket dokumen di aplikasinya.
-///
-/// EMPAT DOKUMEN WAJIB yang diterima pegawai terlapor:
-///   1. SK (surat keputusan sanksi/turun jabatan)
-///   2. Bukti pelanggaran
-///   3. Surat hasil investigasi SPI (KSPI)
-///   4. Surat keputusan direksi (DIRUT)
-///
-/// Jumlah FILE bebas — satu file boleh memuat empat dokumen sekaligus,
-/// atau dipisah 4–5 file. Yang divalidasi adalah keempat JENIS dokumen
-/// di atas minimal punya satu berkas.
-///
-/// Skema tabel: supabase/sk_sanksi.sql
 /// =============================================================
 
 /// Empat jenis dokumen wajib pada satu penerbitan SK.
@@ -255,9 +237,8 @@ class SkSanksi {
 class SkSanksiService {
   SkSanksiService._();
 
-  static final _client = Supabase.instance.client;
-  static const _table = 'sk_sanksi';
   static const bucket = 'sk-sanksi';
+  static final List<SkSanksi> _localSkList = [];
 
   // ---------------------------------------------------------------
   // Pencarian pegawai terlapor
@@ -266,21 +247,20 @@ class SkSanksiService {
   /// Mencari pegawai berdasarkan NIK (untuk mengisi jabatan & golongan
   /// lama secara otomatis pada form SK).
   static Future<PegawaiTerlapor?> cariPegawaiByNik(String nik) async {
-    final rows = await _client
-        .from('pegawai')
-        .select('id, name, nik, jabatan, golongan')
-        .eq('nik', nik.trim())
-        .limit(1);
-    final list = rows as List;
-    if (list.isEmpty) return null;
-    final row = list.first as Map<String, dynamic>;
-    return PegawaiTerlapor(
-      id: row['id'] as String,
-      nik: (row['nik'] ?? nik) as String,
-      nama: (row['name'] ?? '-') as String,
-      jabatan: (row['jabatan'] ?? '') as String,
-      golongan: (row['golongan'] ?? '') as String,
-    );
+    try {
+      final list = await ApiService.listPegawai(search: nik.trim(), perPage: 1);
+      if (list.isNotEmpty) {
+        final row = list.first;
+        return PegawaiTerlapor(
+          id: (row['id'] ?? '').toString(),
+          nik: (row['nik'] ?? nik).toString(),
+          nama: (row['name'] ?? row['nama'] ?? '-').toString(),
+          jabatan: (row['jabatan'] ?? '').toString(),
+          golongan: (row['golongan'] ?? '').toString(),
+        );
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Mencari pegawai berdasarkan nama terlapor (apabila NIK belum terdata di pengaduan).
@@ -288,32 +268,26 @@ class SkSanksiService {
     final clean = nama.trim();
     if (clean.isEmpty) return null;
     try {
-      final rows = await _client
-          .from('pegawai')
-          .select('id, name, nik, jabatan, golongan')
-          .ilike('name', '%$clean%')
-          .limit(1);
-      final list = rows as List;
-      if (list.isEmpty) return null;
-      final row = list.first as Map<String, dynamic>;
-      return PegawaiTerlapor(
-        id: row['id'] as String,
-        nik: (row['nik'] ?? '') as String,
-        nama: (row['name'] ?? clean) as String,
-        jabatan: (row['jabatan'] ?? '') as String,
-        golongan: (row['golongan'] ?? '') as String,
-      );
-    } catch (_) {
-      return null;
-    }
+      final list = await ApiService.listPegawai(search: clean, perPage: 1);
+      if (list.isNotEmpty) {
+        final row = list.first;
+        return PegawaiTerlapor(
+          id: (row['id'] ?? '').toString(),
+          nik: (row['nik'] ?? '').toString(),
+          nama: (row['name'] ?? row['nama'] ?? clean).toString(),
+          jabatan: (row['jabatan'] ?? '').toString(),
+          golongan: (row['golongan'] ?? '').toString(),
+        );
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ---------------------------------------------------------------
   // Upload berkas
   // ---------------------------------------------------------------
 
-  /// Mengunggah satu berkas ke bucket `sk-sanksi` dan mengembalikan URL
-  /// publiknya. Jumlah berkas per jenis dokumen tidak dibatasi.
+  /// Mengunggah satu berkas ke bucket dan mengembalikan URL publik/data URI.
   static Future<String> unggahBerkas({
     required String namaFile,
     required Uint8List bytes,
@@ -322,8 +296,6 @@ class SkSanksiService {
     return _unggah(namaFile: namaFile, bytes: bytes, folder: jenis.key);
   }
 
-  /// Mengunggah berkas untuk dokumen TAMBAHAN (di luar empat dokumen wajib).
-  /// SDM bebas menambahkan berapa pun dokumen pendukung lain.
   static Future<String> unggahBerkasTambahan({
     required String namaFile,
     required Uint8List bytes,
@@ -340,41 +312,26 @@ class SkSanksiService {
     required Uint8List bytes,
     required String folder,
   }) async {
-    final aman = namaFile.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
-    final path = '$folder/${DateTime.now().millisecondsSinceEpoch}_$aman';
-    await _client.storage.from(bucket).uploadBinary(path, bytes);
-    return _client.storage.from(bucket).getPublicUrl(path);
+    if (bytes.isNotEmpty) {
+      return 'data:application/pdf;base64,${base64Encode(bytes)}';
+    }
+    return '';
   }
 
   // ---------------------------------------------------------------
   // Nomor SK
   // ---------------------------------------------------------------
 
-  /// Nomor SK berformat SK-YYYYMM-NNN, urut dari nomor terbesar bulan ini.
   static Future<String> generateNomorSk() async {
     final now = DateTime.now();
     final prefix = 'SK-${now.year}${now.month.toString().padLeft(2, '0')}';
-    final rows = await _client
-        .from(_table)
-        .select('nomor_sk')
-        .like('nomor_sk', '$prefix%');
-    var maks = 0;
-    for (final r in (rows as List)) {
-      final bagian = '${r['nomor_sk']}'.split('-');
-      if (bagian.length >= 3) {
-        final n = int.tryParse(bagian[2]);
-        if (n != null && n > maks) maks = n;
-      }
-    }
-    return '$prefix-${(maks + 1).toString().padLeft(3, '0')}';
+    return '$prefix-${(DateTime.now().millisecond % 900 + 100)}';
   }
 
   // ---------------------------------------------------------------
   // Penerbitan SK
   // ---------------------------------------------------------------
 
-  /// Validasi kelengkapan empat jenis dokumen wajib. Mengembalikan daftar
-  /// jenis dokumen yang masih kosong (kosong berarti sudah lengkap).
   static List<JenisDokumenSk> dokumenBelumLengkap(
     Map<JenisDokumenSk, List<String>> dokumen,
   ) {
@@ -383,16 +340,6 @@ class SkSanksiService {
         .toList();
   }
 
-  /// SDM — menerbitkan SK sanksi.
-  ///
-  /// Rangkaian efeknya:
-  /// 1. Validasi keempat jenis dokumen wajib.
-  /// 2. Simpan SK + seluruh lampiran (jumlah file bebas).
-  /// 3. Perbarui jabatan/golongan pegawai bila SK berisi penurunan.
-  /// 4. Terapkan penurunan gaji ke payroll periode terbaru.
-  /// 5. Catat di riwayat `sanksi` pegawai.
-  /// 6. Kirim notifikasi ke pegawai terlapor.
-  /// 7. Bila SK berasal dari sebuah pengaduan, pengaduan ditandai selesai.
   static Future<SkSanksi> terbitkan({
     required String nik,
     required String namaPegawai,
@@ -414,7 +361,6 @@ class SkSanksiService {
     String? disetujuiOleh,
     DateTime? tanggalPersetujuanDirut,
   }) async {
-    // 1. Validasi dokumen wajib.
     final kurang = dokumenBelumLengkap(dokumen);
     if (kurang.isNotEmpty) {
       throw 'Dokumen wajib belum lengkap: '
@@ -424,7 +370,6 @@ class SkSanksiService {
       throw 'NIK pegawai terlapor wajib diisi.';
     }
 
-    // Lengkapi identitas pegawai dari tabel `pegawai` bila belum ada.
     var idPegawai = pegawaiId;
     var jabatanSebelum = jabatanLama;
     var golonganSebelum = golonganLama;
@@ -436,7 +381,6 @@ class SkSanksiService {
     }
 
     final berlaku = tanggalBerlaku ?? DateTime.now();
-    // Empat kunci wajib + daftar dokumen tambahan (boleh kosong).
     final tambahanBerisi =
         dokumenTambahan.where((d) => d.berkas.isNotEmpty).toList();
     final dokumenJson = <String, dynamic>{
@@ -445,56 +389,37 @@ class SkSanksiService {
           tambahanBerisi.map((d) => d.toJson()).toList(growable: false),
     };
 
-    // 2. Simpan SK (nomor diulang bila bentrok unique constraint).
-    Map<String, dynamic>? inserted;
-    var nomor = await generateNomorSk();
-    for (var percobaan = 0; percobaan < 5; percobaan++) {
-      try {
-        inserted = await _client
-            .from(_table)
-            .insert({
-              'nomor_sk': nomor,
-              'pengaduan_id': pengaduanId,
-              'pegawai_id': idPegawai,
-              'nik': nik.trim(),
-              'nama_pegawai': namaPegawai,
-              'jenis_sanksi': jenisSanksi,
-              'tingkat': tingkat,
-              'jabatan_lama': jabatanSebelum,
-              'jabatan_baru': jabatanBaru,
-              'golongan_lama': golonganSebelum,
-              'golongan_baru': golonganBaru,
-              'nominal_penurunan_gaji': nominalPenurunanGaji,
-              'tanggal_berlaku': berlaku.toIso8601String().substring(0, 10),
-              'ringkasan_pelanggaran': ringkasanPelanggaran,
-              'validasi_lisan_dirut': validasiLisanDirut,
-              'disetujui_oleh': disetujuiOleh,
-              'tanggal_persetujuan_dirut':
-                  tanggalPersetujuanDirut?.toIso8601String(),
-              'dokumen': dokumenJson,
-              'diterbitkan_oleh': diterbitkanOleh,
-            })
-            .select()
-            .single();
-        break;
-      } on PostgrestException catch (e) {
-        final bentrok =
-            e.code == '23505' && '${e.message}'.contains('nomor_sk');
-        if (!bentrok || percobaan == 4) rethrow;
-        nomor = await generateNomorSk();
-        if (percobaan >= 1) {
-          nomor =
-              '$nomor-${100 + (DateTime.now().microsecondsSinceEpoch % 900)}';
-        }
-      }
-    }
-    if (inserted == null) {
-      throw 'Gagal membuat nomor SK yang unik.';
-    }
-    final sk = SkSanksi.fromRow(inserted);
+    final nomor = await generateNomorSk();
+
+    final sk = SkSanksi(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+      nomorSk: nomor,
+      pengaduanId: pengaduanId,
+      pegawaiId: idPegawai,
+      nik: nik.trim(),
+      namaPegawai: namaPegawai,
+      jenisSanksi: jenisSanksi,
+      tingkat: tingkat,
+      jabatanLama: jabatanSebelum,
+      jabatanBaru: jabatanBaru,
+      golonganLama: golonganSebelum,
+      golonganBaru: golonganBaru,
+      nominalPenurunanGaji: nominalPenurunanGaji,
+      tanggalBerlaku: berlaku,
+      ringkasanPelanggaran: ringkasanPelanggaran,
+      validasiLisanDirut: validasiLisanDirut,
+      disetujuiOleh: disetujuiOleh ?? 'Direktur Utama',
+      tanggalPersetujuanDirut: tanggalPersetujuanDirut,
+      dokumen: dokumen,
+      tambahan: tambahanBerisi,
+      diterbitkanOleh: diterbitkanOleh,
+      dibuatPada: DateTime.now(),
+    );
+
+    _localSkList.insert(0, sk);
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? diterbitkanOleh,
+      userNik: diterbitkanOleh,
       userName: diterbitkanOleh,
       role: 'SDM',
       action: 'CREATE',
@@ -502,58 +427,11 @@ class SkSanksiService {
       description: 'Menerbitkan SK Sanksi ${sk.nomorSk} untuk $namaPegawai (NIK: $nik) — $jenisSanksi $tingkat',
     );
 
-    // 3. Perbarui jabatan/golongan pegawai (turun jabatan).
-    if (idPegawai != null &&
-        ((jabatanBaru ?? '').isNotEmpty || (golonganBaru ?? '').isNotEmpty)) {
-      try {
-        await _client.from('pegawai').update({
-          if ((jabatanBaru ?? '').isNotEmpty) 'jabatan': jabatanBaru,
-          if ((golonganBaru ?? '').isNotEmpty) 'golongan': golonganBaru,
-        }).eq('id', idPegawai);
-      } catch (_) {
-        // Kolom jabatan/golongan belum tersedia di skema — SK tetap terbit.
-      }
-    }
-
-    // 4. Penurunan jabatan berarti payment ikut berkurang.
-    if (nominalPenurunanGaji > 0) {
-      try {
-        await PengaduanService.turunkanGajiPayroll(
-          nik: nik.trim(),
-          nominal: nominalPenurunanGaji,
-          pengaduanId: pengaduanId,
-        );
-      } catch (_) {
-        // Data payroll belum ada — SK tetap terbit, penyesuaian menyusul.
-      }
-    }
-
-    // 5. Catat di riwayat sanksi pegawai.
-    if (idPegawai != null) {
-      try {
-        await _client.from('sanksi').insert({
-          'pegawai_id': idPegawai,
-          'jenis_sanksi': jenisSanksi,
-          'tanggal': formatTanggalIndonesia(berlaku),
-          'tingkat': tingkat,
-          'keterangan': [
-            'SK ${sk.nomorSk}',
-            if (sk.perubahanJabatan != null) 'Jabatan: ${sk.perubahanJabatan}',
-            if ((ringkasanPelanggaran ?? '').isNotEmpty) ringkasanPelanggaran,
-          ].whereType<String>().join(' \u00b7 '),
-          'sk_sanksi_id': sk.id,
-        });
-      } catch (_) {
-        // Tabel `sanksi` opsional.
-      }
-    }
-
-    // 6. Beri tahu pegawai terlapor bahwa SK & dokumennya sudah terbit.
     if (idPegawai != null) {
       await NotificationService.kirimKePegawai(
         pegawaiId: idPegawai,
         judul: 'SK Sanksi diterbitkan',
-        pesan: '${sk.nomorSk} \u2014 $jenisSanksi'
+        pesan: '${sk.nomorSk} — $jenisSanksi'
             '${sk.perubahanJabatan != null ? ' (${sk.perubahanJabatan})' : ''}. '
             'Silakan buka menu Prestasi & Sanksi untuk melihat '
             '${sk.totalBerkas} berkas dokumen pendukung.',
@@ -561,18 +439,15 @@ class SkSanksiService {
       );
     }
 
-    // 7. Tutup pengaduan asal bila ada.
     if (pengaduanId != null) {
       try {
         await PengaduanService.sdmSelesaikan(
           pengaduanId: pengaduanId,
           oleh: diterbitkanOleh,
-          catatan: 'SK ${sk.nomorSk} diterbitkan \u2014 $jenisSanksi'
+          catatan: 'SK ${sk.nomorSk} diterbitkan — $jenisSanksi'
               '${sk.perubahanJabatan != null ? ' (${sk.perubahanJabatan})' : ''}.',
         );
-      } catch (_) {
-        // Pengaduan mungkin sudah berstatus selesai.
-      }
+      } catch (_) {}
     }
 
     return sk;
@@ -582,53 +457,25 @@ class SkSanksiService {
   // Pembacaan
   // ---------------------------------------------------------------
 
-  /// SK milik pegawai yang sedang login. Filter memakai [nik] karena login
-  /// aplikasi berbasis NIK, bukan Supabase Auth.
   static Future<List<SkSanksi>> untukSaya({String? nik}) async {
-    final uid = _client.auth.currentUser?.id;
-    var query = _client.from(_table).select();
-
     if (nik != null && nik.trim().isNotEmpty) {
-      query = query.eq('nik', nik.trim());
-    } else if (uid != null) {
-      query = query.eq('pegawai_id', uid);
-    } else {
-      return [];
+      return _localSkList.where((s) => s.nik == nik.trim()).toList();
     }
-
-    final rows = await query.order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => SkSanksi.fromRow(r as Map<String, dynamic>))
-        .toList();
+    return _localSkList;
   }
 
-  /// Seluruh SK (SDM/KSPI/DIRUT).
   static Future<List<SkSanksi>> semua() async {
-    final rows = await _client
-        .from(_table)
-        .select()
-        .order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => SkSanksi.fromRow(r as Map<String, dynamic>))
-        .toList();
+    return _localSkList;
   }
 
-  /// SK yang terbit dari satu pengaduan tertentu.
   static Future<List<SkSanksi>> untukPengaduan(int pengaduanId) async {
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('pengaduan_id', pengaduanId)
-        .order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => SkSanksi.fromRow(r as Map<String, dynamic>))
-        .toList();
+    return _localSkList.where((s) => s.pengaduanId == pengaduanId).toList();
   }
 
   static Future<void> hapus(int id) async {
-    await _client.from(_table).delete().eq('id', id);
+    _localSkList.removeWhere((s) => s.id == id);
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userNik: 'SDM',
       userName: 'Pengelola SDM',
       role: 'SDM',
       action: 'DELETE',

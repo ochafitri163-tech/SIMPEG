@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pengaduan_model.dart';
 import '../models/pengaduan_service.dart';
 import '../models/pengumuman_model.dart';
@@ -10,16 +10,7 @@ import 'pengumuman_card.dart' show showPengumumanDetail;
 
 /// Ikon lonceng notifikasi yang dipasang di AppBar tiap dashboard.
 /// Menampilkan badge jumlah notifikasi belum dibaca milik user yang
-/// sedang login, dan saat ditekan membuka daftar notifikasinya
-/// (menggantikan NotificationCenter in-memory lama dengan
-/// [NotificationService] yang query ke Supabase).
-///
-/// CATATAN: parameter [role] dipertahankan supaya seluruh pemanggilan
-/// lama (mis. `NotificationBell(role: UserRole.pegawai)` di setiap
-/// dashboard) tidak perlu diubah, tapi sudah tidak dipakai untuk query --
-/// notifikasi di Supabase sudah per-user (`untuk_pegawai_id`), jadi
-/// otomatis hanya menampilkan notifikasi milik user yang sedang login,
-/// apapun role-nya.
+/// sedang login, dan saat ditekan membuka daftar notifikasinya.
 class NotificationBell extends StatefulWidget {
   final UserRole role;
   final AppUser user;
@@ -33,45 +24,21 @@ class _NotificationBellState extends State<NotificationBell> {
   static const Color _navy = Color(0xFF0D2C6E);
 
   int _belumDibaca = 0;
-  RealtimeChannel? _notifSubscription;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _muatJumlahBelumDibaca();
-    _subscribeRealtimeNotifikasi();
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _muatJumlahBelumDibaca();
+    });
   }
 
   @override
   void dispose() {
-    try {
-      _notifSubscription?.unsubscribe();
-    } catch (_) {}
+    _pollTimer?.cancel();
     super.dispose();
-  }
-
-  void _subscribeRealtimeNotifikasi() {
-    try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      _notifSubscription = Supabase.instance.client
-          .channel('public:notifikasi:${widget.user.nik}')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'notifikasi',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'untuk_pegawai_id',
-              value: userId,
-            ),
-            callback: (_) {
-              _muatJumlahBelumDibaca();
-            },
-          )
-          .subscribe();
-    } catch (_) {}
   }
 
   Future<void> _muatJumlahBelumDibaca() async {

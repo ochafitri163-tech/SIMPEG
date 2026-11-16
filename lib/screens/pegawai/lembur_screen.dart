@@ -7,7 +7,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/user_role.dart';
 import '../../services/api_service.dart';
@@ -58,54 +57,6 @@ num _lemburToNum(dynamic val) {
   return 0;
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  // 1. Prioritas: gunakan NIK dari AppUser (selalu ada setelah login)
-  String? nik = user?.nik;
-
-  // 2. Fallback: ambil dari SharedPreferences
-  if (nik == null || nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik');
-      if (nik == null || nik.isEmpty) {
-        final sessionStr = prefs.getString('user_session_json');
-        if (sessionStr != null && sessionStr.isNotEmpty) {
-          final jsonMap = jsonDecode(sessionStr);
-          nik = jsonMap['nik'] as String?;
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 3. Resolve NIK ke pegawai_id (UUID) dengan caching di SharedPreferences
-  if (nik != null && nik.isNotEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedId = prefs.getString('cached_peg_id_$nik');
-      if (cachedId != null && cachedId.isNotEmpty) {
-        return cachedId;
-      }
-
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        final id = peg['id'].toString();
-        await prefs.setString('cached_peg_id_$nik', id);
-        return id;
-      }
-    } catch (_) {}
-  }
-
-  // 4. Last resort: coba Supabase Auth user ID
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId != null && userId.isNotEmpty) return userId;
-
-  return null;
-}
-
 Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
   String nik = user?.nik ?? '';
   String nama = user?.name ?? '';
@@ -113,26 +64,14 @@ Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
   String unitKerja = user?.unitKerja ?? '';
   String jabatan = user?.jabatan ?? '';
 
-  try {
-    final userId = await _resolvePegawaiId(user);
-    if (userId != null) {
-      final row = await Supabase.instance.client
-          .from('pegawai')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-      if (row != null) {
-        if (nik.isEmpty) nik = (row['nik'] ?? '').toString();
-        if (nama.isEmpty) nama = (row['name'] ?? '').toString();
-        if (golongan.isEmpty) {
-          golongan =
-              (row['golongan_detail'] ?? row['golongan'] ?? '').toString();
-        }
-        if (unitKerja.isEmpty) unitKerja = (row['unit_kerja'] ?? '').toString();
-        if (jabatan.isEmpty) jabatan = (row['jabatan'] ?? '').toString();
-      }
-    }
-  } catch (_) {}
+  if (nik.isEmpty) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      nik = prefs.getString('user_nik') ?? '';
+      nama = prefs.getString('user_nama') ?? nama;
+      jabatan = prefs.getString('user_jabatan') ?? jabatan;
+    } catch (_) {}
+  }
 
   return {
     'nik': nik.isEmpty ? '-' : nik,
@@ -144,110 +83,16 @@ Future<Map<String, String>> _fetchPegawaiProfile(AppUser? user) async {
 }
 
 Future<List<_LemburRow>> _fetchLembur(AppUser? user) async {
-  // 1. Prioritas Utama: Ambil dari API Laravel (ApiService.getLembur)
-  // Backend menyatukan data input manual Set Prestasi SDM, tabel lembur, & payroll.
   try {
     final res = await ApiService.getLembur(nik: user?.nik);
     if (res['success'] == true && res['data'] is List) {
       final list = res['data'] as List;
       return list
-          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
+          .map((r) => _LemburRow.fromMap(Map<String, dynamic>.from(r as Map)))
           .toList();
     }
   } catch (e) {
     debugPrint('Gagal fetch lembur via ApiService: $e');
-  }
-
-  // 2. Fallback: Query langsung ke Supabase jika API backend offline
-  final userId = await _resolvePegawaiId(user);
-  if (userId == null) return [];
-
-  try {
-    final results = await Future.wait([
-      Supabase.instance.client
-          .from('prestasi')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false),
-      Supabase.instance.client
-          .from('lembur')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false),
-      Supabase.instance.client
-          .from('payroll')
-          .select('periode, lembur, tahun, bulan')
-          .eq('pegawai_id', userId)
-          .gt('lembur', 0)
-          .order('tahun', ascending: false)
-          .order('bulan', ascending: false),
-    ]);
-
-    final prestasiRows = results[0] as List;
-    final lemburRows = results[1] as List;
-    final payrollRows = results[2] as List;
-
-    // 2a. Dari tabel prestasi (input manual SDM)
-    final List<_LemburRow> fromPrestasi = [];
-    for (final r in prestasiRows) {
-      Map<String, dynamic> meta = {};
-      if (r['keterangan'] != null) {
-        try {
-          meta = jsonDecode(r['keterangan'].toString()) as Map<String, dynamic>;
-        } catch (_) {}
-      }
-      final jam = _lemburToNum(meta['jam_lembur'] ?? r['jam_lembur']);
-      final uang = _lemburToInt(meta['nominal_lembur'] ?? (jam * 9375).round());
-      if (jam > 0 || uang > 0) {
-        String bulanStr = '-';
-        if (r['tanggal'] != null) {
-          final tglStr = r['tanggal'].toString();
-          try {
-            final dt = DateTime.parse(tglStr);
-            const bNames = [
-              '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-              'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-            ];
-            bulanStr = '${bNames[dt.month]} ${dt.year}';
-          } catch (_) {
-            bulanStr = tglStr;
-          }
-        }
-        fromPrestasi.add(_LemburRow(
-          bulan: bulanStr,
-          jamLembur: jam,
-          uangLembur: uang,
-          keterangan: meta['desc'] ?? (r['judul']?.toString()),
-          tanggal: r['tanggal']?.toString(),
-        ));
-      }
-    }
-    if (fromPrestasi.isNotEmpty) {
-      return fromPrestasi;
-    }
-
-    // 2b. Dari tabel lembur
-    if (lemburRows.isNotEmpty) {
-      return lemburRows
-          .map((r) => _LemburRow.fromMap(r as Map<String, dynamic>))
-          .toList();
-    }
-
-    // 2c. Fallback dari tabel payroll di mana lembur > 0
-    if (payrollRows.isNotEmpty) {
-      return payrollRows.map((r) {
-        final uang = _lemburToInt(r['lembur']);
-        // Standard rate PDAM Rp 9.375 / jam (BUKAN 50.000)
-        final jam = max(1.0, (uang / 9375.0));
-        return _LemburRow(
-          bulan: (r['periode'] ?? '-') as String,
-          jamLembur: double.parse(jam.toStringAsFixed(1)),
-          uangLembur: uang,
-        );
-      }).toList();
-    }
-  } catch (e) {
-    debugPrint('Fallback Supabase lembur error: $e');
   }
 
   return [];

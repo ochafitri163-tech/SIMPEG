@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
@@ -25,7 +24,7 @@ int _toInt(dynamic val) {
   return 0;
 }
 
-/// Helper untuk memetakan satu baris record (dari ApiService backend atau Supabase)
+/// Helper untuk memetakan satu baris record (dari ApiService backend)
 /// ke model [InsentifItem] dan [InsentifSlipDetail]
 InsentifItem _rowToInsentifItem(Map<String, dynamic> row, AppUser user) {
   final int bulan = _toInt(row['bulan'] ?? (row['month'] ?? 0));
@@ -100,9 +99,7 @@ InsentifItem _rowToInsentifItem(Map<String, dynamic> row, AppUser user) {
 }
 
 /// Ambil data insentif resmi pegawai dari backend Laravel (ApiService)
-/// atau fallback ke Supabase
 Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
-  // 1. Prioritas Utama: Ambil dari API Laravel Backend
   try {
     final res = await ApiService.getInsentif(nik: user.nik);
     if (res['success'] == true && res['data'] != null) {
@@ -127,60 +124,6 @@ Future<List<InsentifItem>> _fetchInsentif(AppUser user) async {
     }
   } catch (e) {
     debugPrint('Gagal fetch insentif dari ApiService: $e');
-  }
-
-  // 2. Fallback Supabase: Dapatkan target ID pegawai
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) {
-    try {
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', user.nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        userId = peg['id'].toString();
-      }
-    } catch (_) {}
-  }
-
-  if (userId != null) {
-    final List<InsentifItem> combined = [];
-
-    // 2a. Tabel insentif di Supabase (Insentif Pendidikan 2026 & Insentif Khusus dari SDM)
-    try {
-      final rows = await Supabase.instance.client
-          .from('insentif')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('created_at', ascending: false);
-
-      if ((rows as List).isNotEmpty) {
-        for (final row in (rows as List)) {
-          combined.add(_rowToInsentifItem(Map<String, dynamic>.from(row as Map), user));
-        }
-      }
-    } catch (_) {}
-
-    // 2b. Tabel payroll di Supabase (Insentif Bulanan)
-    try {
-      final payrollRows = await Supabase.instance.client
-          .from('payroll')
-          .select()
-          .eq('pegawai_id', userId)
-          .order('tahun', ascending: false)
-          .order('bulan', ascending: false);
-
-      if ((payrollRows as List).isNotEmpty) {
-        for (final row in (payrollRows as List)) {
-          combined.add(_rowToInsentifItem(Map<String, dynamic>.from(row as Map), user));
-        }
-      }
-    } catch (_) {}
-
-    if (combined.isNotEmpty) {
-      return combined;
-    }
   }
 
   return [];

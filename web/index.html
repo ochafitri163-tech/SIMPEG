@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -27,53 +28,254 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>flutter_application_3</title>
 
   <!-- Cloudflare Turnstile Script -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
-  <script>
-    window.renderTurnstileWidget = function(elementId, siteKey, onSuccess, onError, onExpired) {
-      function checkAndRender() {
-        if (window.turnstile && typeof window.turnstile.render === 'function') {
-          try {
-            window.turnstile.render('#' + elementId, {
-              sitekey: siteKey,
-              callback: function(token) {
-                if (onSuccess) onSuccess(token);
-              },
-              'error-callback': function(err) {
-                if (onError) onError(err);
-              },
-              'expired-callback': function() {
-                if (onExpired) onExpired();
-              },
-              theme: 'light'
-            });
-          } catch (e) {
-            console.error('Turnstile render error:', e);
-          }
-        } else {
-          setTimeout(checkAndRender, 150);
-        }
-      }
-      checkAndRender();
-    };
+          <script id="turnstile-helper-script">
+            (function() {
+      var RETRY_INTERVAL_MS = 100;
+            var MAX_RETRY_ATTEMPTS = 100; // Maksimal ~10 detik menunggu script & DOM container siap
+            var registry = window.__turnstileRegistry || (window.__turnstileRegistry = Object.create(null));
 
-    window.resetTurnstileWidget = function(elementId) {
-      if (window.turnstile && typeof window.turnstile.reset === 'function') {
-        try {
-          window.turnstile.reset('#' + elementId);
-        } catch (e) {
-          console.error('Turnstile reset error:', e);
+            function clearPendingTimer(state) {
+        if (state && state.timerId !== null && state.timerId !== undefined) {
+              clearTimeout(state.timerId);
+            state.timerId = null;
         }
       }
-    };
+
+              function toErrorMessage(err, fallback) {
+                if (err === null || err === undefined) return fallback;
+                if (typeof err === 'string') return err || fallback;
+                if (err && typeof err.message === 'string' && err.message) return err.message;
+                try {
+                  return String(err);
+                } catch (_) {
+                  return fallback;
+                }
+              }
+
+            window.renderTurnstileWidget = function(elementId, siteKey, onSuccess, onError, onExpired, onLoaded) {
+        if (!elementId) {
+          if (typeof onError === 'function') onError('ID container Turnstile tidak valid');
+            return;
+        }
+
+            var prev = registry[elementId];
+            if (prev) {
+              clearPendingTimer(prev);
+        }
+
+            var state = prev || {
+              elementId: elementId,
+            widgetId: null,
+            isRendered: false,
+            disposed: false,
+            timerId: null,
+            attempts: 0,
+            config: null
+        };
+
+            state.disposed = false;
+            state.attempts = 0;
+            state.config = {
+              siteKey: siteKey,
+            onSuccess: onSuccess,
+            onError: onError,
+            onExpired: onExpired,
+            onLoaded: onLoaded
+        };
+            registry[elementId] = state;
+
+            // Jika widget untuk container ini sudah pernah ter-render dan masih valid di DOM, hindari double-render.
+            if (state.isRendered && state.widgetId !== null && state.widgetId !== undefined) {
+          var existingEl = document.getElementById(elementId);
+            if (existingEl && existingEl.isConnected && window.turnstile && typeof window.turnstile.reset === 'function') {
+            try {
+              window.turnstile.reset(state.widgetId);
+            if (typeof onLoaded === 'function') onLoaded(String(state.widgetId));
+            return;
+            } catch (resetErr) {
+              console.warn('Turnstile existing widget reset failed, re-rendering:', resetErr);
+            state.isRendered = false;
+            state.widgetId = null;
+            }
+          } else {
+              state.isRendered = false;
+            state.widgetId = null;
+          }
+        }
+
+            function checkAndRender() {
+          if (state.disposed) {
+              clearPendingTimer(state);
+            return;
+          }
+
+            var element = document.getElementById(elementId);
+            var isTurnstileReady = Boolean(
+            window.turnstile &&
+            typeof window.turnstile.render === 'function'
+            );
+            var isContainerReady = Boolean(
+            element &&
+            element.isConnected
+            );
+
+            if (isTurnstileReady && isContainerReady) {
+              clearPendingTimer(state);
+            if (state.isRendered && state.widgetId !== null && state.widgetId !== undefined) {
+              return;
+            }
+
+            try {
+              var widgetId = window.turnstile.render(element, {
+              sitekey: siteKey,
+            callback: function(token) {
+                  if (state.disposed) return;
+            if (typeof onSuccess === 'function') onSuccess(String(token || ''));
+                },
+            'error-callback': function(err) {
+                  if (state.disposed) return;
+            var msg = toErrorMessage(err, 'Verifikasi keamanan gagal');
+            console.error('Turnstile runtime error:', err);
+            if (typeof onError === 'function') onError(msg);
+                },
+            'expired-callback': function() {
+                  if (state.disposed) return;
+            if (typeof onExpired === 'function') onExpired();
+                },
+            theme: 'light'
+              });
+
+            if (widgetId === null || widgetId === undefined || String(widgetId).trim() === '') {
+                throw new Error('Cloudflare Turnstile tidak mengembalikan widget ID yang valid');
+              }
+
+            state.widgetId = widgetId;
+            state.isRendered = true;
+
+            if (!state.disposed && typeof onLoaded === 'function') {
+              onLoaded(String(widgetId));
+              }
+            } catch (e) {
+              state.widgetId = null;
+            state.isRendered = false;
+            var errMsg = toErrorMessage(e, 'Gagal merender Cloudflare Turnstile');
+            console.error('Turnstile render error:', e);
+            if (!state.disposed && typeof onError === 'function') {
+              onError(errMsg);
+              }
+            }
+            return;
+          }
+
+            state.attempts += 1;
+            if (state.attempts < MAX_RETRY_ATTEMPTS) {
+              state.timerId = setTimeout(checkAndRender, RETRY_INTERVAL_MS);
+          } else {
+              clearPendingTimer(state);
+            var timeoutMsg = !isContainerReady
+            ? 'Container verifikasi Turnstile tidak terpasang ke DOM'
+            : 'Skrip Cloudflare Turnstile gagal dimuat atau belum siap';
+            console.error('Turnstile timeout:', {
+              elementId: elementId,
+            isTurnstileReady: isTurnstileReady,
+            isContainerReady: isContainerReady
+            });
+            if (!state.disposed && typeof onError === 'function') {
+              onError(timeoutMsg);
+            }
+          }
+        }
+
+            checkAndRender();
+      };
+
+            window.resetTurnstileWidget = function(elementId) {
+        if (!elementId) return;
+            var state = registry[elementId];
+            var cfg = state && state.config ? state.config : null;
+
+            if (
+            state &&
+            !state.disposed &&
+            state.isRendered &&
+            state.widgetId !== null &&
+            state.widgetId !== undefined &&
+            window.turnstile &&
+            typeof window.turnstile.reset === 'function'
+            ) {
+          var element = document.getElementById(elementId);
+            if (element && element.isConnected) {
+            try {
+              window.turnstile.reset(state.widgetId);
+            if (cfg && typeof cfg.onLoaded === 'function') {
+              cfg.onLoaded(String(state.widgetId));
+              }
+            return;
+            } catch (e) {
+              console.error('Turnstile reset error:', e);
+            state.isRendered = false;
+            state.widgetId = null;
+            if (cfg && typeof cfg.onError === 'function') {
+              cfg.onError(toErrorMessage(e, 'Gagal mereset verifikasi Turnstile'));
+              }
+            return;
+            }
+          }
+        }
+
+            // Widget belum pernah berhasil ter-render: jangan panggil turnstile.reset(), melainkan render ulang aman bila config tersedia.
+            if (state && !state.disposed && cfg) {
+              window.renderTurnstileWidget(
+                elementId,
+                cfg.siteKey,
+                cfg.onSuccess,
+                cfg.onError,
+                cfg.onExpired,
+                cfg.onLoaded
+              );
+        }
+      };
+
+            window.removeTurnstileWidget = function(elementId) {
+        if (!elementId) return;
+            var state = registry[elementId];
+            if (!state) return;
+
+            state.disposed = true;
+            clearPendingTimer(state);
+
+            if (
+            state.isRendered &&
+            state.widgetId !== null &&
+            state.widgetId !== undefined &&
+            window.turnstile &&
+            typeof window.turnstile.remove === 'function'
+            ) {
+          try {
+              window.turnstile.remove(state.widgetId);
+          } catch (e) {
+              console.warn('Turnstile remove warning:', e);
+          }
+        }
+
+            state.widgetId = null;
+            state.isRendered = false;
+            state.config = null;
+            delete registry[elementId];
+      };
+    })();
   </script>
   <link rel="manifest" href="manifest.json">
 </head>
+
 <body>
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

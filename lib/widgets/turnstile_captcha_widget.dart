@@ -17,7 +17,7 @@ class TurnstileCaptchaWidget extends StatefulWidget {
     required this.onVerified,
     this.onExpired,
     this.onError,
-    this.baseUrl = 'https://jyywrknlkqwmiqokmcju.supabase.co',
+    this.baseUrl = 'http://127.0.0.1:8000',
   });
 
   @override

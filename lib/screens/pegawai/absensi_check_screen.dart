@@ -1,7 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/absensi_service.dart';
 import '../../models/pengaduan_model.dart' show formatTanggalJam;
@@ -9,8 +9,7 @@ import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// B7 — ABSENSI ASLI: check-in / check-out dengan swafoto (selfie) &
-/// lokasi GPS (opsional bila izin lokasi tersedia). Menggantikan data
-/// kehadiran dummy dengan presensi nyata yang tersimpan di Supabase.
+/// lokasi GPS (opsional bila izin lokasi tersedia).
 class AbsensiCheckScreen extends StatefulWidget {
   final AppUser user;
   const AbsensiCheckScreen({super.key, required this.user});
@@ -22,7 +21,6 @@ class AbsensiCheckScreen extends StatefulWidget {
 class _AbsensiCheckScreenState extends State<AbsensiCheckScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
   static const Color _accent = Color(0xFF2E86AB);
-  static const _bucket = 'absensi';
 
   bool _loading = true;
   bool _proses = false;
@@ -99,16 +97,9 @@ class _AbsensiCheckScreenState extends State<AbsensiCheckScreen> {
         return;
       }
       final pos = await _ambilLokasi();
-      final client = Supabase.instance.client;
-      final path =
-          '${widget.user.nik}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       String? fotoUrl;
-      try {
-        await client.storage.from(_bucket).uploadBinary(path, selfie);
-        fotoUrl = client.storage.from(_bucket).getPublicUrl(path);
-      } catch (e) {
-        // Bila upload gagal, absensi tetap tercatat tanpa foto.
-        fotoUrl = null;
+      if (selfie.isNotEmpty) {
+        fotoUrl = 'data:image/jpeg;base64,${base64Encode(selfie)}';
       }
       await AbsensiService.checkIn(
         fotoUrl: fotoUrl,

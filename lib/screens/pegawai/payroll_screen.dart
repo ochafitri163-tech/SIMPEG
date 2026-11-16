@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
@@ -23,94 +23,82 @@ String formatRupiah(int value) {
   return 'Rp $buffer';
 }
 
-/// Ambil semua data payroll milik pegawai yang sedang login dari Supabase,
+/// Ambil semua data payroll milik pegawai yang sedang login dari Laravel API lokal,
 /// diurutkan dari periode terbaru ke terlama, lalu dipetakan ke model
 /// [PayrollItem] + [PayrollSlipDetail] yang sama persis dipakai UI/PDF di
 /// bawah -- sehingga tidak ada satupun widget/PDF builder yang perlu diubah.
 Future<List<PayrollItem>> _fetchPayroll(AppUser user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  try {
+    final res = await ApiService.getSlipGaji();
+    if (res['success'] != true || res['data'] == null) {
+      return [];
+    }
 
-  // Fallback jika login via session tersimpan / auto-login
-  if (userId == null) {
-    try {
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', user.nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        userId = peg['id'].toString();
-      }
-    } catch (_) {}
+    final dynamic historyData = res['data']['history'] ?? (res['data']['payroll'] != null ? [res['data']['payroll']] : []);
+    final List rows = historyData is List ? historyData : [];
+
+    return rows.map((row) {
+      final slip = PayrollSlipDetail(
+        bulanLabel: (row['periode'] as String? ?? '').toUpperCase(),
+        nik: user.nik,
+        nama: user.name,
+        golongan: user.golonganUntukSlip,
+        unitKerja: user.unitKerja,
+        jabatan: user.jabatan,
+        gapok: (row['gapok'] ?? 0) as int,
+        tunjanganIstri: (row['tunjangan_istri'] ?? 0) as int,
+        tunjanganAnak: (row['tunjangan_anak'] ?? 0) as int,
+        tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+        tunjanganPrestasi: (row['tunjangan_prestasi'] ?? 0) as int,
+        tunjanganTransportasi: (row['tunjangan_transportasi'] ?? 0) as int,
+        tunjanganPangan: (row['tunjangan_pangan'] ?? 0) as int,
+        tunjanganBpjsKesehatan: (row['tunjangan_bpjs_kesehatan'] ?? 0) as int,
+        tunjanganPerumahan: (row['tunjangan_perumahan'] ?? 0) as int,
+        tunjanganBpjsTenagaKerja:
+            (row['tunjangan_bpjs_tenaga_kerja'] ?? 0) as int,
+        tunjanganPerusahaan: (row['tunjangan_perusahaan'] ?? 0) as int,
+        lembur: (row['lembur'] ?? 0) as int,
+        tunjanganPajak: (row['tunjangan_pajak'] ?? 0) as int,
+        tunjanganAirMinum: (row['tunjangan_air_minum'] ?? 0) as int,
+        tunjanganKomunikasi: (row['tunjangan_komunikasi'] ?? 0) as int,
+        potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
+        potonganTrandistPmiLain: (row['potongan_trandist_pmi_lain'] ?? 0) as int,
+        potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
+        potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
+        potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
+        potonganTunjanganPerusahaan:
+            (row['potongan_tunjangan_perusahaan'] ?? 0) as int,
+        potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
+        potonganPajak: (row['potongan_pajak'] ?? 0) as int,
+        potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
+        potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
+        potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
+        potonganRekeningAirMinum:
+            (row['potongan_rekening_air_minum'] ?? 0) as int,
+        potonganKas: (row['potongan_kas'] ?? 0) as int,
+        potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
+        potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
+        potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
+        potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
+        potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
+        potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
+      );
+
+      return PayrollItem(
+        periode: (row['periode'] as String? ?? '').toUpperCase(),
+        gajiPokok: (row['gapok'] ?? 0) as int,
+        tunjanganKeluarga: ((row['tunjangan_istri'] ?? 0) as int) +
+            ((row['tunjangan_anak'] ?? 0) as int),
+        tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
+        potongan: slip.totalPotongan,
+        status: (row['status'] as String? ?? 'DITERBITKAN'),
+        slip: slip,
+      );
+    }).toList();
+  } catch (e) {
+    debugPrint('Error fetch payroll: $e');
+    return [];
   }
-
-  if (userId == null) return [];
-
-  final rows = await Supabase.instance.client
-      .from('payroll')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('tahun', ascending: false)
-      .order('bulan', ascending: false);
-
-  return (rows as List).map((row) {
-    final slip = PayrollSlipDetail(
-      bulanLabel: (row['periode'] as String).toUpperCase(),
-      nik: user.nik,
-      nama: user.name,
-      golongan: user.golonganUntukSlip,
-      unitKerja: user.unitKerja,
-      jabatan: user.jabatan,
-      gapok: (row['gapok'] ?? 0) as int,
-      tunjanganIstri: (row['tunjangan_istri'] ?? 0) as int,
-      tunjanganAnak: (row['tunjangan_anak'] ?? 0) as int,
-      tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
-      tunjanganPrestasi: (row['tunjangan_prestasi'] ?? 0) as int,
-      tunjanganTransportasi: (row['tunjangan_transportasi'] ?? 0) as int,
-      tunjanganPangan: (row['tunjangan_pangan'] ?? 0) as int,
-      tunjanganBpjsKesehatan: (row['tunjangan_bpjs_kesehatan'] ?? 0) as int,
-      tunjanganPerumahan: (row['tunjangan_perumahan'] ?? 0) as int,
-      tunjanganBpjsTenagaKerja:
-          (row['tunjangan_bpjs_tenaga_kerja'] ?? 0) as int,
-      tunjanganPerusahaan: (row['tunjangan_perusahaan'] ?? 0) as int,
-      lembur: (row['lembur'] ?? 0) as int,
-      tunjanganPajak: (row['tunjangan_pajak'] ?? 0) as int,
-      tunjanganAirMinum: (row['tunjangan_air_minum'] ?? 0) as int,
-      tunjanganKomunikasi: (row['tunjangan_komunikasi'] ?? 0) as int,
-      potonganSanksiPerusahaan: (row['potongan_sanksi_perusahaan'] ?? 0) as int,
-      potonganTrandistPmiLain: (row['potongan_trandist_pmi_lain'] ?? 0) as int,
-      potonganDapenma: (row['potongan_dapenma'] ?? 0) as int,
-      potonganBpjsTenagaKerja: (row['potongan_bpjs_tenaga_kerja'] ?? 0) as int,
-      potonganPerumahan: (row['potongan_perumahan'] ?? 0) as int,
-      potonganTunjanganPerusahaan:
-          (row['potongan_tunjangan_perusahaan'] ?? 0) as int,
-      potonganKorpri: (row['potongan_korpri'] ?? 0) as int,
-      potonganPajak: (row['potongan_pajak'] ?? 0) as int,
-      potonganBpjsKesehatan: (row['potongan_bpjs_kesehatan'] ?? 0) as int,
-      potonganKoperasi: (row['potongan_koperasi'] ?? 0) as int,
-      potonganDarmaWanita: (row['potongan_darma_wanita'] ?? 0) as int,
-      potonganRekeningAirMinum:
-          (row['potongan_rekening_air_minum'] ?? 0) as int,
-      potonganKas: (row['potongan_kas'] ?? 0) as int,
-      potonganBankBjb: (row['potongan_bank_bjb'] ?? 0) as int,
-      potonganBankBjbs: (row['potongan_bank_bjbs'] ?? 0) as int,
-      potonganBankBtn: (row['potongan_bank_btn'] ?? 0) as int,
-      potonganBankBpr: (row['potongan_bank_bpr'] ?? 0) as int,
-      potonganAsuransi: (row['potongan_asuransi'] ?? 0) as int,
-      potonganZakatProfesi: (row['potongan_zakat_profesi'] ?? 0) as int,
-    );
-
-    return PayrollItem(
-      periode: row['periode'] as String,
-      gajiPokok: (row['gapok'] ?? 0) as int,
-      tunjanganKeluarga: ((row['tunjangan_istri'] ?? 0) as int) +
-          ((row['tunjangan_anak'] ?? 0) as int),
-      tunjanganJabatan: (row['tunjangan_jabatan'] ?? 0) as int,
-      potongan: slip.totalPotongan,
-      status: row['status'] as String,
-      slip: slip,
-    );
-  }).toList();
 }
 
 /// Halaman Payroll / Gaji — didesain mengikuti mockup UI (kartu ringkasan

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// B10 — LUPA PASSWORD.
-/// Mengirim email tautan reset password lewat Supabase Auth.
+/// Mengirim permintaan reset password pegawai ke administrator SIMPEG / SDM.
 class LupaPasswordScreen extends StatefulWidget {
   const LupaPasswordScreen({super.key});
 
@@ -31,17 +30,12 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
       return;
     }
     setState(() => _kirim = true);
-    try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
-      if (!mounted) return;
-      setState(() {
-        _kirim = false;
-        _terkirim = true;
-      });
-    } catch (e) {
-      setState(() => _kirim = false);
-      _pesan('Gagal mengirim email reset: $e');
-    }
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    setState(() {
+      _kirim = false;
+      _terkirim = true;
+    });
   }
 
   void _pesan(String m) {

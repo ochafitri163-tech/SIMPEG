@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
 import '../models/task_model.dart';
 import '../models/pengaduan_service.dart';
 import '../theme/app_colors.dart';
@@ -1073,28 +1073,13 @@ class _PegawaiTersangkaPickerContentState
     setState(() => _isLoading = true);
 
     try {
-      final client = Supabase.instance.client;
-      dynamic rows;
+      final rows = await ApiService.listPegawai(
+        search: q.isEmpty ? null : q,
+        perPage: 200,
+      );
 
-      if (q.isEmpty) {
-        rows = await client
-            .from('pegawai')
-            .select()
-            .order('name', ascending: true)
-            .limit(200);
-      } else {
-        // Hanya search by name dan nik agar tidak ada false positive dari
-        // field jabatan (misal: "Operator" mengandung substring "rat", dll.)
-        rows = await client
-            .from('pegawai')
-            .select()
-            .or('name.ilike.%$q%,nik.ilike.%$q%')
-            .order('name', ascending: true)
-            .limit(100);
-      }
-
-      var list = (rows as List)
-          .map((r) => PegawaiOption.fromMap(r as Map<String, dynamic>))
+      var list = rows
+          .map((r) => PegawaiOption.fromMap(r))
           .toList();
 
       // Exclude diri sendiri

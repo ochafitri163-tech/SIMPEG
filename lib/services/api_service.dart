@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'onesignal_service.dart';
 
 class ApiService {
@@ -169,21 +168,23 @@ class ApiService {
     }
   }
 
-  /// 7. Check-In Absensi
-  static Future<Map<String, dynamic>> checkinAbsensi(double? lat, double? lng) async {
-    final url = Uri.parse('$baseUrl/absensi/checkin');
-    final prefs = await SharedPreferences.getInstance();
-    final nik = prefs.getString('user_nik') ?? '';
-
+  /// 7. Daftar Pegawai (Master Data dari PostgreSQL lokal)
+  static Future<List<Map<String, dynamic>>> listPegawai({String? search, int perPage = 200}) async {
+    final query = search != null && search.isNotEmpty
+        ? '?search=${Uri.encodeComponent(search)}&per_page=$perPage'
+        : '?per_page=$perPage';
+    final url = Uri.parse('$baseUrl/pegawai$query');
     try {
-      final response = await http.post(
-        url,
-        headers: await _getHeaders(),
-        body: jsonEncode({'nik': nik, 'latitude': lat, 'longitude': lng}),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      final response = await http.get(url, headers: await _getHeaders());
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded['data'] is List) {
+          return List<Map<String, dynamic>>.from(decoded['data']);
+        }
+      }
+      return [];
+    } catch (_) {
+      return [];
     }
   }
 
@@ -260,13 +261,188 @@ class ApiService {
     }
   }
 
-  /// 11. Logout - membersihkan seluruh sesi aktif, OneSignal, Supabase Auth, dan SharedPreferences
+  /// 11. Cuti Pegawai
+  static Future<Map<String, dynamic>> getCuti({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/cuti').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> storeCuti({
+    required String jenis,
+    required String tglMulai,
+    required String tglSelesai,
+    required String alasan,
+    String? nik,
+  }) async {
+    final url = Uri.parse('$baseUrl/cuti');
+    final prefs = await SharedPreferences.getInstance();
+    final activeNik = nik ?? prefs.getString('user_nik') ?? '';
+
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(explicitNik: activeNik),
+        body: jsonEncode({
+          'nik': activeNik,
+          'jenis_cuti': jenis,
+          'tgl_mulai': tglMulai,
+          'tgl_selesai': tglSelesai,
+          'alasan': alasan,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 12. Pengaduan Pegawai
+  static Future<Map<String, dynamic>> getPengaduan({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/pengaduan').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> storePengaduan({
+    required String subjek,
+    required String pesan,
+    String? nik,
+  }) async {
+    final url = Uri.parse('$baseUrl/pengaduan');
+    final prefs = await SharedPreferences.getInstance();
+    final activeNik = nik ?? prefs.getString('user_nik') ?? '';
+
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(explicitNik: activeNik),
+        body: jsonEncode({
+          'nik': activeNik,
+          'subjek': subjek,
+          'pesan': pesan,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 13. Sanksi & Prestasi
+  static Future<Map<String, dynamic>> getSanksi({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/sanksi').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getPrestasi({String? nik}) async {
+    final uri = Uri.parse('$baseUrl/prestasi').replace(
+      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 14. Ganti Password
+  static Future<Map<String, dynamic>> gantiPassword({
+    required String oldPassword,
+    required String newPassword,
+    String? nik,
+  }) async {
+    final url = Uri.parse('$baseUrl/ganti-password');
+    final prefs = await SharedPreferences.getInstance();
+    final activeNik = nik ?? prefs.getString('user_nik') ?? '';
+
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(explicitNik: activeNik),
+        body: jsonEncode({
+          'nik': activeNik,
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 15. Checkin & Checkout Absensi
+  static Future<Map<String, dynamic>> checkinAbsensi({
+    String? nik,
+    double? latitude,
+    double? longitude,
+    String? fotoUrl,
+    String? keterangan,
+  }) async {
+    final url = Uri.parse('$baseUrl/absensi/checkin');
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(explicitNik: nik),
+        body: jsonEncode({
+          if (nik != null) 'nik': nik,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+          if (fotoUrl != null) 'foto_url': fotoUrl,
+          if (keterangan != null) 'keterangan': keterangan,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> checkoutAbsensi({
+    String? nik,
+    int? id,
+  }) async {
+    final url = Uri.parse('$baseUrl/absensi/checkout');
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(explicitNik: nik),
+        body: jsonEncode({
+          if (nik != null) 'nik': nik,
+          if (id != null) 'id': id,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 16. Logout - membersihkan seluruh sesi aktif, OneSignal, dan SharedPreferences
   static Future<void> logout() async {
     try {
       await OneSignalService.instance.logoutUser();
-    } catch (_) {}
-    try {
-      await Supabase.instance.client.auth.signOut();
     } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();

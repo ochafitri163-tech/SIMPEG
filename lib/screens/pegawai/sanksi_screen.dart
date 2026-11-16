@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 
 class _SanksiRow {
@@ -17,27 +17,22 @@ class _SanksiRow {
 
   factory _SanksiRow.fromMap(Map<String, dynamic> row) {
     return _SanksiRow(
-      jenisSanksi: (row['jenis_sanksi'] ?? 'Sanksi Disiplin') as String,
-      tanggal: (row['tanggal'] ?? '-') as String,
-      keterangan: (row['keterangan'] ?? '-') as String,
+      jenisSanksi: (row['jenis_sanksi'] ?? row['jenis'] ?? 'Sanksi Disiplin') as String,
+      tanggal: (row['tanggal'] ?? row['tgl_sanksi'] ?? row['created_at'] ?? '-') as String,
+      keterangan: (row['keterangan'] ?? row['alasan'] ?? '-') as String,
       status: (row['status'] ?? 'Aktif') as String,
     );
   }
 }
 
 Future<List<_SanksiRow>> _fetchSanksi() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return [];
-
-  final rows = await Supabase.instance.client
-      .from('sanksi')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false);
-
-  return (rows as List)
-      .map((r) => _SanksiRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+  final res = await ApiService.getSanksi();
+  if (res['success'] == true && res['data'] is List) {
+    return (res['data'] as List)
+        .map((r) => _SanksiRow.fromMap(Map<String, dynamic>.from(r as Map)))
+        .toList();
+  }
+  return [];
 }
 
 class SanksiScreen extends StatefulWidget {

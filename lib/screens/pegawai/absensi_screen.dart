@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
-/// login dari tabel `attendance` di Supabase. Kalau belum ada data untuk
+/// login dari API Laravel lokal. Kalau belum ada data untuk
 /// bulan ini, kembalikan ringkasan kosong (0/0/0) supaya UI tetap tampil
 /// rapi tanpa error.
 Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
   final now = DateTime.now();
 
   const bulanList = [
@@ -28,29 +27,26 @@ Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
   ];
   final labelBulanIni = '${bulanList[now.month]} ${now.year}';
 
-  if (userId == null) {
-    return AttendanceSummary(
-        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
-  }
-
-  final row = await Supabase.instance.client
-      .from('attendance')
-      .select()
-      .eq('pegawai_id', userId)
-      .eq('tahun', now.year)
-      .eq('bulan', now.month)
-      .maybeSingle();
-
-  if (row == null) {
-    return AttendanceSummary(
-        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
+  try {
+    final res = await ApiService.getAbsensi();
+    if (res['success'] == true && res['summary'] != null) {
+      final s = res['summary'];
+      return AttendanceSummary(
+        bulanLabel: (s['bulan_label'] ?? labelBulanIni) as String,
+        hadir: (s['hadir'] ?? 0) as int,
+        telat: (s['telat'] ?? 0) as int,
+        izin: (s['izin'] ?? 0) as int,
+      );
+    }
+  } catch (e) {
+    debugPrint('Error fetch attendance from ApiService: $e');
   }
 
   return AttendanceSummary(
-    bulanLabel: (row['bulan_label'] ?? labelBulanIni) as String,
-    hadir: (row['hadir'] ?? 0) as int,
-    telat: (row['telat'] ?? 0) as int,
-    izin: (row['izin'] ?? 0) as int,
+    bulanLabel: labelBulanIni,
+    hadir: 0,
+    telat: 0,
+    izin: 0,
   );
 }
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import '../models/user_role.dart';
 import '../services/api_service.dart';
@@ -43,14 +43,15 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(_animDuration + _holdDuration);
     if (!mounted) return;
 
-    // Cek apakah ada session user yang tersimpan dan sesi Supabase masih aktif
+    // Cek apakah ada session user yang tersimpan dan token otentikasi aktif
     final savedSession = await ApiService.getSavedUserSession();
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final prefs = await SharedPreferences.getInstance();
+    final hasToken = (prefs.getString('auth_token') ?? '').isNotEmpty;
 
     if (!mounted) return;
 
     Widget nextScreen;
-    if (savedSession != null && currentUser != null) {
+    if (savedSession != null && hasToken) {
       // Auto-login: langsung ke Dashboard tanpa perlu login ulang
       final user = AppUser.fromJson(savedSession);
       OneSignalService.instance.loginUser(
@@ -60,9 +61,7 @@ class _SplashScreenState extends State<SplashScreen>
       );
       nextScreen = PegawaiDashboard(user: user);
     } else {
-      // Jika pengguna sudah logout dari Supabase Auth tetapi sisa SharedPreferences masih ada,
-      // bersihkan sisa sesi agar tidak terjadi kebocoran sesi akun lama.
-      if (savedSession != null && currentUser == null) {
+      if (savedSession != null && !hasToken) {
         await ApiService.logout();
       }
       nextScreen = const LoginScreen();

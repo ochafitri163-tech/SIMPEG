@@ -1,15 +1,13 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'pegawai_data.dart';
+import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
 
 /// =============================================================
 /// B7 — ABSENSI ASLI (check-in / check-out harian)
 ///
-/// Menggantikan sumber data dummy (jsonplaceholder) dengan presensi
-/// nyata yang disimpan ke tabel `absensi_harian` di Supabase.
+/// Menyimpan presensi ke tabel `absensi_harian` via Laravel API backend.
 /// Ringkasan bulanan (Hadir/Telat/Izin) dihitung langsung dari tabel ini.
-///
-/// Skema lihat: supabase/fitur_tambahan.sql
 /// =============================================================
 class AbsensiHarian {
   final int id;
@@ -59,9 +57,6 @@ class AbsensiHarian {
 class AbsensiService {
   AbsensiService._();
 
-  static final _client = Supabase.instance.client;
-  static const _table = 'absensi_harian';
-
   /// Batas jam masuk normal (07:00–08:00). Lebih dari ini dianggap telat.
   static const int jamBatasMasuk = 8;
 
@@ -72,103 +67,90 @@ class AbsensiService {
 
   /// Ambil record absensi hari ini milik user login (null jika belum absen).
   static Future<AbsensiHarian?> hariIni() async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return null;
-    final wibNow = DateTime.now().toUtc().add(const Duration(hours: 7));
-    final row = await _client
-        .from(_table)
-        .select()
-        .eq('pegawai_id', uid)
-        .eq('tanggal', _tanggalKey(wibNow))
-        .maybeSingle();
-    return row == null ? null : AbsensiHarian.fromRow(row);
+    try {
+      final res = await ApiService.getAbsensi();
+      if (res['success'] == true && res['data'] is List) {
+        final list = res['data'] as List;
+        final wibNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+        final todayStr = _tanggalKey(wibNow);
+        for (final item in list) {
+          final map = Map<String, dynamic>.from(item as Map);
+          final tgl = (map['tanggal'] ?? '').toString();
+          if (tgl.startsWith(todayStr)) {
+            return AbsensiHarian.fromRow(map);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error get hariIni absensi: $e');
+    }
+    return null;
   }
 
-  /// Check-in. Status otomatis 'telat' bila lewat jam batas (WIB).
+  /// Check-in.
   static Future<void> checkIn({
     String? fotoUrl,
     double? lat,
     double? lng,
     String? keterangan,
   }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) throw StateError('Sesi tidak valid, silakan login ulang.');
-    final nowUtc = DateTime.now().toUtc();
-    final wibNow = nowUtc.add(const Duration(hours: 7));
-    final status = wibNow.hour >= jamBatasMasuk ? 'telat' : 'hadir';
-    await _client.from(_table).insert({
-      'pegawai_id': uid,
-      'tanggal': _tanggalKey(wibNow),
-      'jam_masuk': nowUtc.toIso8601String(),
-      'status': status,
-      if (fotoUrl != null) 'foto_url': fotoUrl,
-      if (lat != null) 'lat': lat,
-      if (lng != null) 'lng': lng,
-      if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
-    });
-
+    final res = await ApiService.checkinAbsensi(
+      latitude: lat,
+      longitude: lng,
+      fotoUrl: fotoUrl,
+      keterangan: keterangan,
+    );
+    if (res['success'] != true) {
+      throw StateError(res['message']?.toString() ?? 'Gagal melakukan check-in.');
+    }
     AuditLogService.logAction(
-      userNik: uid,
+      userNik: 'PEGAWAI',
       userName: 'Pegawai',
       role: 'PEGAWAI',
       action: 'CREATE',
       module: 'Absensi',
-      description: 'Check-in absensi hari ini (status: $status)',
+      description: 'Check-in absensi hari ini',
     );
   }
 
   /// Check-out (isi jam pulang) untuk record hari ini.
   static Future<void> checkOut({required int id}) async {
-    await _client.from(_table).update({
-      'jam_pulang': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', id);
-
-    final uid = _client.auth.currentUser?.id ?? 'PEGAWAI';
+    final res = await ApiService.checkoutAbsensi(id: id);
+    if (res['success'] != true) {
+      throw StateError(res['message']?.toString() ?? 'Gagal melakukan check-out.');
+    }
     AuditLogService.logAction(
-      userNik: uid,
+      userNik: 'PEGAWAI',
       userName: 'Pegawai',
       role: 'PEGAWAI',
       action: 'UPDATE',
       module: 'Absensi',
-      description: 'Check-out absensi hari ini (ID absensi: $id)',
+      description: 'Check-out absensi hari ini (ID: $id)',
     );
   }
 
   /// Ajukan izin cepat untuk hari ini (status 'izin').
   static Future<void> ajukanIzinHariIni({required String keterangan}) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) throw StateError('Sesi tidak valid, silakan login ulang.');
-    final wibNow = DateTime.now().toUtc().add(const Duration(hours: 7));
-    await _client.from(_table).insert({
-      'pegawai_id': uid,
-      'tanggal': _tanggalKey(wibNow),
-      'status': 'izin',
-      'keterangan': keterangan,
-    });
-
-    AuditLogService.logAction(
-      userNik: uid,
-      userName: 'Pegawai',
-      role: 'PEGAWAI',
-      action: 'CREATE',
-      module: 'Absensi',
-      description: 'Mengajukan izin hari ini: "$keterangan"',
+    final res = await ApiService.checkinAbsensi(
+      keterangan: 'Izin: $keterangan',
     );
+    if (res['success'] != true) {
+      throw StateError(res['message']?.toString() ?? 'Gagal mengajukan izin.');
+    }
   }
 
   /// Riwayat absensi terbaru milik user login.
   static Future<List<AbsensiHarian>> riwayat({int limit = 30}) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return [];
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('pegawai_id', uid)
-        .order('tanggal', ascending: false)
-        .limit(limit);
-    return (rows as List)
-        .map((r) => AbsensiHarian.fromRow(r as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await ApiService.getAbsensi();
+      if (res['success'] == true && res['data'] is List) {
+        return (res['data'] as List)
+            .take(limit)
+            .map((r) => AbsensiHarian.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
   /// Ringkasan bulan berjalan (dihitung dari absensi_harian).
@@ -177,38 +159,21 @@ class AbsensiService {
     required int bulan,
     required String bulanLabel,
   }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) {
-      return AttendanceSummary(
-          bulanLabel: bulanLabel, hadir: 0, telat: 0, izin: 0);
-    }
-    final awal = '${tahun.toString().padLeft(4, '0')}-'
-        '${bulan.toString().padLeft(2, '0')}-01';
-    final akhirBulan = (bulan == 12)
-        ? DateTime(tahun + 1, 1, 1)
-        : DateTime(tahun, bulan + 1, 1);
-    final akhir = _tanggalKey(akhirBulan);
-    final rows = await _client
-        .from(_table)
-        .select('status')
-        .eq('pegawai_id', uid)
-        .gte('tanggal', awal)
-        .lt('tanggal', akhir);
-    int hadir = 0, telat = 0, izin = 0;
-    for (final r in (rows as List)) {
-      switch (r['status']) {
-        case 'hadir':
-          hadir++;
-          break;
-        case 'telat':
-          telat++;
-          break;
-        case 'izin':
-          izin++;
-          break;
+    try {
+      final res = await ApiService.getAbsensi();
+      if (res['success'] == true) {
+        if (res['summary'] is Map) {
+          final s = res['summary'] as Map;
+          return AttendanceSummary(
+            bulanLabel: s['bulan_label']?.toString() ?? bulanLabel,
+            hadir: (s['hadir'] ?? 0) as int,
+            telat: (s['telat'] ?? 0) as int,
+            izin: (s['izin'] ?? 0) as int,
+          );
+        }
       }
-    }
+    } catch (_) {}
     return AttendanceSummary(
-        bulanLabel: bulanLabel, hadir: hadir, telat: telat, izin: izin);
+        bulanLabel: bulanLabel, hadir: 0, telat: 0, izin: 0);
   }
 }

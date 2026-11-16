@@ -1,7 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/task_model.dart';
 import '../../models/user_role.dart';
@@ -12,9 +12,7 @@ import '../../theme/app_colors.dart';
 
 
 /// Halaman "Pengaduan Pegawai" — form untuk mengirimkan keluhan/pengaduan
-/// pegawai. Setelah dikirim, pengaduan disimpan ke Supabase lewat
-/// [PengaduanService.submit] (menggantikan PengaduanRepository in-memory
-/// lama) sehingga tersimpan permanen & bisa dilihat Kadiv/KSPI/dst.
+/// pegawai. Setelah dikirim, pengaduan disimpan lewat [PengaduanService].
 class PengaduanPegawaiScreen extends StatefulWidget {
   final AppUser user;
   const PengaduanPegawaiScreen({super.key, required this.user});
@@ -265,29 +263,15 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
     setState(() => _fotoLampiran.removeAt(index));
   }
 
-  /// Upload semua foto lampiran ke Supabase Storage (bucket
-  /// "pengaduan-bukti") dan kembalikan daftar URL publiknya.
-  /// CATATAN: bucket ini perlu dibuat dulu manual di Supabase Dashboard
-  /// (Storage > New bucket > "pengaduan-bukti").
+  /// Encode semua foto lampiran ke data URI dan kembalikan daftarnya.
   Future<List<String>> _uploadFotoLampiran() async {
-    final storage = Supabase.instance.client.storage;
     final urls = <String>[];
-
     for (int i = 0; i < _fotoLampiran.length; i++) {
       final foto = _fotoLampiran[i];
-      final fileName =
-          '${widget.user.nik}_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-
-      await storage.from('pengaduan-bukti').uploadBinary(
-            fileName,
-            foto.bytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg'),
-          );
-
-      final url = storage.from('pengaduan-bukti').getPublicUrl(fileName);
-      urls.add(url);
+      if (foto.bytes.isNotEmpty) {
+        urls.add('data:image/jpeg;base64,${base64Encode(foto.bytes)}');
+      }
     }
-
     return urls;
   }
 

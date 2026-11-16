@@ -1,4 +1,5 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
+import '../services/api_service.dart';
 import 'user_role.dart';
 import 'pengaduan_service.dart' as notif;
 import '../services/audit_log_service.dart';
@@ -98,9 +99,6 @@ class PengajuanCuti {
 class CutiService {
   CutiService._();
 
-  static final _client = Supabase.instance.client;
-  static const _table = 'pengajuan_cuti';
-
   /// Role yang berwenang menyetujui/menolak pengajuan cuti.
   static const List<UserRole> roleApprover = [UserRole.sdm, UserRole.direktur];
 
@@ -108,7 +106,7 @@ class CutiService {
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 
-  /// Pegawai — ajukan cuti/izin. Memvalidasi tanggal & alasan.
+  /// Pegawai — ajukan cuti/izin. Memvalidasi tanggal & alasan via API Laravel lokal.
   static Future<void> ajukan({
     required String namaPegawai,
     required JenisCuti jenis,
@@ -116,26 +114,26 @@ class CutiService {
     required DateTime selesai,
     required String alasan,
   }) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) throw StateError('Sesi tidak valid, silakan login ulang.');
     if (alasan.trim().isEmpty) {
       throw ArgumentError('Alasan wajib diisi.');
     }
     if (selesai.isBefore(mulai)) {
       throw ArgumentError('Tanggal selesai tidak boleh sebelum tanggal mulai.');
     }
-    await _client.from(_table).insert({
-      'pegawai_id': uid,
-      'nama_pegawai': namaPegawai,
-      'jenis': jenis.name,
-      'tanggal_mulai': _tgl(mulai),
-      'tanggal_selesai': _tgl(selesai),
-      'alasan': alasan.trim(),
-      'status': StatusCuti.menunggu.name,
-    });
+
+    final res = await ApiService.storeCuti(
+      jenis: jenis.name,
+      tglMulai: _tgl(mulai),
+      tglSelesai: _tgl(selesai),
+      alasan: alasan.trim(),
+    );
+
+    if (res['success'] != true) {
+      throw Exception(res['message'] ?? 'Gagal mengajukan cuti ke server.');
+    }
 
     AuditLogService.logAction(
-      userNik: uid,
+      userNik: 'PEGAWAI',
       userName: namaPegawai,
       role: 'PEGAWAI',
       action: 'CREATE',
@@ -155,28 +153,28 @@ class CutiService {
     }
   }
 
-  /// Daftar pengajuan milik user login.
+  /// Daftar pengajuan milik user login via API Laravel lokal.
   static Future<List<PengajuanCuti>> milikSaya() async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return [];
-    final rows = await _client
-        .from(_table)
-        .select()
-        .eq('pegawai_id', uid)
-        .order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => PengajuanCuti.fromRow(r as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await ApiService.getCuti();
+      if (res['success'] == true && res['data'] is List) {
+        return (res['data'] as List)
+            .map((r) => PengajuanCuti.fromRow(r as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error get cuti via ApiService: $e');
+    }
+    return [];
   }
 
   /// Approver — seluruh pengajuan (opsional filter status menunggu).
   static Future<List<PengajuanCuti>> semua({bool hanyaMenunggu = false}) async {
-    var q = _client.from(_table).select();
-    if (hanyaMenunggu) q = q.eq('status', StatusCuti.menunggu.name);
-    final rows = await q.order('created_at', ascending: false);
-    return (rows as List)
-        .map((r) => PengajuanCuti.fromRow(r as Map<String, dynamic>))
-        .toList();
+    final list = await milikSaya();
+    if (hanyaMenunggu) {
+      return list.where((c) => c.status == StatusCuti.menunggu).toList();
+    }
+    return list;
   }
 
   /// Approver — setujui / tolak pengajuan. Memberi notifikasi ke pegawai.
@@ -186,20 +184,14 @@ class CutiService {
     required String namaApprover,
     String? catatan,
   }) async {
-    await _client.from(_table).update({
-      'status': keputusan.name,
-      'diputuskan_oleh': namaApprover,
-      'catatan_approver': catatan,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', pengajuan.id);
-
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'APPROVER',
+      userNik: 'APPROVER',
       userName: namaApprover,
       role: 'SDM/DIREKTUR',
       action: 'UPDATE',
       module: 'Cuti',
-      description: 'Memutuskan pengajuan ${pengajuan.jenis.label} #${pengajuan.id} milik ${pengajuan.namaPegawai} menjadi ${keputusan.label}',
+      description:
+          'Memutuskan pengajuan ${pengajuan.jenis.label} #${pengajuan.id} milik ${pengajuan.namaPegawai} menjadi ${keputusan.label}',
     );
 
     try {

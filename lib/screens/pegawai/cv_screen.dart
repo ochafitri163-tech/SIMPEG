@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
 
@@ -23,92 +22,46 @@ class _CvData {
   });
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId != null && userId.isNotEmpty) return userId;
-
-  String? nik = user?.nik;
-  if (nik == null || nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik');
-      if (nik == null || nik.isEmpty) {
-        final sessionStr = prefs.getString('user_session_json');
-        if (sessionStr != null && sessionStr.isNotEmpty) {
-          final jsonMap = jsonDecode(sessionStr);
-          nik = jsonMap['nik'] as String?;
-        }
-      }
-    } catch (_) {}
-  }
-
-  if (nik != null && nik.isNotEmpty) {
-    try {
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        return peg['id'].toString();
-      }
-    } catch (_) {}
-  }
-
-  return null;
-}
-
 Future<_CvData> _fetchCvData(AppUser? user) async {
-  final pegId = await _resolvePegawaiId(user);
-  final client = Supabase.instance.client;
-
   Map<String, dynamic> pegMap = {};
-  if (pegId != null) {
-    try {
-      final res = await client.from('pegawai').select().eq('id', pegId).maybeSingle();
-      if (res != null) pegMap = Map<String, dynamic>.from(res);
-    } catch (_) {}
-  } else if (user?.nik != null && user!.nik.isNotEmpty) {
-    try {
-      final res = await client.from('pegawai').select().eq('nik', user.nik).maybeSingle();
-      if (res != null) pegMap = Map<String, dynamic>.from(res);
-    } catch (_) {}
-  }
-
-  final targetId = pegMap['id']?.toString() ?? pegId;
-
   List<Map<String, dynamic>> pendList = [];
   List<Map<String, dynamic>> jabList = [];
   List<Map<String, dynamic>> presList = [];
   List<Map<String, dynamic>> kelList = [];
   List<Map<String, dynamic>> dokList = [];
 
-  if (targetId != null) {
-    try {
-      final r = await client.from('pendidikan').select().eq('pegawai_id', targetId).order('tahun_lulus', ascending: false);
-      pendList = List<Map<String, dynamic>>.from(r);
-    } catch (_) {}
-
-    try {
-      final r = await client.from('riwayat_jabatan').select().eq('pegawai_id', targetId).order('tmt', ascending: false);
-      jabList = List<Map<String, dynamic>>.from(r);
-    } catch (_) {}
-
-    try {
-      final r = await client.from('prestasi').select().eq('pegawai_id', targetId).order('tanggal', ascending: false);
-      presList = List<Map<String, dynamic>>.from(r);
-    } catch (_) {}
-
-    try {
-      final r = await client.from('keluarga').select().eq('pegawai_id', targetId).order('created_at', ascending: true);
-      kelList = List<Map<String, dynamic>>.from(r);
-    } catch (_) {}
-
-    try {
-      final r = await client.from('dokumen_pegawai').select().eq('pegawai_id', targetId).order('created_at', ascending: false);
-      dokList = List<Map<String, dynamic>>.from(r);
-    } catch (_) {}
+  try {
+    final profRes = await ApiService.getProfile();
+    if (profRes['success'] == true && profRes['data'] != null) {
+      final d = profRes['data'] as Map<String, dynamic>;
+      pegMap = d;
+      if (d['pendidikan'] is List) {
+        pendList = List<Map<String, dynamic>>.from(d['pendidikan'] as List);
+      }
+      if (d['riwayat_jabatan'] is List) {
+        jabList = List<Map<String, dynamic>>.from(d['riwayat_jabatan'] as List);
+      }
+      if (d['keluarga'] is List) {
+        kelList = List<Map<String, dynamic>>.from(d['keluarga'] as List);
+      }
+    }
+  } catch (e) {
+    debugPrint('Error fetch profile for CV: $e');
   }
+
+  try {
+    final presRes = await ApiService.getPrestasi(nik: user?.nik);
+    if (presRes['success'] == true && presRes['data'] is List) {
+      presList = List<Map<String, dynamic>>.from(presRes['data'] as List);
+    }
+  } catch (_) {}
+
+  try {
+    final dokRes = await ApiService.getDokumenResmi(nik: user?.nik);
+    if (dokRes['success'] == true && dokRes['data'] is List) {
+      dokList = List<Map<String, dynamic>>.from(dokRes['data'] as List);
+    }
+  } catch (_) {}
 
   return _CvData(
     pegawai: pegMap,

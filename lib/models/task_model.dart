@@ -2,7 +2,7 @@
 library;
 
 class PegawaiOption {
-  final String id; // UUID Supabase
+  final String id; // ID Pegawai
   final String nik;
   final String name;
   final String jabatan;

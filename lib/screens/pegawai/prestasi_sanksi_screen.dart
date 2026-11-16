@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import 'sk_sanksi_screen.dart';
 
@@ -62,74 +61,36 @@ class _SanksiRow {
   }
 }
 
-Future<String?> _resolvePegawaiId(AppUser? user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId != null) return userId;
-
-  String nik = user?.nik ?? '';
-  if (nik.isEmpty) {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      nik = prefs.getString('user_nik') ?? '';
-      if (nik.isEmpty) {
-        final sessionJson = prefs.getString('user_session_json');
-        if (sessionJson != null) {
-          final decoded = jsonDecode(sessionJson) as Map<String, dynamic>;
-          nik = (decoded['nik'] ?? '') as String;
-        }
-      }
-    } catch (_) {}
-  }
-
-  if (nik.isNotEmpty) {
-    try {
-      final res = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', nik)
-          .maybeSingle();
-      if (res != null) {
-        return res['id'] as String?;
-      }
-    } catch (_) {}
-  }
-
-  return null;
-}
-
 Future<List<_PrestasiRow>> _fetchPrestasi(AppUser? user) async {
-  final userId = await _resolvePegawaiId(user);
-  if (userId == null) return [];
-
-  final rows = await Supabase.instance.client
-      .from('prestasi')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false);
-
-  return (rows as List)
-      .map((r) => _PrestasiRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+  try {
+    final res = await ApiService.getPrestasi(nik: user?.nik);
+    if (res['success'] == true && res['data'] is List) {
+      return (res['data'] as List)
+          .map((r) => _PrestasiRow.fromMap(Map<String, dynamic>.from(r as Map)))
+          .toList();
+    }
+  } catch (e) {
+    debugPrint('Gagal fetch prestasi via ApiService: $e');
+  }
+  return [];
 }
 
 Future<List<_SanksiRow>> _fetchSanksi(AppUser? user) async {
-  final userId = await _resolvePegawaiId(user);
-  if (userId == null) return [];
-
-  final rows = await Supabase.instance.client
-      .from('sanksi')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('created_at', ascending: false);
-
-  return (rows as List)
-      .map((r) => _SanksiRow.fromMap(r as Map<String, dynamic>))
-      .toList();
+  try {
+    final res = await ApiService.getSanksi(nik: user?.nik);
+    if (res['success'] == true && res['data'] is List) {
+      return (res['data'] as List)
+          .map((r) => _SanksiRow.fromMap(Map<String, dynamic>.from(r as Map)))
+          .toList();
+    }
+  } catch (e) {
+    debugPrint('Gagal fetch sanksi via ApiService: $e');
+  }
+  return [];
 }
 
 /// Halaman Prestasi & Sanksi — gabungan riwayat penghargaan/prestasi dan
-/// catatan sanksi/disiplin pegawai yang sedang login, diambil dari
-/// Supabase (tabel `prestasi` dan `sanksi`).
+/// catatan sanksi/disiplin pegawai yang sedang login.
 class PrestasiSanksiScreen extends StatefulWidget {
   final AppUser user;
   const PrestasiSanksiScreen({super.key, required this.user});

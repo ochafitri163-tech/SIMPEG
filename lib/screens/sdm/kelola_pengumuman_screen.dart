@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pengaduan_model.dart' show formatTanggalJam;
 import '../../models/pengumuman_model.dart';
 import '../../models/user_role.dart';
@@ -489,7 +489,6 @@ class _FormPengumumanScreen extends StatefulWidget {
 class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
   static const Color _accent = Color(0xFF2E86AB);
-  static const _bucket = 'pengumuman';
 
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _judulC;
@@ -552,11 +551,7 @@ class _FormPengumumanScreenState extends State<_FormPengumumanScreen> {
         return;
       }
       setState(() => _uploading = true);
-      final client = Supabase.instance.client;
-      final path =
-          '${DateTime.now().millisecondsSinceEpoch}_${f.name}'.replaceAll(' ', '_');
-      await client.storage.from(_bucket).uploadBinary(path, f.bytes!);
-      final url = client.storage.from(_bucket).getPublicUrl(path);
+      final url = 'data:application/octet-stream;base64,${base64Encode(f.bytes!)}';
       setState(() {
         _lampiranUrl = url;
         _lampiranNama = f.name;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Menampung URL hasil upload lampiran multi-media (foto, video, voice note,
@@ -25,7 +25,7 @@ class MediaLampiranController {
 
 /// Widget pemilih lampiran: Foto (galeri), Video, Voice Note (rekam langsung
 /// via paket `record`), dan Dokumen (via `file_picker`). Setiap file langsung
-/// diunggah ke Supabase Storage & URL publiknya disimpan di [controller].
+/// diunggah sebagai lampiran & URL datanya disimpan di [controller].
 class MediaLampiranPicker extends StatefulWidget {
   final MediaLampiranController controller;
   final String bucket;
@@ -54,7 +54,6 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
   static const Color red = Color(0xFFE74C3C);
   static const Color hintGrey = Color(0xFF9AA5B1);
 
-  final _client = Supabase.instance.client;
   final _imagePicker = ImagePicker();
   final _recorder = AudioRecorder();
 
@@ -69,8 +68,24 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
     final safePrefix =
         widget.prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final filename = '${safePrefix}_$ts.$ext';
-    await _client.storage.from(widget.bucket).uploadBinary(filename, bytes);
-    final url = _client.storage.from(widget.bucket).getPublicUrl(filename);
+    String mime;
+    if (ext == 'jpg' || ext == 'jpeg') {
+      mime = 'image/jpeg';
+    } else if (ext == 'png') {
+      mime = 'image/png';
+    } else if (ext == 'mp4') {
+      mime = 'video/mp4';
+    } else if (ext == 'm4a') {
+      mime = 'audio/m4a';
+    } else if (ext == 'mp3') {
+      mime = 'audio/mpeg';
+    } else if (ext == 'pdf') {
+      mime = 'application/pdf';
+    } else {
+      mime = 'application/octet-stream';
+    }
+    final base64Str = base64Encode(bytes);
+    final url = 'data:$mime;name=$filename;base64,$base64Str';
     target.add(url);
   }
 
@@ -275,17 +290,39 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
     );
   }
 
-  /// Filename ringkas dari URL Supabase Storage (buang query string & path).
+  /// Filename ringkas dari URL lampiran (buang query string & path).
   String _namaFile(String url) {
+    if (url.startsWith('data:')) {
+      final match = RegExp(r'name=([^;]+)').firstMatch(url);
+      if (match != null) return match.group(1)!;
+      return 'lampiran_${url.length}b';
+    }
     final withoutQuery = url.split('?').first;
     final segments = withoutQuery.split('/');
     return segments.isNotEmpty ? segments.last : url;
   }
 
   Future<void> _bukaUrl(String url) async {
+    if (url.startsWith('data:')) {
+      try {
+        final commaIdx = url.indexOf(',');
+        if (commaIdx != -1) {
+          final base64Part = url.substring(commaIdx + 1);
+          final bytes = base64Decode(base64Part);
+          final name = _namaFile(url);
+          final dir = await getTemporaryDirectory();
+          final file = File('${dir.path}/$name');
+          await file.writeAsBytes(bytes);
+          final uri = Uri.file(file.path);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
     final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    if (await canLaunchUrl(uri)) {
+    if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -295,6 +332,13 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
   }
 
   void _lihatFotoPenuh(String url) {
+    ImageProvider imgProvider;
+    if (url.startsWith('data:')) {
+      final base64Part = url.split(',').last;
+      imgProvider = MemoryImage(base64Decode(base64Part));
+    } else {
+      imgProvider = NetworkImage(url);
+    }
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.9),
@@ -306,7 +350,7 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
             children: [
               Center(
                 child: InteractiveViewer(
-                  child: Image.network(url, fit: BoxFit.contain),
+                  child: Image(image: imgProvider, fit: BoxFit.contain),
                 ),
               ),
               Positioned(
@@ -419,6 +463,13 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
           fontSize: 11, fontWeight: FontWeight.w700, color: navy));
 
   Widget _thumbnailFoto(String url, int index) {
+    ImageProvider imgProvider;
+    if (url.startsWith('data:')) {
+      final base64Part = url.split(',').last;
+      imgProvider = MemoryImage(base64Decode(base64Part));
+    } else {
+      imgProvider = NetworkImage(url);
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -426,25 +477,11 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
           onTap: () => _lihatFotoPenuh(url),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              url,
+            child: Image(
+              image: imgProvider,
               width: 64,
               height: 64,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return Container(
-                  width: 64,
-                  height: 64,
-                  color: accent.withValues(alpha: 0.08),
-                  alignment: Alignment.center,
-                  child: const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              },
               errorBuilder: (context, error, stack) => Container(
                 width: 64,
                 height: 64,

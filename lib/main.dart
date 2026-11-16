@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/realtime_notification_service.dart';
@@ -8,27 +7,20 @@ import 'services/notification_nav_helper.dart';
 import 'services/theme_controller.dart';
 import 'models/pengumuman_model.dart';
 
-// Ganti dengan URL & anon key project Supabase kamu
-// Ambil di: Supabase Dashboard > Settings > API
-const String supabaseUrl = 'https://jyywrknlkqwmiqokmcju.supabase.co';
-const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5eXdya25sa3F3bWlxb2ttY2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNzQ3NTEsImV4cCI6MjA5ODY1MDc1MX0.54_KntZXHuOpMj9IQUqUb9rl1a_B4zJQAplNCIbgc9c';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Inisialisasi Supabase Database
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
-
-  // 2. Inisialisasi Sistem Notifikasi Lokal (Status Bar & Alarm Jam Terbit)
+  // 1. Inisialisasi Sistem Notifikasi Lokal (Status Bar & Alarm Jam Terbit)
   await NotificationService.instance.init();
 
-  // 3. Inisialisasi OneSignal Push Notification Cloud
-  await OneSignalService.instance.init();
+  // 2. Inisialisasi OneSignal Push Notification Cloud
+  try {
+    await OneSignalService.instance.init();
+  } catch (e) {
+    debugPrint('OneSignal init error: $e');
+  }
 
-  // 4. Inisialisasi Supabase Realtime Notification Listener
+  // 3. Inisialisasi Realtime Notification Service Lokal
   try {
     await RealtimeNotificationService.instance.init();
   } catch (e) {
@@ -46,9 +38,6 @@ Future<void> main() async {
 
   runApp(const SimpegApp());
 }
-
-// Shortcut biar gampang akses Supabase client dari mana aja
-final supabase = Supabase.instance.client;
 
 class SimpegApp extends StatelessWidget {
   const SimpegApp({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../../services/audit_log_service.dart';
 
@@ -41,17 +41,23 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
     }
     setState(() => _simpan = true);
     try {
-      final sb = Supabase.instance.client;
-      await sb.auth.updateUser(UserAttributes(password: baru));
+      final res = await ApiService.gantiPassword(
+        oldPassword: '',
+        newPassword: baru,
+      );
+
+      if (res['success'] != true) {
+        throw Exception(res['message'] ?? 'Gagal memperbarui password di server.');
+      }
 
       // Catat log ganti password secara silent
       AuditLogService.logAction(
-        userNik: sb.auth.currentUser?.id ?? 'UNKNOWN',
-        userName: sb.auth.currentUser?.email ?? 'Pegawai',
+        userNik: 'PEGAWAI',
+        userName: 'Pegawai',
         role: 'PEGAWAI',
         action: 'UPDATE',
         module: 'Autentikasi',
-        description: 'Mengganti kata sandi akun (user ID: ${sb.auth.currentUser?.id ?? '-'})',
+        description: 'Mengganti kata sandi akun via REST API',
       );
 
       if (!mounted) return;

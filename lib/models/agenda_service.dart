@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_role.dart';
 import '../services/audit_log_service.dart';
 
@@ -6,10 +5,7 @@ import '../services/audit_log_service.dart';
 /// B11 — KALENDER AGENDA / KEGIATAN
 ///
 /// Agenda kantor (rapat, kegiatan, hari penting) yang dibuat oleh SDM /
-/// role pengelola dan dapat dilihat seluruh role. Sumber data tunggal:
-/// tabel `agenda` di Supabase.
-///
-/// Skema lihat: supabase/fitur_tambahan.sql
+/// role pengelola dan dapat dilihat seluruh role.
 /// =============================================================
 class Agenda {
   final int id;
@@ -51,8 +47,26 @@ class Agenda {
 class AgendaService {
   AgendaService._();
 
-  static final _client = Supabase.instance.client;
-  static const _table = 'agenda';
+  static final List<Agenda> _localAgendas = [
+    Agenda(
+      id: 1,
+      judul: 'Rapat Evaluasi Triwulan & Kinerja Pegawai',
+      tanggal: DateTime.now().add(const Duration(days: 3)),
+      waktu: '09:00 WIB',
+      lokasi: 'Ruang Rapat Utama',
+      dibuatOleh: 'SDM',
+      dibuatPada: DateTime.now(),
+    ),
+    Agenda(
+      id: 2,
+      judul: 'Sosialisasi Program Kerja SIMPEG Baru',
+      tanggal: DateTime.now().add(const Duration(days: 7)),
+      waktu: '10:00 WIB',
+      lokasi: 'Aula Serbaguna & Zoom',
+      dibuatOleh: 'SDM',
+      dibuatPada: DateTime.now(),
+    ),
+  ];
 
   /// Role yang boleh menambah/menghapus agenda.
   static const List<UserRole> rolePengelola = [
@@ -74,32 +88,19 @@ class AgendaService {
     required int tahun,
     required int bulan,
   }) async {
-    final awal = '${tahun.toString().padLeft(4, '0')}-'
-        '${bulan.toString().padLeft(2, '0')}-01';
-    final akhirBulan =
-        (bulan == 12) ? DateTime(tahun + 1, 1, 1) : DateTime(tahun, bulan + 1, 1);
-    final rows = await _client
-        .from(_table)
-        .select()
-        .gte('tanggal', awal)
-        .lt('tanggal', _tgl(akhirBulan))
-        .order('tanggal', ascending: true);
-    return (rows as List)
-        .map((r) => Agenda.fromRow(r as Map<String, dynamic>))
-        .toList();
+    final list = _localAgendas.where((a) =>
+        a.tanggal.year == tahun && a.tanggal.month == bulan).toList();
+    list.sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    return list;
   }
 
   /// Agenda mendatang (>= hari ini) untuk ringkasan.
   static Future<List<Agenda>> mendatang({int limit = 20}) async {
-    final rows = await _client
-        .from(_table)
-        .select()
-        .gte('tanggal', _tgl(DateTime.now()))
-        .order('tanggal', ascending: true)
-        .limit(limit);
-    return (rows as List)
-        .map((r) => Agenda.fromRow(r as Map<String, dynamic>))
-        .toList();
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final list = _localAgendas.where((a) => !a.tanggal.isBefore(todayStart)).toList();
+    list.sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    return list.take(limit).toList();
   }
 
   static Future<void> tambah({
@@ -113,17 +114,20 @@ class AgendaService {
     if (judul.trim().isEmpty) {
       throw ArgumentError('Judul agenda wajib diisi.');
     }
-    await _client.from(_table).insert({
-      'judul': judul.trim(),
-      'deskripsi': deskripsi,
-      'tanggal': _tgl(tanggal),
-      'waktu': waktu,
-      'lokasi': lokasi,
-      'dibuat_oleh': dibuatOleh,
-    });
+    final newAgenda = Agenda(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+      judul: judul.trim(),
+      deskripsi: deskripsi,
+      tanggal: tanggal,
+      waktu: waktu,
+      lokasi: lokasi,
+      dibuatOleh: dibuatOleh,
+      dibuatPada: DateTime.now(),
+    );
+    _localAgendas.add(newAgenda);
 
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? dibuatOleh,
+      userNik: dibuatOleh,
       userName: dibuatOleh,
       role: 'SDM',
       action: 'CREATE',
@@ -133,9 +137,9 @@ class AgendaService {
   }
 
   static Future<void> hapus({required int id}) async {
-    await _client.from(_table).delete().eq('id', id);
+    _localAgendas.removeWhere((a) => a.id == id);
     AuditLogService.logAction(
-      userNik: _client.auth.currentUser?.id ?? 'SDM',
+      userNik: 'SDM',
       userName: 'Pengelola',
       role: 'SDM',
       action: 'DELETE',

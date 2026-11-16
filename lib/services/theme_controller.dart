@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum UiVersion { v1, v2 }
 
@@ -40,19 +39,6 @@ class ThemeController {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsKey, dark);
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId != null) {
-      try {
-        await Supabase.instance.client.from('preferensi_pegawai').upsert({
-          'pegawai_id': userId,
-          'mode_gelap': dark,
-          'updated_at': DateTime.now().toIso8601String(),
-        });
-      } catch (_) {
-        // Preferensi lokal tetap tersimpan walau sinkron ke Supabase gagal.
-      }
-    }
   }
 
   Future<void> setUiVersion(UiVersion version) async {
@@ -60,18 +46,5 @@ class ThemeController {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_versionPrefsKey, version == UiVersion.v1 ? 'v1' : 'v2');
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId != null) {
-      try {
-        await Supabase.instance.client.from('preferensi_pegawai').upsert({
-          'pegawai_id': userId,
-          'ui_version': version == UiVersion.v1 ? 'v1' : 'v2',
-          'updated_at': DateTime.now().toIso8601String(),
-        });
-      } catch (_) {
-        // Ignored fallback
-      }
-    }
   }
 }

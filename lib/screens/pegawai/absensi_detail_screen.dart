@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// ==========================================================================
@@ -66,17 +66,8 @@ const _bulanList = [
 /// FETCH LOGIC
 /// ==========================================================================
 ///
-/// Asumsi: tabel `attendance_log` di Supabase punya kolom per-hari:
-///   - pegawai_id (uuid)
-///   - tanggal    (date)
-///   - jam_masuk  (time / text "HH:mm:ss", nullable kalau absen)
-///   - jam_pulang (time / text "HH:mm:ss", nullable)
-///
-/// Kalau nama tabel/kolom di database lo beda, tinggal sesuaikan bagian
-/// `.from('attendance_log')` dan nama kolomnya saja — logika bucket-nya
-/// tidak perlu diubah.
+/// Mengambil riwayat absensi pegawai dari API backend Laravel (tabel absensi_harian).
 Future<List<MonthlyArrivalBucket>> fetchRincianAbsensi3Bulan() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
   final now = DateTime.now();
 
   // Susun 3 periode bulan terakhir (bulan berjalan + 2 bulan sebelumnya),
@@ -86,33 +77,15 @@ Future<List<MonthlyArrivalBucket>> fetchRincianAbsensi3Bulan() async {
     return _MonthKey(d.year, d.month);
   });
 
-  if (userId == null) {
-    return periods
-        .map((p) => MonthlyArrivalBucket.empty(
-            '${_bulanList[p.month]} ${p.year}', p.year, p.month))
-        .toList();
-  }
-
-  final earliest = periods.last; // bulan paling lama dalam rentang
-  final startDate =
-      DateTime(earliest.year, earliest.month, 1).toIso8601String();
-  final endDate = DateTime(now.year, now.month + 1, 1)
-      .subtract(const Duration(days: 1))
-      .toIso8601String();
-
   List<Map<String, dynamic>> rows = [];
   try {
-    final result = await Supabase.instance.client
-        .from('attendance_log')
-        .select('tanggal, jam_masuk, jam_pulang')
-        .eq('pegawai_id', userId)
-        .gte('tanggal', startDate.split('T').first)
-        .lte('tanggal', endDate.split('T').first)
-        .order('tanggal');
-    rows = List<Map<String, dynamic>>.from(result as List);
+    final res = await ApiService.getAbsensi();
+    if (res['success'] == true && res['data'] is List) {
+      rows = List<Map<String, dynamic>>.from(
+          (res['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)));
+    }
   } catch (_) {
-    // Kalau query gagal (misal tabel belum ada / kolom beda), tampilkan
-    // rekap kosong supaya UI tetap rapi tanpa crash.
+    // Kalau query gagal, tampilkan rekap kosong supaya UI tetap rapi tanpa crash.
     rows = [];
   }
 

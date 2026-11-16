@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import '../../models/pengumuman_model.dart';
@@ -26,11 +25,8 @@ import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
-/// login. Sumber utama adalah presensi harian nyata (tabel
-/// `absensi_harian`); bila belum ada, jatuh ke agregat bulanan lama
-/// (tabel `attendance`). Tidak lagi memakai data dummy dari API publik.
+/// login dari presensi harian (tabel `absensi_harian`).
 Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
   final now = DateTime.now();
 
   const bulanList = [
@@ -50,41 +46,20 @@ Future<AttendanceSummary> _fetchAttendanceBulanIni() async {
   ];
   final labelBulanIni = '${bulanList[now.month]} ${now.year}';
 
-  if (userId == null) {
+  try {
+    return await AbsensiService.ringkasanBulan(
+      tahun: now.year,
+      bulan: now.month,
+      bulanLabel: labelBulanIni,
+    );
+  } catch (_) {
     return AttendanceSummary(
-        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
+      bulanLabel: labelBulanIni,
+      hadir: 0,
+      telat: 0,
+      izin: 0,
+    );
   }
-
-  // Sumber utama: presensi harian nyata (absensi_harian).
-  final harian = await AbsensiService.ringkasanBulan(
-    tahun: now.year,
-    bulan: now.month,
-    bulanLabel: labelBulanIni,
-  );
-  if (harian.hadir + harian.telat + harian.izin > 0) {
-    return harian;
-  }
-
-  // Fallback: agregat bulanan lama (attendance).
-  final row = await Supabase.instance.client
-      .from('attendance')
-      .select()
-      .eq('pegawai_id', userId)
-      .eq('tahun', now.year)
-      .eq('bulan', now.month)
-      .maybeSingle();
-
-  if (row == null) {
-    return AttendanceSummary(
-        bulanLabel: labelBulanIni, hadir: 0, telat: 0, izin: 0);
-  }
-
-  return AttendanceSummary(
-    bulanLabel: (row['bulan_label'] ?? labelBulanIni) as String,
-    hadir: (row['hadir'] ?? 0) as int,
-    telat: (row['telat'] ?? 0) as int,
-    izin: (row['izin'] ?? 0) as int,
-  );
 }
 
 class PegawaiDashboard extends StatefulWidget {

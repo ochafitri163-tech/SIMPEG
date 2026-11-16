@@ -4,46 +4,31 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 
 import '../../models/pegawai_data.dart';
 import '../../models/user_role.dart';
 import 'payroll_screen.dart' show formatRupiah;
 import '../../theme/app_colors.dart';
 
-/// Ambil semua data THR milik pegawai yang sedang login dari Supabase,
+/// Ambil semua data THR milik pegawai yang sedang login dari Laravel API lokal,
 /// diurutkan dari tahun terbaru ke terlama, lalu dipetakan ke model
 /// [ThrItem] + [ThrSlipDetail] yang sama persis dipakai UI/PDF di bawah.
 Future<List<ThrItem>> _fetchThr(AppUser user) async {
-  String? userId = Supabase.instance.client.auth.currentUser?.id;
+  try {
+    final res = await ApiService.getSlipThr();
+    if (res['success'] != true || res['data'] == null) {
+      return [];
+    }
 
-  // Fallback jika login via session tersimpan / auto-login
-  if (userId == null) {
-    try {
-      final peg = await Supabase.instance.client
-          .from('pegawai')
-          .select('id')
-          .eq('nik', user.nik)
-          .maybeSingle();
-      if (peg != null && peg['id'] != null) {
-        userId = peg['id'].toString();
-      }
-    } catch (_) {}
-  }
+    final dynamic historyData = res['data']['history'] ?? (res['data']['thr'] != null ? [res['data']['thr']] : []);
+    final List rows = historyData is List ? historyData : [];
 
-  if (userId == null) return [];
-
-  final rows = await Supabase.instance.client
-      .from('thr')
-      .select()
-      .eq('pegawai_id', userId)
-      .order('tahun', ascending: false);
-
-  return (rows as List).map((row) {
-    final slip = ThrSlipDetail(
-      bulanLabel: 'THR ${row['tahun']}',
-      nik: user.nik,
-      nama: user.name,
+    return rows.map((row) {
+      final slip = ThrSlipDetail(
+        bulanLabel: 'THR ${row['tahun'] ?? DateTime.now().year}',
+        nik: user.nik,
+        nama: user.name,
       golongan: user.golonganUntukSlip,
       unitKerja: user.unitKerja,
       jabatan: user.jabatan,
@@ -95,6 +80,10 @@ Future<List<ThrItem>> _fetchThr(AppUser user) async {
       slip: slip,
     );
   }).toList();
+  } catch (e) {
+    debugPrint('Error fetch THR: $e');
+    return [];
+  }
 }
 
 /// Halaman THR — didesain ulang mengikuti mockup UI (kartu ringkasan
