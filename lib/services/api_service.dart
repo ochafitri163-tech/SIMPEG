@@ -339,6 +339,14 @@ class ApiService {
     required String subjek,
     required String pesan,
     String? nik,
+    String? kategori,
+    String? pihakTerlapor,
+    String? nikPelaku,
+    String? jabatanPelaku,
+    List<String>? fotoBukti,
+    List<String>? dokumenPendukung,
+    bool? anonim,
+    String? status,
   }) async {
     final url = Uri.parse('$baseUrl/pengaduan');
     final prefs = await SharedPreferences.getInstance();
@@ -352,6 +360,43 @@ class ApiService {
           'nik': activeNik,
           'subjek': subjek,
           'pesan': pesan,
+          'kategori': kategori ?? 'Pelanggaran Administrasi',
+          'pihak_terlapor': pihakTerlapor,
+          'nik_pelaku': nikPelaku,
+          'jabatan_pelaku': jabatanPelaku,
+          'foto_bukti': fotoBukti,
+          'dokumen_pendukung': dokumenPendukung,
+          'anonim': anonim ?? false,
+          'status': status ?? 'menungguKadiv',
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateStatusPengaduan({
+    required int id,
+    String? status,
+    String? kategori,
+    String? catatan,
+    String? aksi,
+    String? keputusanKadiv,
+    String? catatanKadiv,
+  }) async {
+    final url = Uri.parse('$baseUrl/pengaduan/$id/status');
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'status': status,
+          'kategori': kategori,
+          'catatan': catatan,
+          'aksi': aksi,
+          'keputusan_kadiv': keputusanKadiv,
+          'catatan_kadiv': catatanKadiv,
         }),
       );
       return jsonDecode(response.body);

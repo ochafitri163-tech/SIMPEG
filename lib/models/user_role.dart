@@ -111,6 +111,7 @@ extension KategoriDivisiX on KategoriDivisi {
 DivisiKadiv? divisiKadivDariKategori(String kategori) {
   switch (kategori) {
     case 'Pelanggaran Administrasi':
+    case 'Umum':
       return DivisiKadiv.administrasi;
     case 'Pelanggaran Teknik':
       return DivisiKadiv.teknik;

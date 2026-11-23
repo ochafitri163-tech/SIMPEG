@@ -434,6 +434,14 @@ class PengaduanService {
         nik: user.nik,
         subjek: judul,
         pesan: deskripsi,
+        kategori: kategori,
+        pihakTerlapor: pihakTerlapor.trim(),
+        nikPelaku: nikPelaku.trim(),
+        jabatanPelaku: jabatanPelaku.trim(),
+        fotoBukti: fotoBukti,
+        dokumenPendukung: dokumenPendukung,
+        anonim: anonim,
+        status: PengaduanStatus.menungguKadiv.name,
       );
     } catch (_) {}
 
@@ -518,24 +526,15 @@ class PengaduanService {
         final serverList = List<Map<String, dynamic>>.from(res['data']);
         for (final s in serverList) {
           final sId = (s['id'] as num?)?.toInt() ?? 0;
-          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
-            _localPengaduan.add({
-              'id': sId,
-              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
-              'pelapor_id': s['pelapor_id']?.toString() ?? '',
-              'kategori': s['kategori'] ?? 'Umum',
-              'judul': s['judul'] ?? '-',
-              'deskripsi': s['deskripsi'] ?? '-',
-              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
-              'nik': s['nik'] ?? '',
-              'cabang': s['cabang'] ?? '-',
-              'golongan': s['golongan'] ?? '-',
-              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
-              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
-              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
-            });
+          final idx = _localPengaduan.indexWhere((lp) => (lp['id'] as num?)?.toInt() == sId);
+          final map = Map<String, dynamic>.from(s);
+          map['id'] = sId;
+          map['nomor_pengaduan'] = s['nomor_pengaduan'] ?? 'PGD-$sId';
+          map['status'] = s['status'] ?? PengaduanStatus.menungguKadiv.name;
+          if (idx == -1) {
+            _localPengaduan.add(map);
+          } else {
+            _localPengaduan[idx] = map;
           }
         }
       }
@@ -737,6 +736,19 @@ class PengaduanService {
       description:
           '$aksi pada Pengaduan ID #$pengaduanId (status: $statusLama -> $statusBaru)',
     );
+
+    // Sinkronisasi pembaruan status ke backend PostgreSQL
+    try {
+      await ApiService.updateStatusPengaduan(
+        id: pengaduanId,
+        status: statusBaru,
+        catatan: catatan,
+        aksi: aksi,
+        kategori: kolomTambahan['kategori'] as String?,
+        keputusanKadiv: kolomTambahan['keputusan_kadiv'] as String?,
+        catatanKadiv: kolomTambahan['catatan_kadiv'] as String?,
+      );
+    } catch (_) {}
   }
 
   /// KADIV — terima/tolak aksi
