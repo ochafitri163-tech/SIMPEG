@@ -76,12 +76,12 @@ List<PegawaiOption> _getOfficialExecutors(List<PegawaiOption> allPegawai) {
       jabatan: 'Kepala Divisi SPI (Administrasi & Keuangan)',
       unitKerja: 'Kantor Pusat',
       role: 'kadiv',
-      divisiKadiv: 'Administrasi',
+      divisiKadiv: 'administrasi',
     ),
   );
   ghani = ghani.copyWith(
     role: 'kadiv',
-    divisiKadiv: ghani.divisiKadiv ?? 'Administrasi',
+    divisiKadiv: ghani.divisiKadiv?.toLowerCase() ?? 'administrasi',
   );
 
   // 2. Kadiv Teknik Nukhuliyah
@@ -97,12 +97,12 @@ List<PegawaiOption> _getOfficialExecutors(List<PegawaiOption> allPegawai) {
       jabatan: 'Kepala Divisi SPI (Teknik)',
       unitKerja: 'Kantor Pusat',
       role: 'kadiv',
-      divisiKadiv: 'Teknik',
+      divisiKadiv: 'teknik',
     ),
   );
   nukhuliyah = nukhuliyah.copyWith(
     role: 'kadiv',
-    divisiKadiv: nukhuliyah.divisiKadiv ?? 'Teknik',
+    divisiKadiv: nukhuliyah.divisiKadiv?.toLowerCase() ?? 'teknik',
   );
 
   // 3. TPDPK Dodi Sudrajat

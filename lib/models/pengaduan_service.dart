@@ -51,8 +51,9 @@ Pengaduan pengaduanFromRow(
 
   DivisiKadiv? parseDivisiKadiv(String? s) {
     if (s == null) return null;
+    final lower = s.trim().toLowerCase();
     return DivisiKadiv.values.firstWhere(
-      (e) => e.name == s,
+      (e) => e.name.toLowerCase() == lower,
       orElse: () => DivisiKadiv.administrasi,
     );
   }
@@ -604,24 +605,24 @@ class PengaduanService {
         return divisi.name == divisiKadiv;
       }
 
-      final eksekutorNama = row['eksekutor'] as String?;
+      final eksekutorNama = (row['eksekutor'] as String?)?.toLowerCase();
       final sedangDiinvestigasiOlehKadiv =
           status == PengaduanStatus.investigasiBerjalan.name &&
-              eksekutorNama == Eksekutor.kadiv.name;
+              eksekutorNama == Eksekutor.kadiv.name.toLowerCase();
       if (sedangDiinvestigasiOlehKadiv) {
-        final divisi = row['eksekutor_divisi_kadiv'] as String?;
+        final divisi = (row['eksekutor_divisi_kadiv'] as String?)?.toLowerCase();
         if (divisi == null) return true;
-        return divisi == divisiKadiv;
+        return divisi == divisiKadiv.toLowerCase();
       }
 
-      final eksekutorTLNama = row['eksekutor_tindak_lanjut'] as String?;
+      final eksekutorTLNama = (row['eksekutor_tindak_lanjut'] as String?)?.toLowerCase();
       final sedangTindakLanjutOlehKadiv =
           status == PengaduanStatus.tindakLanjutBerjalan.name &&
-              eksekutorTLNama == Eksekutor.kadiv.name;
+              eksekutorTLNama == Eksekutor.kadiv.name.toLowerCase();
       if (sedangTindakLanjutOlehKadiv) {
-        final divisi = row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?;
+        final divisi = (row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?)?.toLowerCase();
         if (divisi == null) return true;
-        return divisi == divisiKadiv;
+        return divisi == divisiKadiv.toLowerCase();
       }
 
       return true;

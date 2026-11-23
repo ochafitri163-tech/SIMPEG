@@ -946,7 +946,10 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       p.eksekutor == Eksekutor.kadiv &&
                       (widget.user.divisiKadiv == null ||
                           p.eksekutorDivisiKadiv == null ||
-                          p.eksekutorDivisiKadiv == widget.user.divisiKadiv))
+                          p.eksekutorDivisiKadiv == widget.user.divisiKadiv ||
+                          (p.petugasInvestigasi ?? '').toLowerCase().contains(widget.user.name.toLowerCase()) ||
+                          p.executorId == widget.user.id ||
+                          p.executorId == widget.user.nik))
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               // Riwayat keputusan Kadiv (Terima/Tolak) yang sudah dicatat,

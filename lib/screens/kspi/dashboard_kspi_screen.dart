@@ -733,6 +733,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         selectedExecutors: selectedExecutors,
+        eksekutorCategory: selectedExecutors.first.role,
+        divisiKadiv: selectedExecutors.first.divisiKadiv,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
