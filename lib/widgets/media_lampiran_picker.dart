@@ -62,6 +62,14 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
 
   MediaLampiranController get c => widget.controller;
 
+  static const List<String> allowedDokumenExtensions = [
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+  ];
+
   Future<void> _uploadBytes(
       Uint8List bytes, String ext, List<String> target) async {
     final ts = DateTime.now().millisecondsSinceEpoch;
@@ -69,18 +77,29 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
         widget.prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final filename = '${safePrefix}_$ts.$ext';
     String mime;
-    if (ext == 'jpg' || ext == 'jpeg') {
+    final lowerExt = ext.toLowerCase();
+    if (lowerExt == 'jpg' || lowerExt == 'jpeg') {
       mime = 'image/jpeg';
-    } else if (ext == 'png') {
+    } else if (lowerExt == 'png') {
       mime = 'image/png';
-    } else if (ext == 'mp4') {
+    } else if (lowerExt == 'mp4') {
       mime = 'video/mp4';
-    } else if (ext == 'm4a') {
+    } else if (lowerExt == 'm4a') {
       mime = 'audio/m4a';
-    } else if (ext == 'mp3') {
+    } else if (lowerExt == 'mp3') {
       mime = 'audio/mpeg';
-    } else if (ext == 'pdf') {
+    } else if (lowerExt == 'pdf') {
       mime = 'application/pdf';
+    } else if (lowerExt == 'doc') {
+      mime = 'application/msword';
+    } else if (lowerExt == 'docx') {
+      mime =
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    } else if (lowerExt == 'xls') {
+      mime = 'application/vnd.ms-excel';
+    } else if (lowerExt == 'xlsx') {
+      mime =
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     } else {
       mime = 'application/octet-stream';
     }
@@ -127,13 +146,46 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
   }
 
   Future<void> _pickDokumen() async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: allowedDokumenExtensions,
+      withData: true,
+      allowMultiple: true,
+    );
     if (result == null || result.files.isEmpty) return;
+
+    final invalidFiles = <String>[];
+    final validFiles = <PlatformFile>[];
+
+    for (final file in result.files) {
+      final ext = (file.extension ?? '').toLowerCase();
+      if (allowedDokumenExtensions.contains(ext)) {
+        validFiles.add(file);
+      } else {
+        invalidFiles.add(file.name);
+      }
+    }
+
+    if (invalidFiles.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Hanya dokumen PDF (.pdf), Word (.doc, .docx), atau Excel (.xls, .xlsx) yang diperbolehkan di bagian Dokumen.\nFormat gambar/lainnya tidak diizinkan: ${invalidFiles.join(", ")}',
+          ),
+          backgroundColor: red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
+    if (validFiles.isEmpty) return;
+
     await _jalankanUpload(() async {
-      for (final file in result.files) {
+      for (final file in validFiles) {
         final bytes = file.bytes;
         if (bytes == null) continue;
-        final ext = file.extension ?? 'bin';
+        final ext = (file.extension ?? 'pdf').toLowerCase();
         await _uploadBytes(bytes, ext, c.dokumen);
       }
     });
@@ -440,18 +492,23 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
             const SizedBox(height: 6),
           ],
           if (c.dokumen.isNotEmpty) ...[
-            _labelKecil('Dokumen (${c.dokumen.length})'),
+            _labelKecil('Dokumen (${c.dokumen.length}) — PDF, Word, Excel'),
             const SizedBox(height: 6),
-            for (int i = 0; i < c.dokumen.length; i++)
-              _barisLampiran(
-                icon: Icons.description_rounded,
-                label: _namaFile(c.dokumen[i]),
-                onTap: () => _bukaUrl(c.dokumen[i]),
-                onHapus: () {
-                  setState(() => c.dokumen.removeAt(i));
-                  widget.onChanged?.call();
-                },
-              ),
+            for (int i = 0; i < c.dokumen.length; i++) ...[
+              () {
+                final iconInfo = _ikonDokumen(c.dokumen[i]);
+                return _barisLampiran(
+                  icon: iconInfo.$1,
+                  warnaIcon: iconInfo.$2,
+                  label: _namaFile(c.dokumen[i]),
+                  onTap: () => _bukaUrl(c.dokumen[i]),
+                  onHapus: () {
+                    setState(() => c.dokumen.removeAt(i));
+                    widget.onChanged?.call();
+                  },
+                );
+              }(),
+            ],
           ],
         ],
       ),
@@ -518,11 +575,30 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
     );
   }
 
+  (IconData, Color) _ikonDokumen(String url) {
+    final lower = url.toLowerCase();
+    if (lower.contains('.pdf') || lower.contains('application/pdf')) {
+      return (Icons.picture_as_pdf_rounded, const Color(0xFFD9534F));
+    }
+    if (lower.contains('.doc') ||
+        lower.contains('application/msword') ||
+        lower.contains('wordprocessingml')) {
+      return (Icons.description_rounded, const Color(0xFF2A75D3));
+    }
+    if (lower.contains('.xls') ||
+        lower.contains('application/vnd.ms-excel') ||
+        lower.contains('spreadsheetml')) {
+      return (Icons.table_chart_rounded, const Color(0xFF1E7E34));
+    }
+    return (Icons.description_rounded, accent);
+  }
+
   Widget _barisLampiran({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     required VoidCallback onHapus,
+    Color? warnaIcon,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -540,7 +616,7 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
             ),
             child: Row(
               children: [
-                Icon(icon, size: 17, color: accent),
+                Icon(icon, size: 17, color: warnaIcon ?? accent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
