@@ -1,6 +1,8 @@
 /// Model data untuk pegawai (pilihan eksekutor) & tugas (task) eksekutor.
 library;
 
+import 'dart:convert';
+
 class PegawaiOption {
   final String id; // ID Pegawai
   final String nik;
@@ -189,9 +191,13 @@ class TaskModel {
       description: map['description']?.toString(),
       status: TaskStatusX.fromString(map['status']?.toString()),
       notes: map['notes']?.toString(),
-      proofFiles: map['proof_files'] != null
+      proofFiles: (map['proof_files'] is List)
           ? List<String>.from(map['proof_files'])
-          : const [],
+          : (map['proof_files'] is String && (map['proof_files'] as String).trim().isNotEmpty && (map['proof_files'] as String).trim() != '{}')
+              ? ((map['proof_files'] as String).startsWith('[')
+                  ? (jsonDecode(map['proof_files'] as String) as List).map((e) => e.toString()).toList()
+                  : [(map['proof_files'] as String)])
+              : const [],
       isActive: map['is_active'] as bool? ?? true,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'].toString())

@@ -3,7 +3,6 @@
 // SIMPEG Mobile - Decoupled from Supabase
 // =============================================================
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
@@ -63,6 +62,38 @@ Pengaduan pengaduanFromRow(
     return DateTime.tryParse(val.toString()) ?? DateTime.now();
   }
 
+  List<String> parseList(dynamic val) {
+    if (val == null) return const [];
+    if (val is List) {
+      return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    }
+    if (val is String) {
+      final str = val.trim();
+      if (str.isEmpty || str == '{}' || str == '[]' || str == 'null') {
+        return const [];
+      }
+      if (str.startsWith('[') && str.endsWith(']')) {
+        try {
+          final decoded = jsonDecode(str);
+          if (decoded is List) {
+            return decoded.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+          }
+        } catch (_) {}
+      }
+      if (str.startsWith('{') && str.endsWith('}')) {
+        final inner = str.substring(1, str.length - 1).trim();
+        if (inner.isEmpty) return const [];
+        return inner
+            .split(',')
+            .map((s) => s.trim().replaceAll(RegExp(r'^"|"$'), ''))
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+      return [str];
+    }
+    return const [];
+  }
+
   final pengaduan = Pengaduan(
     tindakLanjutDiminta: row['tindak_lanjut_diminta'] as String?,
     alasanPenolakanDirektur: row['alasan_penolakan_direktur'] as String?,
@@ -83,15 +114,14 @@ Pengaduan pengaduanFromRow(
     jabatanPelaku: row['jabatan_pelaku'] as String?,
     anonim: (row['anonim'] ?? false) as bool,
     status: parseStatus(row['status'] as String?),
-    fotoBukti: List<String>.from(row['foto_bukti'] ?? const []),
-    dokumenPendukung: List<String>.from(row['dokumen_pendukung'] ?? const []),
-    videoBukti: List<String>.from(row['video_bukti'] ?? const []),
-    voiceNote: List<String>.from(row['voice_note'] ?? const []),
-    investigasiFoto: List<String>.from(row['investigasi_foto'] ?? const []),
-    investigasiVideo: List<String>.from(row['investigasi_video'] ?? const []),
-    investigasiVoice: List<String>.from(row['investigasi_voice'] ?? const []),
-    investigasiDokumen:
-        List<String>.from(row['investigasi_dokumen'] ?? const []),
+    fotoBukti: parseList(row['foto_bukti']),
+    dokumenPendukung: parseList(row['dokumen_pendukung']),
+    videoBukti: parseList(row['video_bukti']),
+    voiceNote: parseList(row['voice_note']),
+    investigasiFoto: parseList(row['investigasi_foto']),
+    investigasiVideo: parseList(row['investigasi_video']),
+    investigasiVoice: parseList(row['investigasi_voice']),
+    investigasiDokumen: parseList(row['investigasi_dokumen']),
     riwayatStatus: riwayat,
     keputusanKadiv: parseKeputusan(row['keputusan_kadiv'] as String?),
     catatanKadiv: row['catatan_kadiv'] as String?,
@@ -404,7 +434,7 @@ class PengaduanService {
     final row = <String, dynamic>{
       'id': pengaduanId,
       'nomor_pengaduan': nomor,
-      'pelapor_id': user.id ?? user.nik,
+      'pelapor_id': user.id.isNotEmpty ? user.id : user.nik,
       'kategori': kategori,
       'judul': judul,
       'deskripsi': deskripsi,
