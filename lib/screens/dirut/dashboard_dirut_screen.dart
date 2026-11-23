@@ -741,7 +741,8 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 ),
               );
             } else {
-              final semua = snapshot.data ?? [];
+              final semua = List<Pengaduan>.from(snapshot.data ?? [])
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final tahap1 = semua
                   .where((p) => p.status == PengaduanStatus.menungguDirutTahap1)
                   .toList();

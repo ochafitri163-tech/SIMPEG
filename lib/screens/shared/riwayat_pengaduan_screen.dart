@@ -120,8 +120,10 @@ class _RiwayatPengaduanScreenState extends State<RiwayatPengaduanScreen> {
                   );
                 }
 
-                final semua = snapshot.data ?? [];
-                final terfilter = semua.where(_filter.cocok).toList();
+                final semua = (snapshot.data ?? []).toList()
+                  ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+                final terfilter = (semua.where(_filter.cocok).toList())
+                  ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
 
                 return RefreshIndicator(
                   onRefresh: _refresh,

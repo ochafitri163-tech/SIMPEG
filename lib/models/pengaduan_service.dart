@@ -513,35 +513,33 @@ class PengaduanService {
         final serverList = List<Map<String, dynamic>>.from(res['data']);
         for (final s in serverList) {
           final sId = (s['id'] as num?)?.toInt() ?? 0;
-          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
-            _localPengaduan.add({
-              'id': sId,
-              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
-              'pelapor_id': s['pelapor_id']?.toString() ?? '',
-              'kategori': s['kategori'] ?? 'Umum',
-              'judul': s['judul'] ?? '-',
-              'deskripsi': s['deskripsi'] ?? '-',
-              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
-              'nik': s['nik'] ?? nik ?? '',
-              'cabang': s['cabang'] ?? '-',
-              'golongan': s['golongan'] ?? '-',
-              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
-              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
-              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
-            });
+          final idx = _localPengaduan.indexWhere((lp) => (lp['id'] as num?)?.toInt() == sId);
+          final map = Map<String, dynamic>.from(s);
+          map['id'] = sId;
+          map['nomor_pengaduan'] = s['nomor_pengaduan'] ?? 'PGD-$sId';
+          map['status'] = s['status'] ?? PengaduanStatus.menungguKadiv.name;
+          if (idx == -1) {
+            _localPengaduan.add(map);
+          } else {
+            _localPengaduan[idx] = map;
           }
         }
       }
     } catch (_) {}
 
-    if (nik != null && nik.trim().isNotEmpty) {
-      return _localPengaduan
-          .where((r) => (r['nik'] ?? '').toString() == nik.trim())
-          .toList();
+    int compareDateDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final tglA = DateTime.tryParse((a['tanggal_pengaduan'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tglB = DateTime.tryParse((b['tanggal_pengaduan'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tglB.compareTo(tglA);
     }
-    return _localPengaduan;
+
+    final result = (nik != null && nik.trim().isNotEmpty)
+        ? _localPengaduan
+            .where((r) => (r['nik'] ?? '').toString() == nik.trim())
+            .toList()
+        : List<Map<String, dynamic>>.from(_localPengaduan);
+    result.sort(compareDateDesc);
+    return result;
   }
 
   /// Mengambil daftar pengaduan untuk sebuah role.
@@ -570,7 +568,13 @@ class PengaduanService {
       }
     } catch (_) {}
 
-    final semua = List<Map<String, dynamic>>.from(_localPengaduan);
+    int compareDateDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final tglA = DateTime.tryParse((a['tanggal_pengaduan'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tglB = DateTime.tryParse((b['tanggal_pengaduan'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tglB.compareTo(tglA);
+    }
+
+    final semua = List<Map<String, dynamic>>.from(_localPengaduan)..sort(compareDateDesc);
 
     if (role == UserRole.sdm) {
       return semua.where((row) {
@@ -581,7 +585,7 @@ class PengaduanService {
         return isTerbukti &&
             (status == PengaduanStatus.menungguSdm.name ||
                 status == PengaduanStatus.selesai.name);
-      }).toList();
+      }).toList()..sort(compareDateDesc);
     }
 
     if (role != UserRole.kadivKategori || divisiKadiv == null) {
@@ -621,7 +625,7 @@ class PengaduanService {
       }
 
       return true;
-    }).toList();
+    }).toList()..sort(compareDateDesc);
   }
 
   /// KADIV — alihkan kategori pelanggaran
@@ -679,7 +683,9 @@ class PengaduanService {
 
   static Future<List<Pengaduan>> punyaSayaSebagaiObjek({String? nik}) async {
     final rows = await punyaSaya(nik: nik);
-    return rows.map((row) => pengaduanFromRow(row)).toList();
+    final list = rows.map((row) => pengaduanFromRow(row)).toList();
+    list.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+    return list;
   }
 
   static List<StatusHistoryEntry> _parseRiwayat(
@@ -722,7 +728,9 @@ class PengaduanService {
     String? divisiKadiv,
   }) async {
     final rows = await untukRole(role, divisiKadiv: divisiKadiv);
-    return rows.map((row) => pengaduanFromRow(row)).toList();
+    final list = rows.map((row) => pengaduanFromRow(row)).toList();
+    list.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+    return list;
   }
 
   static Future<void> _ubahStatus({

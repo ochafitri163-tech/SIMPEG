@@ -930,14 +930,16 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 ),
               );
             } else {
-              final semua = snapshot.data ?? [];
+              final semua = List<Pengaduan>.from(snapshot.data ?? [])
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final menungguVerifikasi = semua
                   .where((p) => p.status == PengaduanStatus.menungguKadiv)
                   .where((p) => widget.user.divisiKadiv == null
                       ? true
                       : divisiKadivDariKategori(p.kategori) ==
                           widget.user.divisiKadiv)
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final tindakLanjut = semua
                   .where((p) =>
                       p.status == PengaduanStatus.investigasiBerjalan &&
@@ -945,7 +947,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       (widget.user.divisiKadiv == null ||
                           p.eksekutorDivisiKadiv == null ||
                           p.eksekutorDivisiKadiv == widget.user.divisiKadiv))
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               // Riwayat keputusan Kadiv (Terima/Tolak) yang sudah dicatat,
               // dikelompokkan untuk topbar status "Diterima" / "Ditolak".
               // Kedua kelompok ini SAMA-SAMA sudah/sedang ditinjau ulang
@@ -957,18 +960,22 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       : divisiKadivDariKategori(p.kategori) ==
                               widget.user.divisiKadiv ||
                           p.kategoriDivisi != null)
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final diterimaKadiv = keputusanKadivSaya
                   .where((p) => p.keputusanKadiv == Keputusan.terima)
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final ditolakKadiv = keputusanKadivSaya
                   .where((p) => p.keputusanKadiv == Keputusan.tolak)
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final selesai = semua
                   .where((p) =>
                       p.status == PengaduanStatus.selesai ||
                       p.status == PengaduanStatus.arsip)
-                  .toList();
+                  .toList()
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
 
               Widget listContent;
               switch (_clusterFilter) {

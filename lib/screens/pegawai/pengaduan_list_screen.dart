@@ -34,10 +34,12 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
   Future<List<Pengaduan>> _load() async {
     final user = widget.user;
     if (user.role == UserRole.pegawai) {
-      return PengaduanService.punyaSayaSebagaiObjek();
+      final list = await PengaduanService.punyaSayaSebagaiObjek();
+      return list..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
     }
     final semua = await PengaduanService.untukRoleSebagaiObjek(user.role);
-    return semua.where((p) => _perluDitindaklanjuti(p, user)).toList();
+    return (semua.where((p) => _perluDitindaklanjuti(p, user)).toList())
+      ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
   }
 
   /// Filter client-side tambahan (di luar RLS Supabase) untuk menentukan

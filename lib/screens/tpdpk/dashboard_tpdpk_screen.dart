@@ -834,7 +834,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 ),
               );
             } else {
-              final semua = snapshot.data ?? [];
+              final semua = List<Pengaduan>.from(snapshot.data ?? [])
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final menungguPetugas = semua
                   .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
                   .toList();
