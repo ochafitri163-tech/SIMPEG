@@ -785,6 +785,7 @@ class PengaduanService {
         kategori: kolomTambahan['kategori'] as String?,
         keputusanKadiv: kolomTambahan['keputusan_kadiv'] as String?,
         catatanKadiv: kolomTambahan['catatan_kadiv'] as String?,
+        extra: kolomTambahan,
       );
     } catch (_) {}
   }

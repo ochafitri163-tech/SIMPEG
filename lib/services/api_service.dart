@@ -384,20 +384,25 @@ class ApiService {
     String? aksi,
     String? keputusanKadiv,
     String? catatanKadiv,
+    Map<String, dynamic>? extra,
   }) async {
     final url = Uri.parse('$baseUrl/pengaduan/$id/status');
     try {
+      final payload = <String, dynamic>{
+        'status': status,
+        'kategori': kategori,
+        'catatan': catatan,
+        'aksi': aksi,
+        'keputusan_kadiv': keputusanKadiv,
+        'catatan_kadiv': catatanKadiv,
+      };
+      if (extra != null) {
+        payload.addAll(extra);
+      }
       final response = await http.post(
         url,
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'status': status,
-          'kategori': kategori,
-          'catatan': catatan,
-          'aksi': aksi,
-          'keputusan_kadiv': keputusanKadiv,
-          'catatan_kadiv': catatanKadiv,
-        }),
+        body: jsonEncode(payload),
       );
       return jsonDecode(response.body);
     } catch (e) {
