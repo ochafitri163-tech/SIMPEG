@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'audit_log_service.dart';
 import 'onesignal_service.dart';
 
 class ApiService {
@@ -31,11 +32,14 @@ class ApiService {
       }
     }
 
+    final deviceInfo = await AuditLogService.getDeviceInfo();
+
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Authorization': 'Bearer $token',
       'X-NIK': nik,
+      'X-Device-Info': deviceInfo,
     };
   }
 
@@ -43,9 +47,14 @@ class ApiService {
   static Future<Map<String, dynamic>> login(String nik, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {
+      final deviceInfo = await AuditLogService.getDeviceInfo();
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Device-Info': deviceInfo,
+        },
         body: jsonEncode({'nik': nik, 'password': password}),
       ).timeout(const Duration(seconds: 3));
 
