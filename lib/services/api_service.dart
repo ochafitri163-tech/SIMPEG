@@ -136,24 +136,18 @@ class ApiService {
   /// 5c. Get Lembur Pegawai
   static Future<Map<String, dynamic>> getLembur({String? nik}) async {
     final q = (nik != null && nik.isNotEmpty) ? '?nik=$nik' : '';
-    final candidateUrls = <String>[
-      '$baseUrl/lembur$q',
-      if (!baseUrl.contains('192.168.110.74')) 'http://192.168.110.74:8000/api/v1/lembur$q',
-    ];
-
-    for (final u in candidateUrls) {
-      try {
-        final response = await http
-            .get(Uri.parse(u), headers: await _getHeaders(explicitNik: nik))
-            .timeout(const Duration(seconds: 2));
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['success'] == true) {
-            return data;
-          }
+    final url = '$baseUrl/lembur$q';
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders(explicitNik: nik))
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data;
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
     return {'success': false, 'message': 'Gagal mengambil data lembur dari server.'};
   }
 
@@ -218,24 +212,18 @@ class ApiService {
   /// 8. Get Dokumen Resmi Pegawai (SK & Diklat)
   static Future<Map<String, dynamic>> getDokumenResmi({String? nik}) async {
     final q = (nik != null && nik.isNotEmpty) ? '?nik=$nik' : '';
-    final candidateUrls = <String>[
-      '$baseUrl/dokumen$q',
-      if (!baseUrl.contains('192.168.110.74')) 'http://192.168.110.74:8000/api/v1/dokumen$q',
-    ];
-
-    for (final u in candidateUrls) {
-      try {
-        final response = await http
-            .get(Uri.parse(u), headers: await _getHeaders(explicitNik: nik))
-            .timeout(const Duration(seconds: 2));
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['success'] == true) {
-            return data;
-          }
+    final url = '$baseUrl/dokumen$q';
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders(explicitNik: nik))
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data;
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
     return {'success': false, 'message': 'Gagal mengambil data dokumen dari server.'};
   }
 
@@ -262,12 +250,30 @@ class ApiService {
   }
 
   /// 11. Cuti Pegawai
-  static Future<Map<String, dynamic>> getCuti({String? nik}) async {
+  static Future<Map<String, dynamic>> getCuti({String? nik, bool all = false}) async {
+    final params = <String, String>{};
+    if (nik != null && nik.isNotEmpty) params['nik'] = nik;
+    if (all) params['all'] = '1';
     final uri = Uri.parse('$baseUrl/cuti').replace(
-      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+      queryParameters: params.isNotEmpty ? params : null,
     );
     try {
       final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 11b. Update Status Cuti Pegawai (Persetujuan oleh SDM / Direktur)
+  static Future<Map<String, dynamic>> updateStatusCuti(int id, String status) async {
+    final url = Uri.parse('$baseUrl/cuti/$id/status');
+    try {
+      final response = await http.put(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({'status': status}),
+      );
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Error: $e'};
@@ -304,9 +310,13 @@ class ApiService {
   }
 
   /// 12. Pengaduan Pegawai
-  static Future<Map<String, dynamic>> getPengaduan({String? nik}) async {
+  static Future<Map<String, dynamic>> getPengaduan({String? nik, String? scope, String? tab}) async {
+    final params = <String, String>{};
+    if (nik != null && nik.isNotEmpty) params['nik'] = nik;
+    if (scope != null && scope.isNotEmpty) params['scope'] = scope;
+    if (tab != null && tab.isNotEmpty) params['tab'] = tab;
     final uri = Uri.parse('$baseUrl/pengaduan').replace(
-      queryParameters: nik != null && nik.isNotEmpty ? {'nik': nik} : null,
+      queryParameters: params.isNotEmpty ? params : null,
     );
     try {
       final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));

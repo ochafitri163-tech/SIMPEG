@@ -170,6 +170,19 @@ class CutiService {
 
   /// Approver — seluruh pengajuan (opsional filter status menunggu).
   static Future<List<PengajuanCuti>> semua({bool hanyaMenunggu = false}) async {
+    try {
+      final res = await ApiService.getCuti(all: true);
+      if (res['success'] == true && res['data'] is List) {
+        final list = (res['data'] as List)
+            .map((r) => PengajuanCuti.fromRow(r as Map<String, dynamic>))
+            .toList();
+        if (hanyaMenunggu) {
+          return list.where((c) => c.status == StatusCuti.menunggu).toList();
+        }
+        return list;
+      }
+    } catch (_) {}
+
     final list = await milikSaya();
     if (hanyaMenunggu) {
       return list.where((c) => c.status == StatusCuti.menunggu).toList();
@@ -184,6 +197,14 @@ class CutiService {
     required String namaApprover,
     String? catatan,
   }) async {
+    // Persistensi status permohonan ke basis data via API
+    try {
+      final statusStr = keputusan == StatusCuti.disetujui ? 'DISETUJUI' : 'DITOLAK';
+      await ApiService.updateStatusCuti(pengajuan.id, statusStr);
+    } catch (e) {
+      debugPrint('Error update status cuti to server: $e');
+    }
+
     AuditLogService.logAction(
       userNik: 'APPROVER',
       userName: namaApprover,

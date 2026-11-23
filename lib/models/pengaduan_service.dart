@@ -511,6 +511,36 @@ class PengaduanService {
     UserRole role, {
     String? divisiKadiv,
   }) async {
+    // Sinkronisasi data kotak masuk pengaduan dari backend PostgreSQL
+    try {
+      final res = await ApiService.getPengaduan(scope: 'role');
+      if (res['success'] == true && res['data'] is List) {
+        final serverList = List<Map<String, dynamic>>.from(res['data']);
+        for (final s in serverList) {
+          final sId = (s['id'] as num?)?.toInt() ?? 0;
+          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
+            _localPengaduan.add({
+              'id': sId,
+              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
+              'pelapor_id': s['pelapor_id']?.toString() ?? '',
+              'kategori': s['kategori'] ?? 'Umum',
+              'judul': s['judul'] ?? '-',
+              'deskripsi': s['deskripsi'] ?? '-',
+              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
+              'nik': s['nik'] ?? '',
+              'cabang': s['cabang'] ?? '-',
+              'golongan': s['golongan'] ?? '-',
+              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
+              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
+              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
+              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
+              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
+
     final semua = List<Map<String, dynamic>>.from(_localPengaduan);
 
     if (role == UserRole.sdm) {
