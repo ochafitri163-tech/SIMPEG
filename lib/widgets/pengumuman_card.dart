@@ -924,7 +924,8 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                             ),
                           ),
 
-                          if (p.adaLampiran) ...[
+                          // Tampilkan rincian lampiran hanya jika BUKAN gambar (misal dokumen PDF/Word/Excel)
+                          if (p.adaLampiran && !adaGambar) ...[
                             const SizedBox(height: 10),
                             _StaggerIn(
                               index: 4,
