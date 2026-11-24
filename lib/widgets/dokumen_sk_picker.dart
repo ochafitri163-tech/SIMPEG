@@ -1,8 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/sk_sanksi_service.dart';
+import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 
 /// Satu dokumen tambahan yang sedang disusun SDM (judul diisi bebas).
@@ -133,15 +140,215 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
     }
   }
 
-  Future<void> _buka(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  void _tampilkanViewerGambar({
+    required String namaFile,
+    Uint8List? bytes,
+    String? networkUrl,
+  }) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(
+                namaFile,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis,
+              ),
+              backgroundColor: _navy,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              actions: [
+                if (bytes != null && bytes.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.download_rounded),
+                    tooltip: 'Unduh Berkas',
+                    onPressed: () async {
+                      try {
+                        await Printing.sharePdf(bytes: bytes, filename: namaFile);
+                      } catch (_) {}
+                    },
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  tooltip: 'Tutup',
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                ),
+                child: InteractiveViewer(
+                  maxScale: 5.0,
+                  child: bytes != null
+                      ? Image.memory(bytes, fit: BoxFit.contain)
+                      : (networkUrl != null
+                          ? Image.network(networkUrl, fit: BoxFit.contain)
+                          : const SizedBox()),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isGambar(String url, [Uint8List? bytes]) {
+    final lower = url.toLowerCase();
+    if (lower.startsWith('data:')) {
+      final header = lower.split(',').first;
+      if (header.contains('image/')) return true;
     }
+    final clean = lower.split('?').first;
+    if (clean.endsWith('.png') ||
+        clean.endsWith('.jpg') ||
+        clean.endsWith('.jpeg') ||
+        clean.endsWith('.webp') ||
+        clean.endsWith('.gif') ||
+        clean.endsWith('.bmp')) {
+      return true;
+    }
+    if (bytes != null && bytes.length >= 4) {
+      if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return true;
+      if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
+      if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) return true;
+    }
+    return false;
+  }
+
+  bool _isPdf(String url, [Uint8List? bytes]) {
+    if (url.startsWith('data:')) {
+      final header = url.split(',').first.toLowerCase();
+      if (header.contains('application/pdf') || header.contains('.pdf')) return true;
+    }
+    final clean = url.split('?').first.toLowerCase();
+    if (clean.endsWith('.pdf')) return true;
+    if (bytes != null && bytes.length >= 4) {
+      if (bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46) return true;
+    }
+    return false;
+  }
+
+  Future<void> _buka(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+
+    if (trimmed.startsWith('data:')) {
+      try {
+        final commaIdx = trimmed.indexOf(',');
+        if (commaIdx == -1) return;
+        final base64Part =
+            trimmed.substring(commaIdx + 1).replaceAll(RegExp(r'\s+'), '');
+        final bytes = base64Decode(base64Part);
+
+        final fileName = _namaFile(trimmed);
+        final isGambar = _isGambar(trimmed, bytes);
+        final isPdf = _isPdf(trimmed, bytes);
+
+        // A. Jika Gambar (PNG, JPG, WebP, GIF), buka viewer gambar dialog
+        if (isGambar) {
+          _tampilkanViewerGambar(namaFile: fileName, bytes: bytes);
+          return;
+        }
+
+        // B. Jika PDF, gunakan viewer native PDF via package printing
+        if (isPdf) {
+          try {
+            await Printing.layoutPdf(
+              name: fileName,
+              onLayout: (format) async => bytes,
+            );
+            return;
+          } catch (_) {
+            try {
+              await Printing.sharePdf(bytes: bytes, filename: fileName);
+              return;
+            } catch (_) {}
+          }
+        }
+
+        // C. Untuk dokumen lain (Word, Excel, drawio, teks, dll.):
+        // Di Flutter Web: path_provider (getTemporaryDirectory) tidak tersedia di browser.
+        // Langsung unduh berkas via Printing.sharePdf (di browser otomatis mengunduh).
+        if (kIsWeb) {
+          await Printing.sharePdf(bytes: bytes, filename: fileName);
+          return;
+        }
+
+        // Di Mobile/Desktop Native: simpan bytes ke file temporer lalu luncurkan dengan aplikasi default
+        try {
+          final dir = await getTemporaryDirectory();
+          final safeName = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+          final file = File('${dir.path}/$safeName');
+          await file.writeAsBytes(bytes);
+
+          final fileUri = Uri.file(file.path);
+          if (await canLaunchUrl(fileUri)) {
+            await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+            return;
+          }
+        } catch (_) {}
+
+        // Fallback jika tidak ada aplikasi pembuka file lokal
+        await Printing.sharePdf(bytes: bytes, filename: fileName);
+        return;
+      } catch (_) {
+        return;
+      }
+    }
+
+    String resolvedUrl = trimmed;
+    if (trimmed.startsWith('/storage/') || trimmed.startsWith('storage/')) {
+      final host =
+          ApiService.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
+      final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+      resolvedUrl = '$host$cleanPath';
+    }
+
+    // Jika URL server adalah gambar, tampilkan langsung di dialog viewer gambar
+    if (_isGambar(resolvedUrl)) {
+      _tampilkanViewerGambar(
+        namaFile: _namaFile(resolvedUrl),
+        networkUrl: resolvedUrl,
+      );
+      return;
+    }
+
+    try {
+      final uri = Uri.tryParse(resolvedUrl);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
   }
 
   String _namaFile(String url) {
+    if (url.startsWith('data:')) {
+      final match = RegExp(r'name=([^;]+)').firstMatch(url);
+      if (match != null) return Uri.decodeComponent(match.group(1)!);
+      if (url.contains('application/pdf')) return 'Dokumen_SK.pdf';
+      if (url.contains('word') || url.contains('msword')) {
+        return 'Dokumen_SK.docx';
+      }
+      if (url.contains('excel') || url.contains('sheet')) {
+        return 'Dokumen_SK.xlsx';
+      }
+      if (url.contains('image/png')) return 'Dokumen_SK.png';
+      if (url.contains('image/jpeg') || url.contains('image/jpg')) {
+        return 'Dokumen_SK.jpg';
+      }
+      return 'Dokumen_SK';
+    }
     final tanpaQuery = url.split('?').first;
     final segmen = tanpaQuery.split('/');
     var nama = segmen.isNotEmpty ? segmen.last : url;
@@ -409,8 +616,15 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.description_rounded,
-                          size: 16, color: _accent),
+                      Icon(
+                        _isPdf(item.berkas[i])
+                            ? Icons.picture_as_pdf_rounded
+                            : (_isGambar(item.berkas[i])
+                                ? Icons.image_rounded
+                                : Icons.description_rounded),
+                        size: 16,
+                        color: _accent,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -558,8 +772,15 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.description_rounded,
-                            size: 16, color: _accent),
+                        Icon(
+                          _isPdf(berkas[i])
+                              ? Icons.picture_as_pdf_rounded
+                              : (_isGambar(berkas[i])
+                                  ? Icons.image_rounded
+                                  : Icons.description_rounded),
+                          size: 16,
+                          color: _accent,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
