@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/pengaduan_model.dart';
@@ -1076,57 +1074,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         final base64Part =
             trimmed.substring(commaIdx + 1).replaceAll(RegExp(r'\s+'), '');
         final bytes = base64Decode(base64Part);
-
         final fileName = _namaFile(trimmed);
-        final isPdf = _isPdf(trimmed, bytes);
-        final isGambar = _isGambar(trimmed, bytes);
 
-        // A. Jika Gambar (PNG, JPG, WebP, GIF), buka langsung di modal dialog viewer gambar
-        if (isGambar) {
-          _tampilkanViewerGambar(namaFile: fileName, bytes: bytes);
-          return;
-        }
-
-        // B. Jika PDF, gunakan viewer native PDF via package printing (pratinjau langsung di dalam app)
-        if (isPdf) {
-          try {
-            await Printing.layoutPdf(
-              name: fileName,
-              onLayout: (format) async => bytes,
-            );
-            return;
-          } catch (_) {
-            try {
-              await Printing.sharePdf(bytes: bytes, filename: fileName);
-              return;
-            } catch (_) {}
-          }
-        }
-
-        // C. Untuk dokumen non-PDF dan non-gambar (Word, Excel, drawio, teks, dll.):
-        // Di Flutter Web: getTemporaryDirectory (path_provider) tidak tersedia.
-        // Langsung gunakan Printing.sharePdf yang otomatis mengunduh berkas via browser anchor blob.
-        if (kIsWeb) {
-          await Printing.sharePdf(bytes: bytes, filename: fileName);
-          return;
-        }
-
-        // Di Mobile/Desktop Native: simpan bytes ke file temporer lalu luncurkan dengan aplikasi default
-        try {
-          final dir = await getTemporaryDirectory();
-          final safeName = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-          final file = File('${dir.path}/$safeName');
-          await file.writeAsBytes(bytes);
-
-          final fileUri = Uri.file(file.path);
-          if (await canLaunchUrl(fileUri)) {
-            await launchUrl(fileUri, mode: LaunchMode.externalApplication);
-            return;
-          }
-        } catch (_) {}
-
-        // Fallback jika tidak ada aplikasi pembuka file lokal
-        await Printing.sharePdf(bytes: bytes, filename: fileName);
+        _tampilkanDetailDokumen(namaFile: fileName, bytes: bytes);
         return;
       } catch (e) {
         _showSnack('Gagal memproses dokumen lampiran: $e', red);
@@ -1143,28 +1093,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       resolvedUrl = '$host$cleanPath';
     }
 
-    // Jika URL server adalah gambar, tampilkan langsung di dialog viewer gambar
-    if (_isGambar(resolvedUrl)) {
-      _tampilkanViewerGambar(
-        namaFile: _namaFile(resolvedUrl),
-        networkUrl: resolvedUrl,
-      );
-      return;
-    }
-
-    // 3. Tangani URL web (HTTP/HTTPS) atau File lokal
-    try {
-      final uri = Uri.tryParse(resolvedUrl);
-      if (uri != null) {
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return;
-        }
-      }
-    } catch (_) {}
-
-    // 4. Jika masih gagal dibuka langsung, berikan pesan kesalahan ramah
-    _showSnack('Tidak dapat membuka lampiran.', red);
+    _tampilkanDetailDokumen(
+      namaFile: _namaFile(resolvedUrl),
+      networkUrl: resolvedUrl,
+    );
   }
 
   /// Kartu info pelaku/pihak yang diadukan (Nama, NIK, Jabatan) — selalu
@@ -1520,64 +1452,342 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  void _tampilkanViewerGambar({
+  void _tampilkanDetailDokumen({
     required String namaFile,
     Uint8List? bytes,
     String? networkUrl,
   }) {
     if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              title: Text(
-                namaFile,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                overflow: TextOverflow.ellipsis,
-              ),
-              backgroundColor: navy,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              actions: [
-                if (bytes != null && bytes.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.download_rounded),
-                    tooltip: 'Unduh Berkas',
-                    onPressed: () async {
-                      try {
-                        await Printing.sharePdf(bytes: bytes, filename: namaFile);
-                      } catch (_) {}
-                    },
+
+    final lower = namaFile.toLowerCase();
+    final isGambar = _isGambar(namaFile, bytes) ||
+        (networkUrl != null && _isGambar(networkUrl));
+    final isPdf =
+        _isPdf(namaFile, bytes) || (networkUrl != null && _isPdf(networkUrl));
+    final isWord = lower.endsWith('.doc') || lower.endsWith('.docx');
+    final isExcel = lower.endsWith('.xls') || lower.endsWith('.xlsx');
+
+    // 1. Jika GAMBAR, tampilkan viewer foto penuh tema gelap (seperti contoh gambar 2)
+    if (isGambar) {
+      showDialog(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.94),
+        builder: (ctx) => Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Top Header Bar
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: Colors.black.withValues(alpha: 0.7),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_rounded,
+                            color: Colors.white),
+                        tooltip: 'Tutup',
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          namaFile,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (bytes != null && bytes.isNotEmpty)
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await Printing.sharePdf(
+                                  bytes: bytes, filename: namaFile);
+                              if (mounted) {
+                                _showSnack(
+                                    'Berkas $namaFile berhasil diunduh.',
+                                    green);
+                              }
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.download_rounded,
+                              size: 16, color: Colors.white),
+                          label: const Text('Unduh',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: navy,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                    ],
                   ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  tooltip: 'Tutup',
-                  onPressed: () => Navigator.pop(ctx),
+                ),
+                // Area Gambar Zoomable
+                Expanded(
+                  child: Center(
+                    child: InteractiveViewer(
+                      maxScale: 5.0,
+                      child: bytes != null
+                          ? Image.memory(bytes, fit: BoxFit.contain)
+                          : (networkUrl != null
+                              ? Image.network(networkUrl, fit: BoxFit.contain)
+                              : const SizedBox()),
+                    ),
+                  ),
                 ),
               ],
             ),
-            Flexible(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.75,
-                ),
-                child: InteractiveViewer(
-                  maxScale: 5.0,
-                  child: bytes != null
-                      ? Image.memory(bytes, fit: BoxFit.contain)
-                      : (networkUrl != null
-                          ? Image.network(networkUrl, fit: BoxFit.contain)
-                          : const SizedBox()),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 2. Jika DOKUMEN (Word, Excel, PDF, dll.), tampilkan Modal Detail Dokumen
+    final ukuranKb =
+        bytes != null ? (bytes.length / 1024).toStringAsFixed(1) : null;
+    Color iconColor = navy;
+    Color iconBg = navy.withValues(alpha: 0.1);
+    IconData docIcon = Icons.insert_drive_file_rounded;
+    String jenisLabel = 'Dokumen Lampiran';
+
+    if (isWord) {
+      iconColor = const Color(0xFF185ABD);
+      iconBg = const Color(0xFF185ABD).withValues(alpha: 0.1);
+      docIcon = Icons.description_rounded;
+      final ext = lower.split('.').last.toUpperCase();
+      jenisLabel = 'Dokumen Microsoft Word (.$ext)';
+    } else if (isExcel) {
+      iconColor = const Color(0xFF107C41);
+      iconBg = const Color(0xFF107C41).withValues(alpha: 0.1);
+      docIcon = Icons.table_chart_rounded;
+      final ext = lower.split('.').last.toUpperCase();
+      jenisLabel = 'Spreadsheet Microsoft Excel (.$ext)';
+    } else if (isPdf) {
+      iconColor = const Color(0xFFD32F2F);
+      iconBg = const Color(0xFFD32F2F).withValues(alpha: 0.1);
+      docIcon = Icons.picture_as_pdf_rounded;
+      jenisLabel = 'Dokumen PDF (Portable Document Format)';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: navy,
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Detail Berkas Dokumen',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Colors.white, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              // Body
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: iconBg,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(docIcon, size: 36, color: iconColor),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      namaFile,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      jenisLabel,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: hintGrey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (ukuranKb != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Ukuran: $ukuranKb KB',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: labelDark,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    // Tombol Aksi di dalam dialog
+                    if (isPdf && bytes != null && bytes.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            try {
+                              await Printing.layoutPdf(
+                                name: namaFile,
+                                onLayout: (_) async => bytes,
+                              );
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.visibility_rounded, size: 16),
+                          label: const Text('Buka Pratinjau PDF',
+                              style: TextStyle(fontSize: 12.5)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: navy,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await Printing.sharePdf(
+                                  bytes: bytes, filename: namaFile);
+                              if (mounted) {
+                                _showSnack(
+                                    'Berkas $namaFile berhasil diunduh.',
+                                    green);
+                              }
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('Unduh Berkas PDF',
+                              style: TextStyle(fontSize: 12.5)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: navy,
+                            side:
+                                BorderSide(color: navy.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9)),
+                          ),
+                        ),
+                      ),
+                    ] else if (bytes != null && bytes.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await Printing.sharePdf(
+                                  bytes: bytes, filename: namaFile);
+                              if (mounted) {
+                                _showSnack(
+                                    'Berkas $namaFile berhasil diunduh.',
+                                    green);
+                              }
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.download_rounded, size: 17),
+                          label: const Text('Unduh Berkas',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: navy,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9)),
+                          ),
+                        ),
+                      ),
+                    ] else if (networkUrl != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.tryParse(networkUrl);
+                            if (uri != null && await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          icon:
+                              const Icon(Icons.open_in_new_rounded, size: 16),
+                          label: const Text('Buka Tautan Berkas',
+                              style: TextStyle(fontSize: 12.5)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: navy,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
