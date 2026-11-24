@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
 import 'cv_screen.dart';
 import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
+import 'prestasi_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
 
@@ -373,50 +373,78 @@ class ProfileDetailScreen extends StatelessWidget {
                 const SizedBox(height: 14),
 
                 // Quick Action Bar V2
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _QuickAction(
-                      icon: Icons.workspace_premium_rounded,
-                      label: 'Golongan',
-                      isSmallScreen: isSmallScreen,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final quickActions = [
+                      _QuickAction(
+                        icon: Icons.workspace_premium_rounded,
+                        label: 'Golongan',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
+                        ),
                       ),
-                    ),
-                    _QuickAction(
-                      icon: Icons.school_rounded,
-                      label: 'Pendidikan',
-                      isSmallScreen: isSmallScreen,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => PendidikanScreen(user: user)),
+                      _QuickAction(
+                        icon: Icons.emoji_events_rounded,
+                        label: 'Prestasi',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => PrestasiScreen(user: user)),
+                        ),
                       ),
-                    ),
-                    _QuickAction(
-                      icon: Icons.diversity_3_rounded,
-                      label: 'Keluarga',
-                      isSmallScreen: isSmallScreen,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
+                      _QuickAction(
+                        icon: Icons.school_rounded,
+                        label: 'Pendidikan',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => PendidikanScreen(user: user)),
+                        ),
                       ),
-                    ),
-                    _QuickAction(
-                      icon: Icons.badge_rounded,
-                      label: 'CV',
-                      isSmallScreen: isSmallScreen,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => CvScreen(user: user)),
+                      _QuickAction(
+                        icon: Icons.diversity_3_rounded,
+                        label: 'Keluarga',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => KeluargaScreen(user: user)),
+                        ),
                       ),
-                    ),
-                    _QuickAction(
-                      icon: Icons.description_rounded,
-                      label: 'Dokumen Surat',
-                      isSmallScreen: isSmallScreen,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => DokumenResmiScreen(user: user)),
+                      _QuickAction(
+                        icon: Icons.badge_rounded,
+                        label: 'CV',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => CvScreen(user: user)),
+                        ),
                       ),
-                    ),
-                  ],
+                      _QuickAction(
+                        icon: Icons.description_rounded,
+                        label: 'Dokumen Surat',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => DokumenResmiScreen(user: user)),
+                        ),
+                      ),
+                    ];
+
+                    if (constraints.maxWidth < 360) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (int i = 0; i < quickActions.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 14),
+                              quickActions[i],
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: quickActions,
+                    );
+                  },
                 ),
               ],
             ),
@@ -570,55 +598,84 @@ class ProfileDetailScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: isSmallScreen ? 16.0 : 20.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _QuickAction(
-                        icon: Icons.workspace_premium_rounded,
-                        label: 'Golongan',
-                        isSmallScreen: isSmallScreen,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => GolonganScreen(user: user)),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final actionsV1 = [
+                        _QuickAction(
+                          icon: Icons.workspace_premium_rounded,
+                          label: 'Golongan',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => GolonganScreen(user: user)),
+                          ),
                         ),
-                      ),
-                      _QuickAction(
-                        icon: Icons.school_rounded,
-                        label: 'Pendidikan',
-                        isSmallScreen: isSmallScreen,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => PendidikanScreen(user: user)),
+                        _QuickAction(
+                          icon: Icons.emoji_events_rounded,
+                          label: 'Prestasi',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => PrestasiScreen(user: user)),
+                          ),
                         ),
-                      ),
-                      _QuickAction(
-                        icon: Icons.diversity_3_rounded,
-                        label: 'Keluarga',
-                        isSmallScreen: isSmallScreen,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => KeluargaScreen(user: user)),
+                        _QuickAction(
+                          icon: Icons.school_rounded,
+                          label: 'Pendidikan',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => PendidikanScreen(user: user)),
+                          ),
                         ),
-                      ),
-                      _QuickAction(
-                        icon: Icons.badge_rounded,
-                        label: 'CV',
-                        isSmallScreen: isSmallScreen,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => CvScreen(user: user)),
+                        _QuickAction(
+                          icon: Icons.diversity_3_rounded,
+                          label: 'Keluarga',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => KeluargaScreen(user: user)),
+                          ),
                         ),
-                      ),
-                      _QuickAction(
-                        icon: Icons.description_rounded,
-                        label: 'Dokumen Surat',
-                        isSmallScreen: isSmallScreen,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => DokumenResmiScreen(user: user)),
+                        _QuickAction(
+                          icon: Icons.badge_rounded,
+                          label: 'CV',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => CvScreen(user: user)),
+                          ),
                         ),
-                      ),
-                    ],
+                        _QuickAction(
+                          icon: Icons.description_rounded,
+                          label: 'Dokumen Surat',
+                          isSmallScreen: isSmallScreen,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => DokumenResmiScreen(user: user)),
+                          ),
+                        ),
+                      ];
+
+                      if (constraints.maxWidth < 360) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (int i = 0; i < actionsV1.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 14),
+                                actionsV1[i],
+                              ],
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: actionsV1,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -733,6 +790,15 @@ class ProfileDetailScreen extends StatelessWidget {
             selected: false,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => GolonganScreen(user: user)),
+            ),
+            isSmallScreen: isSmallScreen,
+          ),
+          const SizedBox(width: 8),
+          _TabChip(
+            label: 'Prestasi',
+            selected: false,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => PrestasiScreen(user: user)),
             ),
             isSmallScreen: isSmallScreen,
           ),

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../login_screen.dart';
 import '../../models/user_role.dart';
 import '../../services/api_service.dart';
-import '../../services/onesignal_service.dart';
 import '../../services/theme_controller.dart';
 import '../../theme/app_colors.dart';
 import 'absensi_screen.dart';
 import 'cv_screen.dart';
 import 'dokumen_resmi_screen.dart';
 import 'golongan_screen.dart';
+import 'prestasi_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
 import 'pengaturan_screen.dart';
@@ -451,6 +451,14 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     _QuickAction(
+                      icon: Icons.emoji_events_rounded,
+                      label: 'Prestasi',
+                      isSmallScreen: isSmallScreen,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => PrestasiScreen(user: user)),
+                      ),
+                    ),
+                    _QuickAction(
                       icon: Icons.school_rounded,
                       label: 'Pendidikan',
                       isSmallScreen: isSmallScreen,
@@ -571,6 +579,15 @@ class ProfileScreen extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => GolonganScreen(user: user)),
+                        ),
+                      ),
+                      _QuickAction(
+                        icon: Icons.emoji_events_rounded,
+                        label: 'Prestasi',
+                        isSmallScreen: isSmallScreen,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => PrestasiScreen(user: user)),
                         ),
                       ),
                       _QuickAction(
