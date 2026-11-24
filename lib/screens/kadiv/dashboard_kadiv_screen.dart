@@ -12,6 +12,7 @@ import '../shared/surat_detail_pengaduan_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../widgets/pengumuman_card.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
 /// Dashboard untuk role Kadiv Kategori — Tahap 3 & Tahap 4 (fungsional).
@@ -53,6 +54,11 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
   void initState() {
     super.initState();
     _future = _muat();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        periksaDanTampilkanPopupPengumuman(context, widget.user.role);
+      }
+    });
   }
 
   /// Kotak masuk dibatasi sesuai divisi Kadiv yang login: Kadiv

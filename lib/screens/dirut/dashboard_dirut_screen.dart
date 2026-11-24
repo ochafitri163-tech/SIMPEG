@@ -11,6 +11,7 @@ import '../shared/surat_detail_pengaduan_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../widgets/konfirmasi_dialog.dart';
+import '../../widgets/pengumuman_card.dart';
 import '../../services/theme_controller.dart';
 import '../../services/api_service.dart';
 
@@ -57,6 +58,11 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     super.initState();
     _menungguFuture = PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
     _riwayatFuture = PengaduanService.untukRoleSebagaiObjek(UserRole.direktur);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        periksaDanTampilkanPopupPengumuman(context, widget.user.role);
+      }
+    });
   }
 
   Future<void> _refreshMenunggu() async {

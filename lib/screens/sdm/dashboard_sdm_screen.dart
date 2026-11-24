@@ -4,6 +4,7 @@ import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
 import '../../widgets/notification_bell.dart';
+import '../../widgets/pengumuman_card.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/surat_detail_pengaduan_screen.dart';
 import 'terbitkan_sk_screen.dart';
@@ -46,6 +47,11 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
   void initState() {
     super.initState();
     _future = PengaduanService.untukRoleSebagaiObjek(UserRole.sdm);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        periksaDanTampilkanPopupPengumuman(context, widget.user.role);
+      }
+    });
   }
 
   Future<void> _refresh() async {

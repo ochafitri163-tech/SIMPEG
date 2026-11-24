@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import '../services/notification_service.dart';
@@ -54,6 +52,7 @@ class Pengumuman {
 
   bool get isPenting => prioritas == 'penting';
   bool get adaLampiran => (lampiranUrl != null && lampiranUrl!.isNotEmpty);
+  String? get lampiranUrlLengkap => ApiService.resolveUrl(lampiranUrl);
   DateTime get dibuatPada => tanggalPublikasi;
   DateTime? get diubahPada => tanggalUbah;
 
@@ -179,7 +178,7 @@ class Pengumuman {
       tanggalPublikasi: parse(row['created_at']) ?? DateTime.now().toUtc(),
       terbitPada: parse(row['terbit_pada']),
       kedaluwarsaPada: parse(row['kedaluwarsa_pada']),
-      lampiranUrl: row['lampiran_url']?.toString(),
+      lampiranUrl: ApiService.resolveUrl(row['lampiran_url']?.toString()),
       lampiranNama: row['lampiran_nama']?.toString(),
       tanggalUbah: parse(row['updated_at']),
     );
@@ -245,6 +244,10 @@ class PengumumanService {
             seenIds.add(p.id);
             list.add(p);
           }
+        }
+        if (list.isNotEmpty) {
+          _localCache.clear();
+          _localCache.addAll(list);
         }
       }
     } catch (_) {}

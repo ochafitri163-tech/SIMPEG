@@ -12,6 +12,7 @@ import '../shared/riwayat_pengaduan_screen.dart';
 import '../shared/surat_detail_pengaduan_screen.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../widgets/pengumuman_card.dart';
 
 import '../../theme/app_colors.dart';
 import '../../services/theme_controller.dart';
@@ -80,6 +81,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     super.initState();
     _activeRoleTab = widget.initialTab;
     _loadFutures();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        periksaDanTampilkanPopupPengumuman(context, widget.user.role);
+      }
+    });
   }
 
   Future<void> _refresh() async {

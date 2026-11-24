@@ -224,7 +224,7 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
                             child: InkWell(
                               onTap: () => _bukaGambarPenuh(
                                 context,
-                                p.lampiranUrl!,
+                                p.lampiranUrlLengkap ?? p.lampiranUrl!,
                               ),
                               borderRadius: BorderRadius.circular(22),
                               child: ClipRRect(
@@ -232,7 +232,7 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
                                 child: AspectRatio(
                                   aspectRatio: 16 / 10,
                                   child: Image.network(
-                                    p.lampiranUrl!,
+                                    p.lampiranUrlLengkap ?? p.lampiranUrl!,
                                     width: double.infinity,
                                     fit: BoxFit.cover,
                                     loadingBuilder: (context, child, progress) {
@@ -423,6 +423,17 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
   );
 }
 
+/// Memeriksa dan menampilkan pop-up pengumuman aktif untuk role tertentu.
+/// Dipanggil di initState/postFrameCallback seluruh dashboard role.
+Future<void> periksaDanTampilkanPopupPengumuman(
+    BuildContext context, UserRole role) async {
+  try {
+    final list = await PengumumanService.tayangSekali(role);
+    if (!context.mounted || list.isEmpty) return;
+    await showPengumumanPopup(context, list.first);
+  } catch (_) {}
+}
+
 /// Pop-up "Info Terbaru" versi minimalis: hero-image mengambang lebih
 /// ringkas (150px) di atas body card, tombol tutup (X) melayang lebih
 /// kecil, badge PENTING/INFO + chip tanggal ringkas, judul kapital, dan
@@ -517,16 +528,57 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                            image: adaGambar
-                                ? DecorationImage(
-                                    image: NetworkImage(p.lampiranUrl!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
                           child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              if (!adaGambar) ...[
+                              if (adaGambar) ...[
+                                Image.network(
+                                  p.lampiranUrlLengkap ?? p.lampiranUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return ColoredBox(
+                                      color: isDark
+                                          ? const Color(0xFF1B2332)
+                                          : const Color(0xFFEDEFF2),
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: _accent,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stack) {
+                                    return Container(
+                                      color: isDark
+                                          ? const Color(0xFF1B2332)
+                                          : const Color(0xFFEDEFF2),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                          color: _accent,
+                                          size: 38,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black.withValues(alpha: 0.30),
+                                        Colors.transparent,
+                                        Colors.black.withValues(alpha: 0.65),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ] else ...[
                                 Positioned(
                                   right: -25,
                                   top: -25,
@@ -554,22 +606,6 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                   ),
                                 ),
                               ],
-                              if (adaGambar)
-                                Positioned.fill(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.black.withValues(alpha: 0.35),
-                                          Colors.transparent,
-                                          Colors.black.withValues(alpha: 0.60),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               Center(
                                 child: _StaggerIn(
                                   index: 0,
@@ -1134,12 +1170,13 @@ class _PengumumanCardState extends State<PengumumanCard> {
             ),
             image: adaGambar
                 ? DecorationImage(
-                    image: NetworkImage(p.lampiranUrl!),
+                    image: NetworkImage(p.lampiranUrlLengkap ?? p.lampiranUrl!),
                     fit: BoxFit.cover,
                     colorFilter: ColorFilter.mode(
                       Colors.black.withValues(alpha: 0.35),
                       BlendMode.darken,
                     ),
+                    onError: (_, __) {},
                   )
                 : null,
             boxShadow: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/pengaduan_model.dart' show formatTanggalJam;
 import '../../models/pengumuman_model.dart';
 import '../../models/user_role.dart';
+import '../../services/api_service.dart';
 import '../../widgets/feature_scaffold.dart';
 import '../../widgets/pengumuman_card.dart';
 
@@ -452,7 +453,7 @@ class _PengumumanListScreenState extends State<PengumumanListScreen> {
                             if (adaGambar) ...[
                               const SizedBox(width: 10),
                               _ThumbnailGambar(
-                                url: p.lampiranUrl!,
+                                url: p.lampiranUrlLengkap ?? p.lampiranUrl!,
                                 isDark: isDark,
                               ),
                             ],
@@ -657,7 +658,7 @@ class _ThumbnailGambar extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Image.network(
-            url,
+            ApiService.resolveUrl(url) ?? url,
             width: 44,
             height: 44,
             fit: BoxFit.cover,

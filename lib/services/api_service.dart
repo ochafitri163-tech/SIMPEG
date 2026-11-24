@@ -19,6 +19,39 @@ class ApiService {
     }
   }
 
+  /// Host dasar server (tanpa /api/v1) untuk memuat asset & file storage
+  static String get rootHost {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000';
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000';
+    } else {
+      return 'http://127.0.0.1:8000';
+    }
+  }
+
+  /// Menyesuaikan URL gambar/lampiran agar valid di seluruh platform (Web, Android, iOS, Windows)
+  static String? resolveUrl(String? rawUrl) {
+    if (rawUrl == null || rawUrl.trim().isEmpty) return null;
+    var trimmed = rawUrl.trim();
+
+    // Android emulator host resolution: mapping 127.0.0.1 / localhost ke 10.0.2.2
+    if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
+      if (trimmed.startsWith('http://127.0.0.1:8000')) {
+        trimmed = trimmed.replaceFirst('http://127.0.0.1:8000', 'http://10.0.2.2:8000');
+      } else if (trimmed.startsWith('http://localhost:8000')) {
+        trimmed = trimmed.replaceFirst('http://localhost:8000', 'http://10.0.2.2:8000');
+      }
+    }
+
+    // Resolusi path relatif (/storage/...) ke URL lengkap
+    if (trimmed.startsWith('/')) {
+      return '$rootHost$trimmed';
+    }
+
+    return trimmed;
+  }
+
   static Future<Map<String, String>> _getHeaders({String? explicitNik}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
@@ -240,7 +273,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getPengumuman() async {
     final url = Uri.parse('$baseUrl/pengumuman');
     try {
-      final response = await http.get(url, headers: await _getHeaders()).timeout(const Duration(seconds: 3));
+      final response = await http.get(url, headers: await _getHeaders()).timeout(const Duration(seconds: 10));
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Error: $e'};

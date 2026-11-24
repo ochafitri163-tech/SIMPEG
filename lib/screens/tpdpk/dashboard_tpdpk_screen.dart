@@ -15,6 +15,7 @@ import '../../services/api_service.dart';
 import '../kspi/dashboard_kspi_screen.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../widgets/pengumuman_card.dart';
 
 enum _TpdpkClusterFilter {
   semua,
@@ -53,6 +54,11 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   void initState() {
     super.initState();
     _future = PengaduanService.untukRoleSebagaiObjek(UserRole.tpdpk);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        periksaDanTampilkanPopupPengumuman(context, widget.user.role);
+      }
+    });
   }
 
   Future<void> _refresh() async {
