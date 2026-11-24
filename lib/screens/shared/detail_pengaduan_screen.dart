@@ -864,6 +864,28 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
 
   Widget _buildSuratPutusanSdm(Pengaduan p) {
     if (!p.adaPutusanSdm) return const SizedBox.shrink();
+    var noSurat = p.nomorSuratPutusan;
+    var sanksi = p.jenisSanksi;
+    if ((noSurat == null || noSurat.isEmpty) && p.catatanSdm != null) {
+      final reg = RegExp(r'(SK-[\w-]+)', caseSensitive: false);
+      final m = reg.firstMatch(p.catatanSdm!);
+      if (m != null) noSurat = m.group(1);
+      if (sanksi == null || sanksi.isEmpty) {
+        if (p.catatanSdm!.contains('Penurunan Jabatan')) {
+          sanksi = 'Penurunan Jabatan';
+        } else if (p.catatanSdm!.contains('Penurunan Golongan')) {
+          sanksi = 'Penurunan Golongan';
+        } else if (p.catatanSdm!.contains('Teguran Tertulis')) {
+          sanksi = 'Teguran Tertulis';
+        } else if (p.catatanSdm!.contains('Pemotongan Tunjangan')) {
+          sanksi = 'Pemotongan Tunjangan';
+        } else if (p.catatanSdm!.contains('Skorsing')) {
+          sanksi = 'Skorsing';
+        } else if (p.catatanSdm!.contains('Pemberhentian')) {
+          sanksi = 'Pemberhentian';
+        }
+      }
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -915,8 +937,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              if (p.nomorSuratPutusan != null &&
-                  p.nomorSuratPutusan!.isNotEmpty) ...[
+              if (noSurat != null && noSurat.isNotEmpty) ...[
                 Text('Nomor Surat Putusan',
                     style: TextStyle(
                         fontSize: 11,
@@ -924,7 +945,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                         color: hintGrey)),
                 const SizedBox(height: 3),
                 Text(
-                  p.nomorSuratPutusan!,
+                  noSurat,
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -932,7 +953,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                 ),
                 const SizedBox(height: 10),
               ],
-              if (p.jenisSanksi != null && p.jenisSanksi!.isNotEmpty) ...[
+              if (sanksi != null && sanksi.isNotEmpty) ...[
                 Text('Jenis Sanksi yang Dikenakan',
                     style: TextStyle(
                         fontSize: 11,
@@ -948,7 +969,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                     border: Border.all(color: red.withOpacity(0.2)),
                   ),
                   child: Text(
-                    p.jenisSanksi!,
+                    sanksi,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -1210,9 +1231,9 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   /// untuk semua role agar pegawai terlapor, pelapor, dan manajemen bisa
   /// melihat dan membuka seluruh dokumen yang diinput oleh SDM.
   Widget _buildKartuSk(Pengaduan p) {
-    if (p.supabaseId == null) return const SizedBox.shrink();
+    final pengId = p.supabaseId ?? widget.pengaduanId;
     return FutureBuilder<List<SkSanksi>>(
-      future: SkSanksiService.untukPengaduan(p.supabaseId!),
+      future: SkSanksiService.untukPengaduan(pengId),
       builder: (context, snap) {
         final list = snap.data ?? const <SkSanksi>[];
         if (list.isEmpty) return const SizedBox.shrink();
@@ -2161,7 +2182,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         builder: (_) => TerbitkanSkScreen(
           user: widget.user,
           pengaduan: p,
-          pengaduanId: p.supabaseId,
+          pengaduanId: p.supabaseId ?? widget.pengaduanId,
         ),
       ),
     );
@@ -2462,7 +2483,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                             : '');
                     await _jalankan(
                       () => PengaduanService.sdmPutusanSanksi(
-                        pengaduanId: p.supabaseId!,
+                        pengaduanId: p.supabaseId ?? widget.pengaduanId,
                         oleh: oleh,
                         nomorSuratPutusan: nomor,
                         jenisSanksi: _selectedJenisSanksi,

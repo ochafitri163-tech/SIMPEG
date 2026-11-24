@@ -400,7 +400,8 @@ class Pengaduan {
   /// Apakah Surat Putusan Sanksi dari SDM sudah diterbitkan
   bool get adaPutusanSdm =>
       (nomorSuratPutusan != null && nomorSuratPutusan!.trim().isNotEmpty) ||
-      (fileSuratPutusan != null && fileSuratPutusan!.trim().isNotEmpty);
+      (fileSuratPutusan != null && fileSuratPutusan!.trim().isNotEmpty) ||
+      (catatanSdm != null && catatanSdm!.contains('SK '));
 
   /// Ringkasan data pelaku/pihak yang diadukan (Nama, NIK, Jabatan),
   /// diformat satu baris supaya bisa ditampilkan secara konsisten di

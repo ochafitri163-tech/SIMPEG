@@ -1248,6 +1248,10 @@ class PengaduanService {
     String? catatan,
     String? nikTerlapor,
     int? nominalPenurunanGaji,
+    String? nomorSuratPutusan,
+    String? jenisSanksi,
+    String? fileSuratPutusan,
+    DateTime? tanggalSuratPutusan,
   }) async {
     final adaPenurunan = nikTerlapor != null &&
         nikTerlapor.trim().isNotEmpty &&
@@ -1261,18 +1265,40 @@ class PengaduanService {
       );
     }
 
+    final kolomTambahan = <String, dynamic>{
+      'catatan_sdm': catatan,
+    };
+    if (nomorSuratPutusan != null && nomorSuratPutusan.isNotEmpty) {
+      kolomTambahan['nomor_surat_putusan'] = nomorSuratPutusan;
+    }
+    if (jenisSanksi != null && jenisSanksi.isNotEmpty) {
+      kolomTambahan['jenis_sanksi'] = jenisSanksi;
+    }
+    if (fileSuratPutusan != null && fileSuratPutusan.isNotEmpty) {
+      kolomTambahan['file_surat_putusan'] = fileSuratPutusan;
+    }
+    if (tanggalSuratPutusan != null) {
+      kolomTambahan['tanggal_surat_putusan'] = tanggalSuratPutusan.toIso8601String();
+    }
+
+    String deskripsiAksi = 'Menyelesaikan tindak lanjut administratif';
+    if (nomorSuratPutusan != null && nomorSuratPutusan.isNotEmpty) {
+      deskripsiAksi =
+          'Menerbitkan Surat Putusan Sanksi No. $nomorSuratPutusan (${jenisSanksi ?? 'Sanksi'})';
+    } else if (adaPenurunan) {
+      deskripsiAksi =
+          'Menyelesaikan tindak lanjut administratif — penurunan gaji Rp${_formatRibuan(nominalPenurunanGaji)} (NIK ${nikTerlapor.trim()})';
+    }
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguSdm.name,
       statusBaru: PengaduanStatus.selesai.name,
       oleh: oleh,
       role: UserRole.sdm,
-      aksi: adaPenurunan
-          ? 'Menyelesaikan tindak lanjut administratif — penurunan gaji '
-              'Rp${_formatRibuan(nominalPenurunanGaji)} (NIK ${nikTerlapor.trim()})'
-          : 'Menyelesaikan tindak lanjut administratif',
+      aksi: deskripsiAksi,
       catatan: catatan,
-      kolomTambahan: {'catatan_sdm': catatan},
+      kolomTambahan: kolomTambahan,
     );
 
     final row = await detail(pengaduanId);

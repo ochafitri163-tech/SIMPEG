@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pengaduan_service.dart';
 import '../services/api_service.dart';
@@ -186,7 +187,15 @@ class SkSanksi {
   }
 
   factory SkSanksi.fromRow(Map<String, dynamic> row) {
-    final rawDokumen = (row['dokumen'] ?? const {}) as Map;
+    dynamic rawDok = row['dokumen'] ?? const {};
+    if (rawDok is String) {
+      try {
+        rawDok = jsonDecode(rawDok);
+      } catch (_) {
+        rawDok = const {};
+      }
+    }
+    final rawDokumen = rawDok is Map ? rawDok : const {};
     final dokumen = <JenisDokumenSk, List<String>>{};
     for (final jenis in JenisDokumenSk.values) {
       final list = rawDokumen[jenis.key];
@@ -231,6 +240,37 @@ class SkSanksi {
       dibuatPada: DateTime.tryParse('${row['created_at']}') ?? DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toRow() {
+    final dokumenMap = <String, dynamic>{
+      for (final j in JenisDokumenSk.values) j.key: dokumen[j] ?? const [],
+      kunciDokumenTambahan: tambahan.map((d) => d.toJson()).toList(),
+    };
+
+    return {
+      'id': id,
+      'nomor_sk': nomorSk,
+      'pengaduan_id': pengaduanId,
+      'pegawai_id': pegawaiId,
+      'nik': nik,
+      'nama_pegawai': namaPegawai,
+      'jenis_sanksi': jenisSanksi,
+      'tingkat': tingkat,
+      'jabatan_lama': jabatanLama,
+      'jabatan_baru': jabatanBaru,
+      'golongan_lama': golonganLama,
+      'golongan_baru': golonganBaru,
+      'nominal_penurunan_gaji': nominalPenurunanGaji,
+      'tanggal_berlaku': tanggalBerlaku.toIso8601String(),
+      'ringkasan_pelanggaran': ringkasanPelanggaran,
+      'validasi_lisan_dirut': validasiLisanDirut,
+      'disetujui_oleh': disetujuiOleh,
+      'tanggal_persetujuan_dirut': tanggalPersetujuanDirut?.toIso8601String(),
+      'dokumen': dokumenMap,
+      'diterbitkan_oleh': diterbitkanOleh,
+      'created_at': dibuatPada.toIso8601String(),
+    };
+  }
 }
 
 class SkSanksiService {
@@ -238,6 +278,38 @@ class SkSanksiService {
 
   static const bucket = 'sk-sanksi';
   static final List<SkSanksi> _localSkList = [];
+  static bool _hasLoadedFromPrefs = false;
+  static const String _prefsKey = 'simpeg_sk_sanksi_v2';
+
+  static Future<void> _ensureLoaded() async {
+    if (_hasLoadedFromPrefs) return;
+    _hasLoadedFromPrefs = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_prefsKey);
+      if (str != null && str.isNotEmpty) {
+        final decoded = jsonDecode(str);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final sk = SkSanksi.fromRow(Map<String, dynamic>.from(item));
+              if (!_localSkList.any((s) => s.nomorSk == sk.nomorSk || s.id == sk.id)) {
+                _localSkList.add(sk);
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> _saveToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(_localSkList.map((s) => s.toRow()).toList());
+      await prefs.setString(_prefsKey, encoded);
+    } catch (_) {}
+  }
 
   // ---------------------------------------------------------------
   // Pencarian pegawai terlapor
@@ -398,11 +470,6 @@ class SkSanksiService {
     final berlaku = tanggalBerlaku ?? DateTime.now();
     final tambahanBerisi =
         dokumenTambahan.where((d) => d.berkas.isNotEmpty).toList();
-    final dokumenJson = <String, dynamic>{
-      for (final j in JenisDokumenSk.values) j.key: dokumen[j] ?? const [],
-      kunciDokumenTambahan:
-          tambahanBerisi.map((d) => d.toJson()).toList(growable: false),
-    };
 
     final nomor = await generateNomorSk();
 
@@ -431,7 +498,15 @@ class SkSanksiService {
       dibuatPada: DateTime.now(),
     );
 
+    await _ensureLoaded();
+    _localSkList.removeWhere((s) => s.nomorSk == sk.nomorSk || (pengaduanId != null && s.pengaduanId == pengaduanId));
     _localSkList.insert(0, sk);
+    await _saveToPrefs();
+
+    // Simpan juga ke database via API
+    try {
+      await ApiService.storeSkSanksi(sk.toRow());
+    } catch (_) {}
 
     AuditLogService.logAction(
       userNik: diterbitkanOleh,
@@ -456,11 +531,20 @@ class SkSanksiService {
 
     if (pengaduanId != null) {
       try {
+        final skDocs = dokumen[JenisDokumenSk.sk] ?? const [];
+        final fileUtama = skDocs.isNotEmpty ? skDocs.first : '';
         await PengaduanService.sdmSelesaikan(
           pengaduanId: pengaduanId,
           oleh: diterbitkanOleh,
           catatan: 'SK ${sk.nomorSk} diterbitkan — $jenisSanksi'
               '${sk.perubahanJabatan != null ? ' (${sk.perubahanJabatan})' : ''}.',
+          nikTerlapor: nik,
+          nominalPenurunanGaji:
+              nominalPenurunanGaji > 0 ? nominalPenurunanGaji : null,
+          nomorSuratPutusan: sk.nomorSk,
+          jenisSanksi: jenisSanksi,
+          fileSuratPutusan: fileUtama,
+          tanggalSuratPutusan: berlaku,
         );
       } catch (_) {}
     }
@@ -473,6 +557,21 @@ class SkSanksiService {
   // ---------------------------------------------------------------
 
   static Future<List<SkSanksi>> untukSaya({String? nik}) async {
+    await _ensureLoaded();
+    try {
+      final rows = await ApiService.getSkSanksi(nik: nik);
+      if (rows.isNotEmpty) {
+        final fetched = rows
+            .map((r) => SkSanksi.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList();
+        for (final item in fetched) {
+          _localSkList.removeWhere(
+              (s) => s.id == item.id || s.nomorSk == item.nomorSk);
+          _localSkList.insert(0, item);
+        }
+        await _saveToPrefs();
+      }
+    } catch (_) {}
     if (nik != null && nik.trim().isNotEmpty) {
       return _localSkList.where((s) => s.nik == nik.trim()).toList();
     }
@@ -480,15 +579,55 @@ class SkSanksiService {
   }
 
   static Future<List<SkSanksi>> semua() async {
+    await _ensureLoaded();
+    try {
+      final rows = await ApiService.getSkSanksi();
+      if (rows.isNotEmpty) {
+        final fetched = rows
+            .map((r) => SkSanksi.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList();
+        for (final item in fetched) {
+          _localSkList.removeWhere(
+              (s) => s.id == item.id || s.nomorSk == item.nomorSk);
+          _localSkList.insert(0, item);
+        }
+        await _saveToPrefs();
+      }
+    } catch (_) {}
     return _localSkList;
   }
 
   static Future<List<SkSanksi>> untukPengaduan(int pengaduanId) async {
-    return _localSkList.where((s) => s.pengaduanId == pengaduanId).toList();
+    await _ensureLoaded();
+    final localMatches =
+        _localSkList.where((s) => s.pengaduanId == pengaduanId).toList();
+    if (localMatches.isNotEmpty) {
+      return localMatches;
+    }
+
+    try {
+      final rows = await ApiService.getSkSanksi(pengaduanId: pengaduanId);
+      if (rows.isNotEmpty) {
+        final fetched = rows
+            .map((r) => SkSanksi.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList();
+        for (final item in fetched) {
+          _localSkList.removeWhere(
+              (s) => s.id == item.id || s.nomorSk == item.nomorSk);
+          _localSkList.insert(0, item);
+        }
+        await _saveToPrefs();
+        return _localSkList.where((s) => s.pengaduanId == pengaduanId).toList();
+      }
+    } catch (_) {}
+
+    return localMatches;
   }
 
   static Future<void> hapus(int id) async {
+    await _ensureLoaded();
     _localSkList.removeWhere((s) => s.id == id);
+    await _saveToPrefs();
     AuditLogService.logAction(
       userNik: 'SDM',
       userName: 'Pengelola SDM',

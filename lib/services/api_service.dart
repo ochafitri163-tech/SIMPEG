@@ -508,7 +508,39 @@ class ApiService {
     }
   }
 
-  /// 16. Logout - membersihkan seluruh sesi aktif, OneSignal, dan SharedPreferences
+  /// 16. SK Sanksi (Penerbitan SK & Berkas Dokumen SDM)
+  static Future<List<dynamic>> getSkSanksi({int? pengaduanId, String? nik}) async {
+    final params = <String, String>{};
+    if (pengaduanId != null) params['pengaduan_id'] = pengaduanId.toString();
+    if (nik != null && nik.isNotEmpty) params['nik'] = nik;
+    final uri = Uri.parse('$baseUrl/sk-sanksi').replace(
+      queryParameters: params.isNotEmpty ? params : null,
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders(explicitNik: nik));
+      final res = jsonDecode(response.body);
+      if (res['success'] == true && res['data'] is List) {
+        return res['data'] as List<dynamic>;
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  static Future<Map<String, dynamic>> storeSkSanksi(Map<String, dynamic> data) async {
+    final url = Uri.parse('$baseUrl/sk-sanksi');
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode(data),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 17. Logout - membersihkan seluruh sesi aktif, OneSignal, dan SharedPreferences
   static Future<void> logout() async {
     try {
       await OneSignalService.instance.logoutUser();
