@@ -3,7 +3,6 @@
 // SIMPEG Mobile - Decoupled from Supabase
 // =============================================================
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
@@ -52,8 +51,9 @@ Pengaduan pengaduanFromRow(
 
   DivisiKadiv? parseDivisiKadiv(String? s) {
     if (s == null) return null;
+    final lower = s.trim().toLowerCase();
     return DivisiKadiv.values.firstWhere(
-      (e) => e.name == s,
+      (e) => e.name.toLowerCase() == lower,
       orElse: () => DivisiKadiv.administrasi,
     );
   }
@@ -61,6 +61,38 @@ Pengaduan pengaduanFromRow(
   DateTime parseTgl(dynamic val) {
     if (val == null) return DateTime.now();
     return DateTime.tryParse(val.toString()) ?? DateTime.now();
+  }
+
+  List<String> parseList(dynamic val) {
+    if (val == null) return const [];
+    if (val is List) {
+      return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    }
+    if (val is String) {
+      final str = val.trim();
+      if (str.isEmpty || str == '{}' || str == '[]' || str == 'null') {
+        return const [];
+      }
+      if (str.startsWith('[') && str.endsWith(']')) {
+        try {
+          final decoded = jsonDecode(str);
+          if (decoded is List) {
+            return decoded.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+          }
+        } catch (_) {}
+      }
+      if (str.startsWith('{') && str.endsWith('}')) {
+        final inner = str.substring(1, str.length - 1).trim();
+        if (inner.isEmpty) return const [];
+        return inner
+            .split(',')
+            .map((s) => s.trim().replaceAll(RegExp(r'^"|"$'), ''))
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+      return [str];
+    }
+    return const [];
   }
 
   final pengaduan = Pengaduan(
@@ -83,15 +115,14 @@ Pengaduan pengaduanFromRow(
     jabatanPelaku: row['jabatan_pelaku'] as String?,
     anonim: (row['anonim'] ?? false) as bool,
     status: parseStatus(row['status'] as String?),
-    fotoBukti: List<String>.from(row['foto_bukti'] ?? const []),
-    dokumenPendukung: List<String>.from(row['dokumen_pendukung'] ?? const []),
-    videoBukti: List<String>.from(row['video_bukti'] ?? const []),
-    voiceNote: List<String>.from(row['voice_note'] ?? const []),
-    investigasiFoto: List<String>.from(row['investigasi_foto'] ?? const []),
-    investigasiVideo: List<String>.from(row['investigasi_video'] ?? const []),
-    investigasiVoice: List<String>.from(row['investigasi_voice'] ?? const []),
-    investigasiDokumen:
-        List<String>.from(row['investigasi_dokumen'] ?? const []),
+    fotoBukti: parseList(row['foto_bukti']),
+    dokumenPendukung: parseList(row['dokumen_pendukung']),
+    videoBukti: parseList(row['video_bukti']),
+    voiceNote: parseList(row['voice_note']),
+    investigasiFoto: parseList(row['investigasi_foto']),
+    investigasiVideo: parseList(row['investigasi_video']),
+    investigasiVoice: parseList(row['investigasi_voice']),
+    investigasiDokumen: parseList(row['investigasi_dokumen']),
     riwayatStatus: riwayat,
     keputusanKadiv: parseKeputusan(row['keputusan_kadiv'] as String?),
     catatanKadiv: row['catatan_kadiv'] as String?,
@@ -404,7 +435,7 @@ class PengaduanService {
     final row = <String, dynamic>{
       'id': pengaduanId,
       'nomor_pengaduan': nomor,
-      'pelapor_id': user.id ?? user.nik,
+      'pelapor_id': user.id.isNotEmpty ? user.id : user.nik,
       'kategori': kategori,
       'judul': judul,
       'deskripsi': deskripsi,
@@ -434,6 +465,14 @@ class PengaduanService {
         nik: user.nik,
         subjek: judul,
         pesan: deskripsi,
+        kategori: kategori,
+        pihakTerlapor: pihakTerlapor.trim(),
+        nikPelaku: nikPelaku.trim(),
+        jabatanPelaku: jabatanPelaku.trim(),
+        fotoBukti: fotoBukti,
+        dokumenPendukung: dokumenPendukung,
+        anonim: anonim,
+        status: PengaduanStatus.menungguKadiv.name,
       );
     } catch (_) {}
 
@@ -475,35 +514,33 @@ class PengaduanService {
         final serverList = List<Map<String, dynamic>>.from(res['data']);
         for (final s in serverList) {
           final sId = (s['id'] as num?)?.toInt() ?? 0;
-          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
-            _localPengaduan.add({
-              'id': sId,
-              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
-              'pelapor_id': s['pelapor_id']?.toString() ?? '',
-              'kategori': s['kategori'] ?? 'Umum',
-              'judul': s['judul'] ?? '-',
-              'deskripsi': s['deskripsi'] ?? '-',
-              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
-              'nik': s['nik'] ?? nik ?? '',
-              'cabang': s['cabang'] ?? '-',
-              'golongan': s['golongan'] ?? '-',
-              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
-              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
-              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
-            });
+          final idx = _localPengaduan.indexWhere((lp) => (lp['id'] as num?)?.toInt() == sId);
+          final map = Map<String, dynamic>.from(s);
+          map['id'] = sId;
+          map['nomor_pengaduan'] = s['nomor_pengaduan'] ?? 'PGD-$sId';
+          map['status'] = s['status'] ?? PengaduanStatus.menungguKadiv.name;
+          if (idx == -1) {
+            _localPengaduan.add(map);
+          } else {
+            _localPengaduan[idx] = map;
           }
         }
       }
     } catch (_) {}
 
-    if (nik != null && nik.trim().isNotEmpty) {
-      return _localPengaduan
-          .where((r) => (r['nik'] ?? '').toString() == nik.trim())
-          .toList();
+    int compareDateDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final tglA = DateTime.tryParse((a['tanggal_pengaduan'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tglB = DateTime.tryParse((b['tanggal_pengaduan'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tglB.compareTo(tglA);
     }
-    return _localPengaduan;
+
+    final result = (nik != null && nik.trim().isNotEmpty)
+        ? _localPengaduan
+            .where((r) => (r['nik'] ?? '').toString() == nik.trim())
+            .toList()
+        : List<Map<String, dynamic>>.from(_localPengaduan);
+    result.sort(compareDateDesc);
+    return result;
   }
 
   /// Mengambil daftar pengaduan untuk sebuah role.
@@ -518,30 +555,27 @@ class PengaduanService {
         final serverList = List<Map<String, dynamic>>.from(res['data']);
         for (final s in serverList) {
           final sId = (s['id'] as num?)?.toInt() ?? 0;
-          if (!_localPengaduan.any((lp) => (lp['id'] as num?)?.toInt() == sId)) {
-            _localPengaduan.add({
-              'id': sId,
-              'nomor_pengaduan': s['nomor_pengaduan'] ?? 'PGD-$sId',
-              'pelapor_id': s['pelapor_id']?.toString() ?? '',
-              'kategori': s['kategori'] ?? 'Umum',
-              'judul': s['judul'] ?? '-',
-              'deskripsi': s['deskripsi'] ?? '-',
-              'nama_pegawai': s['nama_pegawai'] ?? 'Pegawai',
-              'nik': s['nik'] ?? '',
-              'cabang': s['cabang'] ?? '-',
-              'golongan': s['golongan'] ?? '-',
-              'pihak_terlapor': s['pihak_terlapor'] ?? '-',
-              'status': s['status'] ?? PengaduanStatus.menungguKadiv.name,
-              'tanggal_pengaduan': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'created_at': s['created_at'] ?? DateTime.now().toIso8601String(),
-              'updated_at': s['updated_at'] ?? DateTime.now().toIso8601String(),
-            });
+          final idx = _localPengaduan.indexWhere((lp) => (lp['id'] as num?)?.toInt() == sId);
+          final map = Map<String, dynamic>.from(s);
+          map['id'] = sId;
+          map['nomor_pengaduan'] = s['nomor_pengaduan'] ?? 'PGD-$sId';
+          map['status'] = s['status'] ?? PengaduanStatus.menungguKadiv.name;
+          if (idx == -1) {
+            _localPengaduan.add(map);
+          } else {
+            _localPengaduan[idx] = map;
           }
         }
       }
     } catch (_) {}
 
-    final semua = List<Map<String, dynamic>>.from(_localPengaduan);
+    int compareDateDesc(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final tglA = DateTime.tryParse((a['tanggal_pengaduan'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tglB = DateTime.tryParse((b['tanggal_pengaduan'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tglB.compareTo(tglA);
+    }
+
+    final semua = List<Map<String, dynamic>>.from(_localPengaduan)..sort(compareDateDesc);
 
     if (role == UserRole.sdm) {
       return semua.where((row) {
@@ -552,7 +586,7 @@ class PengaduanService {
         return isTerbukti &&
             (status == PengaduanStatus.menungguSdm.name ||
                 status == PengaduanStatus.selesai.name);
-      }).toList();
+      }).toList()..sort(compareDateDesc);
     }
 
     if (role != UserRole.kadivKategori || divisiKadiv == null) {
@@ -571,28 +605,28 @@ class PengaduanService {
         return divisi.name == divisiKadiv;
       }
 
-      final eksekutorNama = row['eksekutor'] as String?;
+      final eksekutorNama = (row['eksekutor'] as String?)?.toLowerCase();
       final sedangDiinvestigasiOlehKadiv =
           status == PengaduanStatus.investigasiBerjalan.name &&
-              eksekutorNama == Eksekutor.kadiv.name;
+              eksekutorNama == Eksekutor.kadiv.name.toLowerCase();
       if (sedangDiinvestigasiOlehKadiv) {
-        final divisi = row['eksekutor_divisi_kadiv'] as String?;
+        final divisi = (row['eksekutor_divisi_kadiv'] as String?)?.toLowerCase();
         if (divisi == null) return true;
-        return divisi == divisiKadiv;
+        return divisi == divisiKadiv.toLowerCase();
       }
 
-      final eksekutorTLNama = row['eksekutor_tindak_lanjut'] as String?;
+      final eksekutorTLNama = (row['eksekutor_tindak_lanjut'] as String?)?.toLowerCase();
       final sedangTindakLanjutOlehKadiv =
           status == PengaduanStatus.tindakLanjutBerjalan.name &&
-              eksekutorTLNama == Eksekutor.kadiv.name;
+              eksekutorTLNama == Eksekutor.kadiv.name.toLowerCase();
       if (sedangTindakLanjutOlehKadiv) {
-        final divisi = row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?;
+        final divisi = (row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?)?.toLowerCase();
         if (divisi == null) return true;
-        return divisi == divisiKadiv;
+        return divisi == divisiKadiv.toLowerCase();
       }
 
       return true;
-    }).toList();
+    }).toList()..sort(compareDateDesc);
   }
 
   /// KADIV — alihkan kategori pelanggaran
@@ -650,7 +684,9 @@ class PengaduanService {
 
   static Future<List<Pengaduan>> punyaSayaSebagaiObjek({String? nik}) async {
     final rows = await punyaSaya(nik: nik);
-    return rows.map((row) => pengaduanFromRow(row)).toList();
+    final list = rows.map((row) => pengaduanFromRow(row)).toList();
+    list.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+    return list;
   }
 
   static List<StatusHistoryEntry> _parseRiwayat(
@@ -693,7 +729,9 @@ class PengaduanService {
     String? divisiKadiv,
   }) async {
     final rows = await untukRole(role, divisiKadiv: divisiKadiv);
-    return rows.map((row) => pengaduanFromRow(row)).toList();
+    final list = rows.map((row) => pengaduanFromRow(row)).toList();
+    list.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+    return list;
   }
 
   static Future<void> _ubahStatus({
@@ -737,6 +775,20 @@ class PengaduanService {
       description:
           '$aksi pada Pengaduan ID #$pengaduanId (status: $statusLama -> $statusBaru)',
     );
+
+    // Sinkronisasi pembaruan status ke backend PostgreSQL
+    try {
+      await ApiService.updateStatusPengaduan(
+        id: pengaduanId,
+        status: statusBaru,
+        catatan: catatan,
+        aksi: aksi,
+        kategori: kolomTambahan['kategori'] as String?,
+        keputusanKadiv: kolomTambahan['keputusan_kadiv'] as String?,
+        catatanKadiv: kolomTambahan['catatan_kadiv'] as String?,
+        extra: kolomTambahan,
+      );
+    } catch (_) {}
   }
 
   /// KADIV — terima/tolak aksi

@@ -733,6 +733,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         selectedExecutors: selectedExecutors,
+        eksekutorCategory: selectedExecutors.first.role,
+        divisiKadiv: selectedExecutors.first.divisiKadiv,
         catatan: catatanController.text.trim().isEmpty
             ? null
             : catatanController.text.trim(),
@@ -1859,8 +1861,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               );
             } else {
               final lists = snapshot.data ?? [[], []];
-              final semuaKspi = lists.isNotEmpty ? lists[0] : <Pengaduan>[];
-              final semuaTpdpk = lists.length > 1 ? lists[1] : <Pengaduan>[];
+              final semuaKspi = (lists.isNotEmpty ? List<Pengaduan>.from(lists[0]) : <Pengaduan>[])
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+              final semuaTpdpk = (lists.length > 1 ? List<Pengaduan>.from(lists[1]) : <Pengaduan>[])
+                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
 
               if (_activeRoleTab == 0) {
                 final siapTeruskanSemua = semuaKspi

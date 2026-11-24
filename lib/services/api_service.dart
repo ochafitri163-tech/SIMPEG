@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'audit_log_service.dart';
 import 'onesignal_service.dart';
 
 class ApiService {
@@ -31,11 +32,14 @@ class ApiService {
       }
     }
 
+    final deviceInfo = await AuditLogService.getDeviceInfo();
+
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Authorization': 'Bearer $token',
       'X-NIK': nik,
+      'X-Device-Info': deviceInfo,
     };
   }
 
@@ -43,9 +47,14 @@ class ApiService {
   static Future<Map<String, dynamic>> login(String nik, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {
+      final deviceInfo = await AuditLogService.getDeviceInfo();
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Device-Info': deviceInfo,
+        },
         body: jsonEncode({'nik': nik, 'password': password}),
       ).timeout(const Duration(seconds: 3));
 
@@ -330,6 +339,14 @@ class ApiService {
     required String subjek,
     required String pesan,
     String? nik,
+    String? kategori,
+    String? pihakTerlapor,
+    String? nikPelaku,
+    String? jabatanPelaku,
+    List<String>? fotoBukti,
+    List<String>? dokumenPendukung,
+    bool? anonim,
+    String? status,
   }) async {
     final url = Uri.parse('$baseUrl/pengaduan');
     final prefs = await SharedPreferences.getInstance();
@@ -343,7 +360,49 @@ class ApiService {
           'nik': activeNik,
           'subjek': subjek,
           'pesan': pesan,
+          'kategori': kategori ?? 'Pelanggaran Administrasi',
+          'pihak_terlapor': pihakTerlapor,
+          'nik_pelaku': nikPelaku,
+          'jabatan_pelaku': jabatanPelaku,
+          'foto_bukti': fotoBukti,
+          'dokumen_pendukung': dokumenPendukung,
+          'anonim': anonim ?? false,
+          'status': status ?? 'menungguKadiv',
         }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateStatusPengaduan({
+    required int id,
+    String? status,
+    String? kategori,
+    String? catatan,
+    String? aksi,
+    String? keputusanKadiv,
+    String? catatanKadiv,
+    Map<String, dynamic>? extra,
+  }) async {
+    final url = Uri.parse('$baseUrl/pengaduan/$id/status');
+    try {
+      final payload = <String, dynamic>{
+        'status': status,
+        'kategori': kategori,
+        'catatan': catatan,
+        'aksi': aksi,
+        'keputusan_kadiv': keputusanKadiv,
+        'catatan_kadiv': catatanKadiv,
+      };
+      if (extra != null) {
+        payload.addAll(extra);
+      }
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode(payload),
       );
       return jsonDecode(response.body);
     } catch (e) {

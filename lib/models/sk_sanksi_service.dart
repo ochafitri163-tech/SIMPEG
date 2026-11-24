@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'pengaduan_model.dart';
 import 'pengaduan_service.dart';
 import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
@@ -313,7 +312,23 @@ class SkSanksiService {
     required String folder,
   }) async {
     if (bytes.isNotEmpty) {
-      return 'data:application/pdf;base64,${base64Encode(bytes)}';
+      final ext = namaFile.contains('.')
+          ? namaFile.split('.').last.toLowerCase()
+          : 'pdf';
+      String mime = 'application/pdf';
+      if (ext == 'doc') {
+        mime = 'application/msword';
+      } else if (ext == 'docx') {
+        mime =
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else if (ext == 'xls') {
+        mime = 'application/vnd.ms-excel';
+      } else if (ext == 'xlsx') {
+        mime =
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      }
+      final safeName = namaFile.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      return 'data:$mime;name=$safeName;base64,${base64Encode(bytes)}';
     }
     return '';
   }
