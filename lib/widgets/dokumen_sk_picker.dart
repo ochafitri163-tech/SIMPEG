@@ -106,14 +106,35 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
 
   Future<void> _pilihBerkas(JenisDokumenSk jenis) async {
     final hasil = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx'],
       withData: true,
       allowMultiple: true,
     );
     if (hasil == null || hasil.files.isEmpty) return;
 
+    const ekstensiValid = {'pdf', 'doc', 'docx', 'xls', 'xlsx'};
+    final filesValid = hasil.files.where((file) {
+      final ext = file.name.contains('.')
+          ? file.name.split('.').last.toLowerCase()
+          : '';
+      return ekstensiValid.contains(ext);
+    }).toList();
+
+    if (filesValid.length < hasil.files.length && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Hanya berkas PDF, Word (.doc, .docx), atau Excel (.xls, .xlsx) yang diperbolehkan.'),
+          backgroundColor: _red,
+        ),
+      );
+    }
+    if (filesValid.isEmpty) return;
+
     setState(() => _sedangUnggah = jenis);
     try {
-      for (final file in hasil.files) {
+      for (final file in filesValid) {
         final bytes = file.bytes;
         if (bytes == null) continue;
         final url = await SkSanksiService.unggahBerkas(
@@ -504,14 +525,35 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
 
   Future<void> _pilihBerkasTambahan(int index) async {
     final hasil = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx'],
       withData: true,
       allowMultiple: true,
     );
     if (hasil == null || hasil.files.isEmpty) return;
 
+    const ekstensiValid = {'pdf', 'doc', 'docx', 'xls', 'xlsx'};
+    final filesValid = hasil.files.where((file) {
+      final ext = file.name.contains('.')
+          ? file.name.split('.').last.toLowerCase()
+          : '';
+      return ekstensiValid.contains(ext);
+    }).toList();
+
+    if (filesValid.length < hasil.files.length && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Hanya berkas PDF, Word (.doc, .docx), atau Excel (.xls, .xlsx) yang diperbolehkan.'),
+          backgroundColor: _red,
+        ),
+      );
+    }
+    if (filesValid.isEmpty) return;
+
     setState(() => _sedangUnggahTambahan = index);
     try {
-      for (final file in hasil.files) {
+      for (final file in filesValid) {
         final bytes = file.bytes;
         if (bytes == null) continue;
         final url = await SkSanksiService.unggahBerkasTambahan(
@@ -665,7 +707,7 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                 sedang
                     ? 'Mengunggah...'
                     : item.berkas.isEmpty
-                        ? 'Unggah berkas'
+                        ? 'Unggah berkas (PDF, Word, Excel)'
                         : 'Tambah berkas (${item.berkas.length})',
                 style: const TextStyle(fontSize: 12),
               ),
@@ -821,7 +863,7 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                 sedang
                     ? 'Mengunggah...'
                     : berkas.isEmpty
-                        ? 'Unggah berkas'
+                        ? 'Unggah berkas (PDF, Word, Excel)'
                         : 'Tambah berkas (${berkas.length})',
                 style: const TextStyle(fontSize: 12),
               ),

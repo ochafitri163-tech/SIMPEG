@@ -326,10 +326,6 @@ class SkSanksiService {
       } else if (ext == 'xlsx') {
         mime =
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      } else if (ext == 'jpg' || ext == 'jpeg') {
-        mime = 'image/jpeg';
-      } else if (ext == 'png') {
-        mime = 'image/png';
       }
       final safeName = namaFile.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       return 'data:$mime;name=$safeName;base64,${base64Encode(bytes)}';
