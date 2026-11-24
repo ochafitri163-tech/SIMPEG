@@ -707,7 +707,7 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                 sedang
                     ? 'Mengunggah...'
                     : item.berkas.isEmpty
-                        ? 'Unggah berkas (PDF, Word, Excel)'
+                        ? 'Unggah berkas'
                         : 'Tambah berkas (${item.berkas.length})',
                 style: const TextStyle(fontSize: 12),
               ),
@@ -863,7 +863,7 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
                 sedang
                     ? 'Mengunggah...'
                     : berkas.isEmpty
-                        ? 'Unggah berkas (PDF, Word, Excel)'
+                        ? 'Unggah berkas'
                         : 'Tambah berkas (${berkas.length})',
                 style: const TextStyle(fontSize: 12),
               ),
