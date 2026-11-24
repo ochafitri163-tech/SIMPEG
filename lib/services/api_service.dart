@@ -36,7 +36,8 @@ class ApiService {
     var trimmed = rawUrl.trim();
 
     // Reroute static storage path ke endpoint API v1 storage yang didukung CORS lengkap
-    if (trimmed.contains('/storage/pengumuman/')) {
+    // Hanya lakukan bila BELUM diawali /api/v1/storage/
+    if (trimmed.contains('/storage/pengumuman/') && !trimmed.contains('/api/v1/storage/')) {
       trimmed = trimmed.replaceFirst('/storage/pengumuman/', '/api/v1/storage/pengumuman/');
     }
 
