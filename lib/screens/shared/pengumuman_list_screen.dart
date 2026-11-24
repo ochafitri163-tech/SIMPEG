@@ -684,8 +684,8 @@ class _ThumbnailGambar extends StatelessWidget {
               height: 44,
               color:
                   isDark ? const Color(0xFF232B3B) : const Color(0xFFEDEFF2),
-              child: Icon(Icons.broken_image_rounded,
-                  size: 17, color: Colors.grey[500]),
+              child: Icon(Icons.image_outlined,
+                  size: 18, color: const Color(0xFF2E86AB).withValues(alpha: 0.8)),
             ),
           ),
         ),

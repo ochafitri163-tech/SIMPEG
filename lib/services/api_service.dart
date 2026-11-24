@@ -35,6 +35,11 @@ class ApiService {
     if (rawUrl == null || rawUrl.trim().isEmpty) return null;
     var trimmed = rawUrl.trim();
 
+    // Reroute static storage path ke endpoint API v1 storage yang didukung CORS lengkap
+    if (trimmed.contains('/storage/pengumuman/')) {
+      trimmed = trimmed.replaceFirst('/storage/pengumuman/', '/api/v1/storage/pengumuman/');
+    }
+
     // Android emulator host resolution: mapping 127.0.0.1 / localhost ke 10.0.2.2
     if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
       if (trimmed.startsWith('http://127.0.0.1:8000')) {

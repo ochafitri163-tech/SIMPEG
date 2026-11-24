@@ -250,11 +250,25 @@ Future<void> showPengumumanDetail(BuildContext context, Pengumuman p) async {
                                     errorBuilder: (context, error, stack) {
                                       return ColoredBox(
                                         color: chipColor,
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.broken_image_outlined,
-                                            color: _accent,
-                                            size: 42,
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.image_outlined,
+                                                color: _accent.withValues(alpha: 0.8),
+                                                size: 40,
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Foto Lampiran',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: _accent.withValues(alpha: 0.8),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       );
@@ -533,37 +547,57 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                             fit: StackFit.expand,
                             children: [
                               if (adaGambar) ...[
-                                Image.network(
-                                  p.lampiranUrlLengkap ?? p.lampiranUrl!,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) return child;
-                                    return ColoredBox(
-                                      color: isDark
-                                          ? const Color(0xFF1B2332)
-                                          : const Color(0xFFEDEFF2),
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: _accent,
+                                InkWell(
+                                  onTap: () => _bukaGambarPenuh(
+                                    context,
+                                    p.lampiranUrlLengkap ?? p.lampiranUrl!,
+                                  ),
+                                  child: Image.network(
+                                    p.lampiranUrlLengkap ?? p.lampiranUrl!,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return ColoredBox(
+                                        color: isDark
+                                            ? const Color(0xFF1B2332)
+                                            : const Color(0xFFEDEFF2),
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _accent,
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (context, error, stack) {
-                                    return Container(
-                                      color: isDark
-                                          ? const Color(0xFF1B2332)
-                                          : const Color(0xFFEDEFF2),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.broken_image_outlined,
-                                          color: _accent,
-                                          size: 38,
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stack) {
+                                      return Container(
+                                        color: isDark
+                                            ? const Color(0xFF1B2332)
+                                            : const Color(0xFFEDEFF2),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.image_outlined,
+                                                color: _accent.withValues(alpha: 0.8),
+                                                size: 36,
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Foto Lampiran',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: _accent.withValues(alpha: 0.8),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
+                                      );
+                                    },
+                                  ),
                                 ),
                                 DecoratedBox(
                                   decoration: BoxDecoration(
@@ -571,10 +605,55 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        Colors.black.withValues(alpha: 0.30),
+                                        Colors.black.withValues(alpha: 0.25),
                                         Colors.transparent,
-                                        Colors.black.withValues(alpha: 0.65),
+                                        Colors.black.withValues(alpha: 0.60),
                                       ],
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 14,
+                                  bottom: 12,
+                                  child: _StaggerIn(
+                                    index: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.55),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            penting
+                                                ? Icons.campaign_rounded
+                                                : Icons.notifications_active_rounded,
+                                            color: Colors.white,
+                                            size: 13,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            penting
+                                                ? 'PENGUMUMAN PENTING'
+                                                : 'PENGUMUMAN TERBARU',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -605,76 +684,76 @@ Future<void> showPengumumanPopup(BuildContext context, Pengumuman p) async {
                                     ),
                                   ),
                                 ),
-                              ],
-                              Center(
-                                child: _StaggerIn(
-                                  index: 0,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 52,
-                                        height: 52,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.white
-                                              .withValues(alpha: 0.16),
-                                          border: Border.all(
+                                Center(
+                                  child: _StaggerIn(
+                                    index: 0,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 52,
+                                          height: 52,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
                                             color: Colors.white
-                                                .withValues(alpha: 0.30),
-                                            width: 1.5,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.18),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
+                                                .withValues(alpha: 0.16),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.30),
+                                              width: 1.5,
                                             ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          penting
-                                              ? Icons.campaign_rounded
-                                              : Icons
-                                                  .notifications_active_rounded,
-                                          color: Colors.white,
-                                          size: 27,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 4.5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.28),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.18),
-                                            width: 1,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.18),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                        child: Text(
-                                          penting
-                                              ? 'PENGUMUMAN PENTING'
-                                              : 'PENGUMUMAN TERBARU',
-                                          style: const TextStyle(
+                                          child: Icon(
+                                            penting
+                                                ? Icons.campaign_rounded
+                                                : Icons
+                                                    .notifications_active_rounded,
                                             color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.8,
+                                            size: 27,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4.5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.28),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.18),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            penting
+                                                ? 'PENGUMUMAN PENTING'
+                                                : 'PENGUMUMAN TERBARU',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.8,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
