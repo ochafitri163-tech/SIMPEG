@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/android_notification_compat_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/theme_controller.dart';
 import '../../widgets/feature_scaffold.dart';
@@ -13,17 +14,41 @@ class PengaturanScreen extends StatefulWidget {
   State<PengaturanScreen> createState() => _PengaturanScreenState();
 }
 
-class _PengaturanScreenState extends State<PengaturanScreen> {
+class _PengaturanScreenState extends State<PengaturanScreen>
+    with WidgetsBindingObserver {
   bool _notifAbsensi = true;
   bool _notifPengumuman = true;
   bool _isLoadingPref = true;
   bool _isSavingAbsensi = false;
   bool _isSavingPengumuman = false;
+  AndroidNotificationDiagnostic? _androidDiag;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _muatPreferensi();
+    _muatDiagnostikAndroid();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _muatDiagnostikAndroid();
+    }
+  }
+
+  Future<void> _muatDiagnostikAndroid() async {
+    final diag = await AndroidNotificationCompatService.getDiagnostic();
+    if (mounted) {
+      setState(() => _androidDiag = diag);
+    }
   }
 
   Future<void> _muatPreferensi() async {
@@ -125,6 +150,60 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                     ],
                   ),
                 ),
+                if (_androidDiag != null) ...[
+                  const SizedBox(height: 22),
+                  const _SectionLabel('KEANDALAN PUSH NOTIFICATION ANDROID'),
+                  const SizedBox(height: 10),
+                  InfoCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        _NavRow(
+                          icon: _androidDiag!.notificationsEnabled
+                              ? Icons.notifications_active_rounded
+                              : Icons.notifications_off_rounded,
+                          title: 'Izin Notifikasi Perangkat',
+                          subtitle: _androidDiag!.notificationsEnabled
+                              ? 'Aktif (Pop-up & status bar diizinkan)'
+                              : 'Terblokir — ketuk untuk mengaktifkan di Pengaturan HP',
+                          onTap: () async {
+                            await AndroidNotificationCompatService
+                                .openNotificationSettings();
+                          },
+                        ),
+                        _ThemedDivider(),
+                        _NavRow(
+                          icon: _androidDiag!.ignoringBatteryOptimizations
+                              ? Icons.battery_charging_full_rounded
+                              : Icons.battery_saver_rounded,
+                          title: 'Optimasi Baterai Latar Belakang',
+                          subtitle: _androidDiag!.ignoringBatteryOptimizations
+                              ? 'Bebas pembatasan baterai (Push cepat masuk)'
+                              : 'Dibatasi penghemat baterai — ketuk untuk kecualikan SIMPEG',
+                          onTap: () async {
+                            await AndroidNotificationCompatService
+                                .openBatteryOptimizationSettings();
+                          },
+                          isLast: !_androidDiag!.hasStrictOemPolicy,
+                        ),
+                        if (_androidDiag!.hasStrictOemPolicy) ...[
+                          _ThemedDivider(),
+                          _NavRow(
+                            icon: Icons.security_rounded,
+                            title:
+                                'Autostart & Keamanan (${_androidDiag!.manufacturer.toUpperCase()})',
+                            subtitle: _androidDiag!.oemGuidance,
+                            onTap: () async {
+                              await AndroidNotificationCompatService
+                                  .openOemAutostartSettings();
+                            },
+                            isLast: true,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 const _SectionLabel('TAMPILAN'),
                 const SizedBox(height: 10),

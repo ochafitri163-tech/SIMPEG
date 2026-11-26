@@ -14,7 +14,7 @@ class NotificationDeduplicator {
   static bool shouldDisplay(
     String title,
     String body, {
-    int windowSeconds = 8,
+    int windowSeconds = 30,
   }) {
     final now = DateTime.now();
 

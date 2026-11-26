@@ -6,6 +6,9 @@ import '../models/pengumuman_model.dart';
 import '../models/user_role.dart';
 import '../screens/shared/detail_pengaduan_screen.dart';
 import '../services/notification_nav_helper.dart';
+import '../services/onesignal_service.dart';
+import '../services/realtime_notification_service.dart';
+import '../theme/app_colors.dart';
 import 'pengumuman_card.dart' show showPengumumanDetail;
 
 /// Ikon lonceng notifikasi yang dipasang di AppBar tiap dashboard.
@@ -25,20 +28,66 @@ class _NotificationBellState extends State<NotificationBell> {
 
   int _belumDibaca = 0;
   Timer? _pollTimer;
+  final Set<int> _knownNotifIds = {};
+  bool _seededKnownIds = false;
 
   @override
   void initState() {
     super.initState();
-    _muatJumlahBelumDibaca();
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted) _muatJumlahBelumDibaca();
+    NotificationService.bellVersion.addListener(_onBellSignal);
+    OneSignalService.foregroundVersion.addListener(_onForegroundPush);
+    _sinkronkanNotifikasi(announceNew: false);
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _sinkronkanNotifikasi(announceNew: true);
     });
   }
 
   @override
   void dispose() {
+    NotificationService.bellVersion.removeListener(_onBellSignal);
+    OneSignalService.foregroundVersion.removeListener(_onForegroundPush);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  void _onBellSignal() {
+    if (mounted) _muatJumlahBelumDibaca();
+  }
+
+  void _onForegroundPush() {
+    if (mounted) _sinkronkanNotifikasi(announceNew: false);
+  }
+
+  Future<void> _sinkronkanNotifikasi({required bool announceNew}) async {
+    try {
+      final list = await NotificationService.untukSaya();
+      final unread = list.where((n) => n['dibaca'] != true).length;
+
+      if (!_seededKnownIds) {
+        for (final n in list) {
+          final id = (n['id'] as num?)?.toInt();
+          if (id != null) _knownNotifIds.add(id);
+        }
+        _seededKnownIds = true;
+      } else if (announceNew) {
+        for (final n in list) {
+          final id = (n['id'] as num?)?.toInt();
+          if (id != null && !_knownNotifIds.contains(id)) {
+            _knownNotifIds.add(id);
+            if (n['dibaca'] != true) {
+              RealtimeNotificationService.instance.showNotification(
+                title: (n['judul'] ?? 'SIMPEG').toString(),
+                body: (n['pesan'] ?? '').toString(),
+              );
+            }
+          }
+        }
+      }
+
+      if (mounted) setState(() => _belumDibaca = unread);
+    } catch (_) {
+      // Diamkan -- badge tetap terjaga kalau gagal fetch sementara.
+    }
   }
 
   Future<void> _muatJumlahBelumDibaca() async {
@@ -123,12 +172,21 @@ class _NotificationBellState extends State<NotificationBell> {
       return;
     }
 
+    if (judul.contains('tunjangan pendidikan') || pesan.contains('tunjangan pendidikan')) {
+      await NotificationNavHelper.openTunjanganPendidikan();
+      return;
+    }
+
+    if (judul.contains('insentif') || pesan.contains('insentif')) {
+      await NotificationNavHelper.openInsentif();
+      return;
+    }
+
     if (judul.contains('gaji') ||
         judul.contains('payroll') ||
-        judul.contains('insentif') ||
+        judul.contains('potongan') ||
         pesan.contains('gaji') ||
-        pesan.contains('payroll') ||
-        pesan.contains('insentif')) {
+        pesan.contains('payroll')) {
       await NotificationNavHelper.openPayroll();
       return;
     }
@@ -140,6 +198,41 @@ class _NotificationBellState extends State<NotificationBell> {
 
     if (judul.contains('lembur') || pesan.contains('lembur')) {
       await NotificationNavHelper.openLembur();
+      return;
+    }
+
+    if (judul.contains('absensi') || pesan.contains('absensi')) {
+      await NotificationNavHelper.openAbsensi();
+      return;
+    }
+
+    if (judul.contains('sanksi') || pesan.contains('sanksi')) {
+      await NotificationNavHelper.openSanksi();
+      return;
+    }
+
+    if (judul.contains('golongan') || pesan.contains('golongan')) {
+      await NotificationNavHelper.openGolongan();
+      return;
+    }
+
+    if (judul.contains('jabatan') || pesan.contains('jabatan')) {
+      await NotificationNavHelper.openJabatan();
+      return;
+    }
+
+    if (judul.contains('pendidikan') || pesan.contains('pendidikan')) {
+      await NotificationNavHelper.openPendidikan();
+      return;
+    }
+
+    if (judul.contains('keluarga') || pesan.contains('keluarga')) {
+      await NotificationNavHelper.openKeluarga();
+      return;
+    }
+
+    if (judul.contains('prestasi') || pesan.contains('prestasi')) {
+      await NotificationNavHelper.openPrestasi();
       return;
     }
 
@@ -172,10 +265,10 @@ class _NotificationBellState extends State<NotificationBell> {
                   constraints: BoxConstraints(
                       maxHeight: MediaQuery.of(ctx).size.height * 0.75),
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: AppColors.card(ctx),
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -237,24 +330,38 @@ class _NotificationBellState extends State<NotificationBell> {
                                        final n = notif[i];
                                        final dibaca =
                                            (n['dibaca'] ?? false) as bool;
-                                       final waktu =
-                                           DateTime.parse(n['waktu'] as String);
+                                       final waktu = DateTime.tryParse(
+                                               (n['waktu'] ?? '').toString()) ??
+                                           DateTime.now();
                                        final jStr = (n['judul'] as String? ?? '').toLowerCase();
                                        final pStr = (n['pesan'] as String? ?? '').toLowerCase();
                                        final adaTujuan = n['pengumuman_id'] != null ||
                                            n['pengaduan_id'] != null ||
+                                           n['task_id'] != null ||
                                            jStr.contains('pengumuman') ||
                                            pStr.contains('pengumuman') ||
                                            jStr.contains('cuti') ||
                                            pStr.contains('cuti') ||
+                                           jStr.contains('insentif') ||
+                                           pStr.contains('insentif') ||
                                            jStr.contains('gaji') ||
                                            pStr.contains('gaji') ||
                                            jStr.contains('payroll') ||
                                            pStr.contains('payroll') ||
+                                           jStr.contains('potongan') ||
                                            jStr.contains('thr') ||
                                            pStr.contains('thr') ||
                                            jStr.contains('lembur') ||
                                            pStr.contains('lembur') ||
+                                           jStr.contains('absensi') ||
+                                           pStr.contains('absensi') ||
+                                           jStr.contains('sanksi') ||
+                                           pStr.contains('sanksi') ||
+                                           jStr.contains('golongan') ||
+                                           jStr.contains('jabatan') ||
+                                           jStr.contains('pendidikan') ||
+                                           jStr.contains('keluarga') ||
+                                           jStr.contains('prestasi') ||
                                            jStr.contains('dokumen') ||
                                            pStr.contains('dokumen') ||
                                            jStr.contains('sk') ||

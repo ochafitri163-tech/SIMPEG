@@ -3,6 +3,7 @@
 // SIMPEG Mobile - Decoupled from Supabase
 // =============================================================
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'user_role.dart';
 import 'pengaduan_model.dart';
@@ -19,18 +20,41 @@ Pengaduan pengaduanFromRow(
   List<StatusHistoryEntry> riwayat = const [],
 }) {
   PengaduanStatus parseStatus(String? s) {
-    return PengaduanStatus.values.firstWhere(
-      (e) => e.name == s,
-      orElse: () => PengaduanStatus.menungguKadiv,
-    );
+    final clean = (s ?? '').trim();
+    if (clean.isEmpty) return PengaduanStatus.menungguKadiv;
+    for (final e in PengaduanStatus.values) {
+      if (e.name == clean || e.name.toLowerCase() == clean.toLowerCase()) {
+        return e;
+      }
+    }
+    switch (clean.toLowerCase()) {
+      case 'diajukan':
+        return PengaduanStatus.menungguKadiv;
+      case 'telaahawalkspi':
+        return PengaduanStatus.reviewKspi;
+      case 'disposisidiruttahap1':
+        return PengaduanStatus.menungguPilihEksekutor;
+      case 'hasilinvestigasimasuk':
+        return PengaduanStatus.menungguReviewKspi;
+      case 'putusandiruttahap2':
+      case 'sdmpemberiansanksi':
+      case 'tindaklanjutsdm':
+        return PengaduanStatus.menungguSdm;
+      default:
+        return PengaduanStatus.menungguKadiv;
+    }
   }
 
   Keputusan? parseKeputusan(String? s) {
-    if (s == null) return null;
-    return Keputusan.values.firstWhere(
-      (e) => e.name == s,
-      orElse: () => Keputusan.terima,
-    );
+    final clean = (s ?? '').trim().toLowerCase();
+    if (clean.isEmpty) return null;
+    if (clean == 'terima' || clean == 'setuju' || clean == 'diterima') {
+      return Keputusan.terima;
+    }
+    if (clean == 'tolak' || clean == 'ditolak') {
+      return Keputusan.tolak;
+    }
+    return null;
   }
 
   KategoriDivisi? parseKategoriDivisi(String? s) {
@@ -42,9 +66,13 @@ Pengaduan pengaduanFromRow(
   }
 
   Eksekutor? parseEksekutor(String? s) {
-    if (s == null) return null;
+    final ek = (s ?? '').trim().toLowerCase();
+    if (ek.isEmpty) return null;
+    if (ek == 'kadiv' || ek == 'kadivkategori' || ek == 'kadiv_kategori') {
+      return Eksekutor.kadiv;
+    }
     return Eksekutor.values.firstWhere(
-      (e) => e.name == s,
+      (e) => e.name.toLowerCase() == ek,
       orElse: () => Eksekutor.tpdpk,
     );
   }
@@ -63,36 +91,161 @@ Pengaduan pengaduanFromRow(
     return DateTime.tryParse(val.toString()) ?? DateTime.now();
   }
 
+  List<String> parsePgArrayLiteral(String literal) {
+    final inner = literal.substring(1, literal.length - 1);
+    if (inner.trim().isEmpty) return const [];
+
+    final result = <String>[];
+    final buf = StringBuffer();
+    bool inQuote = false;
+    bool wasQuoted = false;
+    bool escaped = false;
+
+    for (int i = 0; i < inner.length; i++) {
+      final ch = inner[i];
+      if (escaped) {
+        buf.write(ch);
+        escaped = false;
+        continue;
+      }
+      if (inQuote) {
+        if (ch == r'\') {
+          escaped = true;
+        } else if (ch == '"') {
+          if (i + 1 < inner.length && inner[i + 1] == '"') {
+            buf.write('"');
+            i++;
+          } else {
+            inQuote = false;
+          }
+        } else {
+          buf.write(ch);
+        }
+        continue;
+      }
+      if (ch == '"') {
+        inQuote = true;
+        wasQuoted = true;
+      } else if (ch == ',') {
+        final raw = buf.toString();
+        final val = wasQuoted ? raw : raw.trim();
+        if (val.isNotEmpty && (wasQuoted || val.toUpperCase() != 'NULL')) {
+          result.add(val);
+        }
+        buf.clear();
+        wasQuoted = false;
+      } else {
+        buf.write(ch);
+      }
+    }
+
+    final raw = buf.toString();
+    final val = wasQuoted ? raw : raw.trim();
+    if (val.isNotEmpty && (wasQuoted || val.toUpperCase() != 'NULL')) {
+      result.add(val);
+    }
+    return result;
+  }
+
+  List<String> restitchSplitDataUris(List<String> items) {
+    final out = <String>[];
+    final headerPattern = RegExp(r'^data:[^,]+;base64$', caseSensitive: false);
+    final urlPrefixPattern =
+        RegExp(r'^(data:|https?://|/storage/|storage/)', caseSensitive: false);
+    for (int i = 0; i < items.length; i++) {
+      final curr = items[i];
+      if (i + 1 < items.length &&
+          headerPattern.hasMatch(curr) &&
+          !urlPrefixPattern.hasMatch(items[i + 1])) {
+        out.add('$curr,${items[i + 1]}');
+        i++;
+      } else {
+        out.add(curr);
+      }
+    }
+    return out;
+  }
+
   List<String> parseList(dynamic val) {
     if (val == null) return const [];
+    List<String> rawItems = const [];
     if (val is List) {
-      return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
-    }
-    if (val is String) {
+      rawItems = val
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } else if (val is String) {
       final str = val.trim();
-      if (str.isEmpty || str == '{}' || str == '[]' || str == 'null') {
+      if (str.isEmpty || str == '{}' || str == '[]' || str.toLowerCase() == 'null') {
         return const [];
       }
       if (str.startsWith('[') && str.endsWith(']')) {
         try {
           final decoded = jsonDecode(str);
           if (decoded is List) {
-            return decoded.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+            rawItems = decoded
+                .map((e) => e?.toString().trim() ?? '')
+                .where((s) => s.isNotEmpty)
+                .toList();
           }
         } catch (_) {}
+      } else if (str.startsWith('{') && str.endsWith('}')) {
+        rawItems = parsePgArrayLiteral(str);
+      } else {
+        rawItems = [str];
       }
-      if (str.startsWith('{') && str.endsWith('}')) {
-        final inner = str.substring(1, str.length - 1).trim();
-        if (inner.isEmpty) return const [];
-        return inner
-            .split(',')
-            .map((s) => s.trim().replaceAll(RegExp(r'^"|"$'), ''))
-            .where((s) => s.isNotEmpty)
-            .toList();
-      }
-      return [str];
     }
-    return const [];
+    return restitchSplitDataUris(rawItems);
+  }
+
+  final List<StatusHistoryEntry> effectiveRiwayat = riwayat.isNotEmpty
+      ? riwayat
+      : (row['riwayat_status'] is List
+          ? PengaduanService._parseRiwayat(
+              List<Map<String, dynamic>>.from(
+                (row['riwayat_status'] as List)
+                    .whereType<Map>()
+                    .map((e) => Map<String, dynamic>.from(e)),
+              ),
+            )
+          : const []);
+
+  final List<InvestigasiHistoryEntry> parsedRiwayatInvestigasi = [];
+  if (row['riwayat_investigasi'] is List) {
+    final rawList = (row['riwayat_investigasi'] as List).whereType<Map>();
+    int idx = 1;
+    for (final raw in rawList) {
+      final m = Map<String, dynamic>.from(raw);
+      final tahapKe = (m['tahap_ke'] as num?)?.toInt() ?? idx;
+      final jenisTahap = (m['jenis_tahap'] ?? 'awal').toString();
+      parsedRiwayatInvestigasi.add(InvestigasiHistoryEntry(
+        id: (m['id'] as num?)?.toInt(),
+        tahapKe: tahapKe,
+        jenisTahap: jenisTahap,
+        labelTahap: (m['label_tahap'] ??
+                (jenisTahap == 'peninjauan_kembali'
+                    ? 'Putaran #$tahapKe (Peninjauan Kembali)'
+                    : 'Putaran #$tahapKe (Investigasi Awal)'))
+            .toString(),
+        eksekutor: m['eksekutor']?.toString(),
+        eksekutorDivisiKadiv: m['eksekutor_divisi_kadiv']?.toString(),
+        petugasInvestigasi: m['petugas_investigasi']?.toString(),
+        oleh: m['oleh']?.toString(),
+        role: m['role']?.toString(),
+        kesimpulanInvestigasi: m['kesimpulan_investigasi']?.toString(),
+        hasilInvestigasi: m['hasil_investigasi']?.toString(),
+        suratRekomendasi: m['surat_rekomendasi']?.toString(),
+        catatanPeninjauanKembali: m['catatan_peninjauan_kembali']?.toString(),
+        investigasiFoto: parseList(m['investigasi_foto']),
+        investigasiVideo: parseList(m['investigasi_video']),
+        investigasiVoice: parseList(m['investigasi_voice']),
+        investigasiDokumen: parseList(m['investigasi_dokumen']),
+        tanggal: m['tanggal'] != null
+            ? DateTime.tryParse(m['tanggal'].toString())
+            : null,
+      ));
+      idx++;
+    }
   }
 
   final pengaduan = Pengaduan(
@@ -123,7 +276,8 @@ Pengaduan pengaduanFromRow(
     investigasiVideo: parseList(row['investigasi_video']),
     investigasiVoice: parseList(row['investigasi_voice']),
     investigasiDokumen: parseList(row['investigasi_dokumen']),
-    riwayatStatus: riwayat,
+    riwayatStatus: effectiveRiwayat,
+    riwayatInvestigasi: parsedRiwayatInvestigasi,
     keputusanKadiv: parseKeputusan(row['keputusan_kadiv'] as String?),
     catatanKadiv: row['catatan_kadiv'] as String?,
     keputusanDirutTahap1:
@@ -183,7 +337,36 @@ class PengaduanService {
   static int _autoIdPengaduan = 200;
   static int _autoIdRiwayat = 200;
 
-  static String _resolveEksekutorCategory(String? category, String? role) {
+  @visibleForTesting
+  static void resetLocalStateForTest() {
+    _localPengaduan.clear();
+    _localRiwayat.clear();
+    _autoIdPengaduan = 200;
+    _autoIdRiwayat = 200;
+  }
+
+  @visibleForTesting
+  static void seedLocalPengaduanForTest(Map<String, dynamic> row) {
+    _localPengaduan.add(Map<String, dynamic>.from(row));
+  }
+
+  static String _resolveEksekutorCategory(
+    String? category,
+    String? role, [
+    List<PegawaiOption> executors = const [],
+  ]) {
+    final hasDodi = executors.any((e) =>
+        e.nik.trim() == '1711161' ||
+        e.name.toLowerCase().contains('dodi sudrajat'));
+    final hasKadiv = executors.any((e) =>
+        (e.role ?? '').toLowerCase().contains('kadiv') ||
+        e.nik.trim() == '1711251' ||
+        e.nik.trim() == '1711571' ||
+        (e.divisiKadiv ?? '').trim().isNotEmpty);
+
+    if (hasDodi) return 'tpdpk';
+    if (hasKadiv) return 'kadiv';
+
     final candidate = (category ?? role ?? '').toLowerCase();
     if (candidate == 'kadiv' || candidate == 'kadivkategori') return 'kadiv';
     if (candidate == 'tpdpk' || candidate == 'kspi') return 'tpdpk';
@@ -269,6 +452,24 @@ class PengaduanService {
         ? executors.first.ringkas
         : '${executors.length} Eksekutor ($executorNames)';
 
+    final primaryKadiv = executors.firstWhere(
+      (e) =>
+          (e.role ?? '').toLowerCase().contains('kadiv') ||
+          e.nik.trim() == '1711251' ||
+          e.nik.trim() == '1711571' ||
+          (e.divisiKadiv ?? '').trim().isNotEmpty,
+      orElse: () => executors.first,
+    );
+    final resolvedDivisiKadiv = divisiKadiv ??
+        primaryKadiv.divisiKadiv ??
+        (primaryKadiv.nik.trim() == '1711251' ||
+                primaryKadiv.jabatan.toLowerCase().contains('teknik')
+            ? 'teknik'
+            : (primaryKadiv.nik.trim() == '1711571' ||
+                    primaryKadiv.jabatan.toLowerCase().contains('administrasi')
+                ? 'administrasi'
+                : null));
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.menungguPilihEksekutor.name,
@@ -282,8 +483,9 @@ class PengaduanService {
         'eksekutor': _resolveEksekutorCategory(
           eksekutorCategory,
           executors.first.role,
+          executors,
         ),
-        'eksekutor_divisi_kadiv': divisiKadiv ?? executors.first.divisiKadiv,
+        'eksekutor_divisi_kadiv': resolvedDivisiKadiv,
         'petugas_investigasi': executorNames,
       },
     );
@@ -461,7 +663,7 @@ class PengaduanService {
 
     // Sync ke PostgreSQL via Laravel backend jika server aktif
     try {
-      await ApiService.storePengaduan(
+      final res = await ApiService.storePengaduan(
         nik: user.nik,
         subjek: judul,
         pesan: deskripsi,
@@ -471,9 +673,19 @@ class PengaduanService {
         jabatanPelaku: jabatanPelaku.trim(),
         fotoBukti: fotoBukti,
         dokumenPendukung: dokumenPendukung,
+        videoBukti: videoBukti,
+        voiceNote: voiceNote,
         anonim: anonim,
         status: PengaduanStatus.menungguKadiv.name,
       );
+      final data = res['data'];
+      if (res['success'] == true && data is Map && data['id'] != null) {
+        final serverId = (data['id'] as num).toInt();
+        row['id'] = serverId;
+        if (data['nomor_pengaduan'] != null) {
+          row['nomor_pengaduan'] = data['nomor_pengaduan'];
+        }
+      }
     } catch (_) {}
 
     AuditLogService.logAction(
@@ -486,9 +698,11 @@ class PengaduanService {
           'Mengajukan pengaduan baru $nomor: "$judul" terhadap ${pihakTerlapor.trim()}',
     );
 
+    final effectiveId = (row['id'] as num?)?.toInt() ?? pengaduanId;
+
     _localRiwayat.add({
       'id': ++_autoIdRiwayat,
-      'pengaduan_id': pengaduanId,
+      'pengaduan_id': effectiveId,
       'status': PengaduanStatus.menungguKadiv.name,
       'status_lama': null,
       'oleh': 'Sistem',
@@ -501,7 +715,7 @@ class PengaduanService {
       role: UserRole.kadivKategori,
       judul: 'Pengaduan baru masuk',
       pesan: '${user.name} membuat pengaduan baru ($nomor).',
-      pengaduanId: pengaduanId,
+      pengaduanId: effectiveId,
     );
   }
 
@@ -579,13 +793,53 @@ class PengaduanService {
 
     if (role == UserRole.sdm) {
       return semua.where((row) {
-        final status = row['status'] as String?;
+        final status = (row['status'] ?? '').toString();
         final kesimpulan =
             (row['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
         final isTerbukti = kesimpulan == 'terbukti';
-        return isTerbukti &&
-            (status == PengaduanStatus.menungguSdm.name ||
-                status == PengaduanStatus.selesai.name);
+        final adaSk = (row['nomor_surat_putusan'] ?? '').toString().trim().isNotEmpty ||
+            (row['file_surat_putusan'] ?? '').toString().trim().isNotEmpty ||
+            (row['catatan_sdm'] ?? '').toString().trim().isNotEmpty;
+        return status == PengaduanStatus.menungguSdm.name ||
+            status == 'sdmPemberianSanksi' ||
+            status == 'tindakLanjutSdm' ||
+            (status == PengaduanStatus.selesai.name && (isTerbukti || adaSk)) ||
+            adaSk;
+      }).toList()..sort(compareDateDesc);
+    }
+
+    if (role == UserRole.direktur) {
+      return semua.where((row) {
+        final status = (row['status'] ?? '').toString();
+        final hasDirutDecision =
+            (row['keputusan_dirut_tahap1'] ?? '').toString().trim().isNotEmpty ||
+            (row['keputusan_dirut_tahap2'] ?? '').toString().trim().isNotEmpty;
+        if (hasDirutDecision) return true;
+        return status != PengaduanStatus.menungguKadiv.name &&
+            status != PengaduanStatus.menungguVerifikasiKadiv.name &&
+            status != PengaduanStatus.reviewKspi.name &&
+            !(status == PengaduanStatus.arsip.name &&
+                (row['arsip_pada_tahap'] == 'kadiv' ||
+                    row['arsip_pada_tahap'] == 'kspi'));
+      }).toList()..sort(compareDateDesc);
+    }
+
+    if (role == UserRole.kspi) {
+      return semua.where((row) {
+        final status = (row['status'] ?? '').toString();
+        return status != PengaduanStatus.menungguKadiv.name &&
+            status != PengaduanStatus.menungguVerifikasiKadiv.name;
+      }).toList()..sort(compareDateDesc);
+    }
+
+    if (role == UserRole.tpdpk) {
+      return semua.where((row) {
+        final status = (row['status'] ?? '').toString();
+        final ek = (row['eksekutor'] ?? '').toString().toLowerCase();
+        final ekTl = (row['eksekutor_tindak_lanjut'] ?? '').toString().toLowerCase();
+        return status == PengaduanStatus.menungguInvestigasi.name ||
+            ek == Eksekutor.tpdpk.name ||
+            ekTl == Eksekutor.tpdpk.name;
       }).toList()..sort(compareDateDesc);
     }
 
@@ -594,38 +848,27 @@ class PengaduanService {
     }
 
     return semua.where((row) {
-      final status = row['status'] as String?;
-
-      final belumDiverifikasi = status == PengaduanStatus.menungguKadiv.name ||
-          status == PengaduanStatus.menungguVerifikasiKadiv.name;
-      if (belumDiverifikasi) {
-        final divisi =
-            divisiKadivDariKategori((row['kategori'] ?? '') as String);
-        if (divisi == null) return true;
-        return divisi.name == divisiKadiv;
-      }
-
       final eksekutorNama = (row['eksekutor'] as String?)?.toLowerCase();
-      final sedangDiinvestigasiOlehKadiv =
-          status == PengaduanStatus.investigasiBerjalan.name &&
-              eksekutorNama == Eksekutor.kadiv.name.toLowerCase();
-      if (sedangDiinvestigasiOlehKadiv) {
-        final divisi = (row['eksekutor_divisi_kadiv'] as String?)?.toLowerCase();
-        if (divisi == null) return true;
-        return divisi == divisiKadiv.toLowerCase();
+      final ekDiv = (row['eksekutor_divisi_kadiv'] as String?)?.toLowerCase();
+      if (eksekutorNama == Eksekutor.kadiv.name.toLowerCase() &&
+          (ekDiv == null || ekDiv.isEmpty || ekDiv == divisiKadiv.toLowerCase())) {
+        return true;
       }
 
-      final eksekutorTLNama = (row['eksekutor_tindak_lanjut'] as String?)?.toLowerCase();
-      final sedangTindakLanjutOlehKadiv =
-          status == PengaduanStatus.tindakLanjutBerjalan.name &&
-              eksekutorTLNama == Eksekutor.kadiv.name.toLowerCase();
-      if (sedangTindakLanjutOlehKadiv) {
-        final divisi = (row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?)?.toLowerCase();
-        if (divisi == null) return true;
-        return divisi == divisiKadiv.toLowerCase();
+      final eksekutorTLNama =
+          (row['eksekutor_tindak_lanjut'] as String?)?.toLowerCase();
+      final ekTlDiv =
+          (row['eksekutor_tindak_lanjut_divisi_kadiv'] as String?)?.toLowerCase();
+      if (eksekutorTLNama == Eksekutor.kadiv.name.toLowerCase() &&
+          (ekTlDiv == null ||
+              ekTlDiv.isEmpty ||
+              ekTlDiv == divisiKadiv.toLowerCase())) {
+        return true;
       }
 
-      return true;
+      final divisi = divisiKadivDariKategori((row['kategori'] ?? '') as String);
+      if (divisi == null) return true;
+      return divisi.name == divisiKadiv;
     }).toList()..sort(compareDateDesc);
   }
 
@@ -669,6 +912,26 @@ class PengaduanService {
   }
 
   static Future<Map<String, dynamic>?> detail(int pengaduanId) async {
+    try {
+      final res = await ApiService.getPengaduanDetail(pengaduanId);
+      if (res['success'] == true && res['data'] is Map) {
+        final map = Map<String, dynamic>.from(res['data']);
+        final sId = (map['id'] as num?)?.toInt() ?? pengaduanId;
+        map['id'] = sId;
+        map['nomor_pengaduan'] = map['nomor_pengaduan'] ?? 'PGD-$sId';
+        map['status'] = map['status'] ?? PengaduanStatus.menungguKadiv.name;
+
+        final idx = _localPengaduan
+            .indexWhere((lp) => (lp['id'] as num?)?.toInt() == sId);
+        if (idx == -1) {
+          _localPengaduan.add(map);
+        } else {
+          _localPengaduan[idx] = map;
+        }
+        return map;
+      }
+    } catch (_) {}
+
     for (final p in _localPengaduan) {
       if ((p['id'] as num?)?.toInt() == pengaduanId) return p;
     }
@@ -677,6 +940,16 @@ class PengaduanService {
 
   static Future<List<Map<String, dynamic>>> riwayatStatus(
       int pengaduanId) async {
+    for (final p in _localPengaduan) {
+      if ((p['id'] as num?)?.toInt() == pengaduanId &&
+          p['riwayat_status'] is List) {
+        final serverList = (p['riwayat_status'] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        if (serverList.isNotEmpty) return serverList;
+      }
+    }
     return _localRiwayat
         .where((r) => (r['pengaduan_id'] as num?)?.toInt() == pengaduanId)
         .toList();
@@ -729,7 +1002,19 @@ class PengaduanService {
     String? divisiKadiv,
   }) async {
     final rows = await untukRole(role, divisiKadiv: divisiKadiv);
-    final list = rows.map((row) => pengaduanFromRow(row)).toList();
+    final list = rows.map((row) {
+      final hasServerRiwayat =
+          row['riwayat_status'] is List && (row['riwayat_status'] as List).isNotEmpty;
+      final rowId = (row['id'] as num?)?.toInt();
+      final fallbackRiwayat = !hasServerRiwayat && rowId != null
+          ? _parseRiwayat(
+              _localRiwayat
+                  .where((r) => (r['pengaduan_id'] as num?)?.toInt() == rowId)
+                  .toList(),
+            )
+          : const <StatusHistoryEntry>[];
+      return pengaduanFromRow(row, riwayat: fallbackRiwayat);
+    }).toList();
     list.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
     return list;
   }
@@ -747,10 +1032,80 @@ class PengaduanService {
     final idx = _localPengaduan
         .indexWhere((p) => (p['id'] as num?)?.toInt() == pengaduanId);
     if (idx != -1) {
-      final updated = Map<String, dynamic>.from(_localPengaduan[idx]);
+      final prev = Map<String, dynamic>.from(_localPengaduan[idx]);
+      final updated = Map<String, dynamic>.from(prev);
       updated['status'] = statusBaru;
       updated['updated_at'] = DateTime.now().toIso8601String();
       kolomTambahan.forEach((k, v) => updated[k] = v);
+
+      final isInvestigasiSubmit =
+          (statusBaru == PengaduanStatus.menungguDirutTahap2.name ||
+                  statusBaru == PengaduanStatus.menungguDirutTahap3.name) &&
+              kolomTambahan.containsKey('kesimpulan_investigasi');
+      if (isInvestigasiSubmit) {
+        final history = List<Map<String, dynamic>>.from(
+          (updated['riwayat_investigasi'] is List)
+              ? (updated['riwayat_investigasi'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+              : const <Map<String, dynamic>>[],
+        );
+        if (history.isEmpty &&
+            ((prev['kesimpulan_investigasi'] ?? '').toString().trim().isNotEmpty ||
+                (prev['hasil_investigasi'] ?? '').toString().trim().isNotEmpty)) {
+          history.add({
+            'id': 1,
+            'tahap_ke': 1,
+            'jenis_tahap': 'awal',
+            'label_tahap': 'Putaran #1 (Investigasi Awal)',
+            'eksekutor': prev['eksekutor'],
+            'eksekutor_divisi_kadiv': prev['eksekutor_divisi_kadiv'],
+            'petugas_investigasi': prev['petugas_investigasi'],
+            'kesimpulan_investigasi': prev['kesimpulan_investigasi'],
+            'hasil_investigasi': prev['hasil_investigasi'],
+            'surat_rekomendasi': prev['surat_rekomendasi'],
+            'catatan_peninjauan_kembali': null,
+            'investigasi_foto': prev['investigasi_foto'] ?? const [],
+            'investigasi_video': prev['investigasi_video'] ?? const [],
+            'investigasi_voice': prev['investigasi_voice'] ?? const [],
+            'investigasi_dokumen': prev['investigasi_dokumen'] ?? const [],
+            'tanggal': prev['tanggal_hasil_investigasi'] ??
+                DateTime.now().toIso8601String(),
+          });
+        }
+        final nextTahap = history.length + 1;
+        final isPk = statusBaru == PengaduanStatus.menungguDirutTahap3.name ||
+            ((updated['catatan_peninjauan_kembali'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ||
+            nextTahap > 1;
+        final jenis = isPk ? 'peninjauan_kembali' : 'awal';
+        history.add({
+          'id': nextTahap,
+          'tahap_ke': nextTahap,
+          'jenis_tahap': jenis,
+          'label_tahap': isPk
+              ? 'Putaran #$nextTahap (Peninjauan Kembali)'
+              : 'Putaran #$nextTahap (Investigasi Awal)',
+          'eksekutor': updated['eksekutor'],
+          'eksekutor_divisi_kadiv': updated['eksekutor_divisi_kadiv'],
+          'petugas_investigasi': updated['petugas_investigasi'],
+          'oleh': oleh,
+          'role': role.name,
+          'kesimpulan_investigasi': updated['kesimpulan_investigasi'],
+          'hasil_investigasi': updated['hasil_investigasi'],
+          'surat_rekomendasi': updated['surat_rekomendasi'],
+          'catatan_peninjauan_kembali': updated['catatan_peninjauan_kembali'],
+          'investigasi_foto': updated['investigasi_foto'] ?? const [],
+          'investigasi_video': updated['investigasi_video'] ?? const [],
+          'investigasi_voice': updated['investigasi_voice'] ?? const [],
+          'investigasi_dokumen': updated['investigasi_dokumen'] ?? const [],
+          'tanggal': DateTime.now().toIso8601String(),
+        });
+        updated['riwayat_investigasi'] = history;
+      }
+
       _localPengaduan[idx] = updated;
     }
 
@@ -1005,14 +1360,48 @@ class PengaduanService {
     final finalVoice = buktiVoice.isNotEmpty ? buktiVoice : voice;
     final finalDokumen = buktiDokumen.isNotEmpty ? buktiDokumen : dokumen;
 
+    final existingRow = await detail(pengaduanId);
+    final sudahPk = existingRow != null &&
+        ((existingRow['catatan_peninjauan_kembali'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty ||
+            existingRow['status'] == PengaduanStatus.peninjauanKembali.name ||
+            existingRow['status'] == PengaduanStatus.menungguDirutTahap3.name ||
+            (existingRow['riwayat_investigasi'] is List &&
+                (existingRow['riwayat_investigasi'] as List).isNotEmpty));
+
+    final statusTarget = sudahPk
+        ? PengaduanStatus.menungguDirutTahap3
+        : PengaduanStatus.menungguDirutTahap2;
+    final buktiParts = <String>[
+      if (finalFoto.isNotEmpty) '${finalFoto.length} foto',
+      if (finalDokumen.isNotEmpty) '${finalDokumen.length} dokumen',
+      if (finalVideo.isNotEmpty) '${finalVideo.length} video',
+      if (finalVoice.isNotEmpty) '${finalVoice.length} voice',
+    ];
+    final autoCatatan = [
+      'Kesimpulan: $kesimpulanLabel',
+      if (finalHasil.trim().isNotEmpty && finalHasil.trim() != '-')
+        'Temuan: ${finalHasil.trim()}',
+      if (finalRekomendasi.trim().isNotEmpty &&
+          finalRekomendasi.trim() != '-')
+        'Rekomendasi: ${finalRekomendasi.trim()}',
+      if (buktiParts.isNotEmpty) 'Bukti: ${buktiParts.join(', ')}',
+    ].join(' | ');
+    final effectiveCatatan =
+        (catatan != null && catatan.trim().isNotEmpty) ? catatan : autoCatatan;
+
     await _ubahStatus(
       pengaduanId: pengaduanId,
       statusLama: PengaduanStatus.investigasiBerjalan.name,
-      statusBaru: PengaduanStatus.menungguDirutTahap2.name,
+      statusBaru: statusTarget.name,
       oleh: oleh,
       role: role,
-      aksi: 'Hasil investigasi dikirim ($kesimpulanLabel)',
-      catatan: catatan,
+      aksi: sudahPk
+          ? 'Hasil investigasi peninjauan kembali dikirim ($kesimpulanLabel)'
+          : 'Hasil investigasi dikirim ($kesimpulanLabel)',
+      catatan: effectiveCatatan,
       kolomTambahan: {
         'kesimpulan_investigasi': kesimpulanLabel,
         'hasil_investigasi': finalHasil,
@@ -1027,13 +1416,17 @@ class PengaduanService {
 
     await NotificationService.kirimKeRole(
       role: UserRole.direktur,
-      judul: 'Hasil investigasi & rekomendasi masuk ($kesimpulanLabel)',
-      pesan: 'Hasil investigasi & surat rekomendasi telah masuk langsung ke Dirut.',
+      judul: sudahPk
+          ? 'Hasil investigasi Tahap 3 masuk ($kesimpulanLabel)'
+          : 'Hasil investigasi & rekomendasi masuk ($kesimpulanLabel)',
+      pesan: sudahPk
+          ? 'Hasil peninjauan kembali & surat rekomendasi telah masuk ke Dirut (Approval Tahap 3).'
+          : 'Hasil investigasi & surat rekomendasi telah masuk langsung ke Dirut.',
       pengaduanId: pengaduanId,
     );
   }
 
-  /// DIREKSI — approval tahap 2
+  /// DIREKSI — approval tahap 2 / tahap 3 (pasca peninjauan kembali)
   static Future<void> direksiTahap2Aksi({
     required int pengaduanId,
     required String oleh,
@@ -1041,14 +1434,26 @@ class PengaduanService {
     String? catatan,
     String? kesimpulanInvestigasi,
   }) async {
+    final row = await detail(pengaduanId);
+    final isTahap3 = row != null &&
+        (row['status'] == PengaduanStatus.menungguDirutTahap3.name ||
+            (row['catatan_peninjauan_kembali'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty);
+    final statusAsal = isTahap3
+        ? PengaduanStatus.menungguDirutTahap3.name
+        : PengaduanStatus.menungguDirutTahap2.name;
+    final prefixTahap = isTahap3 ? '[Approval Tahap 3] ' : '';
+
     if (keputusan == Keputusan.tolak) {
       await _ubahStatus(
         pengaduanId: pengaduanId,
-        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusLama: statusAsal,
         statusBaru: PengaduanStatus.arsip.name,
         oleh: oleh,
         role: UserRole.direktur,
-        aksi: 'Menolak hasil investigasi, pengaduan diarsipkan',
+        aksi: '${prefixTahap}Menolak hasil investigasi, pengaduan diarsipkan',
         catatan: catatan,
         kolomTambahan: {
           'keputusan_dirut_tahap2': keputusan.name,
@@ -1060,21 +1465,18 @@ class PengaduanService {
       return;
     }
 
-    var kesimpulan = kesimpulanInvestigasi?.toLowerCase();
-    if (kesimpulan == null) {
-      final row = await detail(pengaduanId);
-      kesimpulan = (row?['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
-    }
+    var kesimpulan = kesimpulanInvestigasi?.toLowerCase() ??
+        (row?['kesimpulan_investigasi'] ?? '').toString().toLowerCase();
 
     if (kesimpulan == 'tidak_terbukti' || kesimpulan == 'tidak terbukti') {
       await _ubahStatus(
         pengaduanId: pengaduanId,
-        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusLama: statusAsal,
         statusBaru: PengaduanStatus.arsip.name,
         oleh: oleh,
         role: UserRole.direktur,
         aksi:
-            'Menerima hasil investigasi: TIDAK TERBUKTI (Diarsipkan & nama baik terlapor dipulihkan)',
+            '${prefixTahap}Menerima hasil investigasi: TIDAK TERBUKTI (Diarsipkan & nama baik terlapor dipulihkan)',
         catatan: catatan,
         kolomTambahan: {
           'keputusan_dirut_tahap2': keputusan.name,
@@ -1085,7 +1487,6 @@ class PengaduanService {
         },
       );
 
-      final row = await detail(pengaduanId);
       final pelaporId = row?['pelapor_id'] as String?;
       if (pelaporId != null) {
         await NotificationService.kirimKePegawai(
@@ -1099,12 +1500,12 @@ class PengaduanService {
     } else {
       await _ubahStatus(
         pengaduanId: pengaduanId,
-        statusLama: PengaduanStatus.menungguDirutTahap2.name,
+        statusLama: statusAsal,
         statusBaru: PengaduanStatus.menungguSdm.name,
         oleh: oleh,
         role: UserRole.direktur,
         aksi:
-            'Menerima hasil investigasi: TERBUKTI, diteruskan ke SDM untuk surat putusan sanksi',
+            '${prefixTahap}Menerima hasil investigasi: TERBUKTI, diteruskan ke SDM untuk surat putusan sanksi',
         catatan: catatan,
         kolomTambahan: {
           'keputusan_dirut_tahap2': keputusan.name,
@@ -1356,17 +1757,56 @@ class PengaduanService {
 }
 
 /// =============================================================
-/// NotificationService (In-App Notification & Push Notification)
+/// NotificationService (Sinkron PostgreSQL `/api/v1/notifikasi` + Fallback Lokal)
 /// =============================================================
 class NotificationService {
   NotificationService._();
 
+  static final ValueNotifier<int> bellVersion = ValueNotifier<int>(0);
   static final List<Map<String, dynamic>> _localNotif = [];
   static int _notifAutoId = 100;
+  static int? _cachedUnreadCount;
+
+  static void notifyBellRefresh() {
+    bellVersion.value++;
+  }
+
+  static Future<bool> _hasServerAuth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getString('auth_token') ?? '').isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Future<List<Map<String, dynamic>>> untukSaya() async {
     final prefs = await SharedPreferences.getInstance();
     final currentNik = prefs.getString('user_nik') ?? '';
+    final hasAuth = (prefs.getString('auth_token') ?? '').isNotEmpty;
+
+    if (hasAuth) {
+      try {
+        final res = await ApiService.getNotifikasi(limit: 50);
+        if (res['success'] == true && res['data'] is List) {
+          if (res['unread_count'] is num) {
+            _cachedUnreadCount = (res['unread_count'] as num).toInt();
+          }
+          final serverList = (res['data'] as List)
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          if (serverList.isNotEmpty) {
+            _cachedUnreadCount ??=
+                serverList.where((n) => n['dibaca'] != true).length;
+            return serverList;
+          }
+          _cachedUnreadCount = 0;
+          return const [];
+        }
+      } catch (_) {}
+    }
+
     return _localNotif.where((n) {
       final target = (n['untuk_pegawai_id'] ?? '').toString();
       return target.isEmpty || target == currentNik;
@@ -1374,6 +1814,12 @@ class NotificationService {
   }
 
   static Future<int> belumDibaca() async {
+    final hasAuth = await _hasServerAuth();
+    if (hasAuth) {
+      final list = await untukSaya();
+      return _cachedUnreadCount ??
+          list.where((n) => n['dibaca'] != true).length;
+    }
     final list = await untukSaya();
     return list.where((n) => n['dibaca'] != true).length;
   }
@@ -1381,12 +1827,22 @@ class NotificationService {
   static Future<void> tandaiSemuaDibaca() async {
     final prefs = await SharedPreferences.getInstance();
     final currentNik = prefs.getString('user_nik') ?? '';
+    final hasAuth = (prefs.getString('auth_token') ?? '').isNotEmpty;
+
+    if (hasAuth) {
+      try {
+        await ApiService.markAllNotifikasiRead();
+        _cachedUnreadCount = 0;
+      } catch (_) {}
+    }
+
     for (final n in _localNotif) {
       final target = (n['untuk_pegawai_id'] ?? '').toString();
       if (target.isEmpty || target == currentNik) {
         n['dibaca'] = true;
       }
     }
+    notifyBellRefresh();
   }
 
   static Future<void> kirimKeRole({
@@ -1405,6 +1861,11 @@ class NotificationService {
       'waktu': DateTime.now().toIso8601String(),
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
     });
+    notifyBellRefresh();
+
+    if (await _hasServerAuth()) {
+      return;
+    }
 
     try {
       final payloadData = <String, dynamic>{
@@ -1436,6 +1897,11 @@ class NotificationService {
       'waktu': DateTime.now().toIso8601String(),
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
     });
+    notifyBellRefresh();
+
+    if (await _hasServerAuth()) {
+      return;
+    }
 
     try {
       final payloadData = <String, dynamic>{
@@ -1470,6 +1936,11 @@ class NotificationService {
       if (pengumumanId != null) 'pengumuman_id': pengumumanId,
       if (taskId != null) 'task_id': taskId,
     });
+    notifyBellRefresh();
+
+    if (await _hasServerAuth()) {
+      return;
+    }
 
     try {
       final payloadData = <String, dynamic>{
@@ -1511,6 +1982,11 @@ class NotificationService {
       if (pengaduanId != null) 'pengaduan_id': pengaduanId,
       if (pengumumanId != null) 'pengumuman_id': pengumumanId,
     });
+    notifyBellRefresh();
+
+    if (await _hasServerAuth()) {
+      return;
+    }
 
     try {
       final payloadData = <String, dynamic>{
@@ -1544,11 +2020,21 @@ class NotificationService {
   }
 
   static Future<void> tandaiDibaca(int notifikasiId) async {
+    if (await _hasServerAuth()) {
+      try {
+        await ApiService.markNotifikasiRead(notifikasiId);
+        if ((_cachedUnreadCount ?? 0) > 0) {
+          _cachedUnreadCount = _cachedUnreadCount! - 1;
+        }
+      } catch (_) {}
+    }
+
     for (final n in _localNotif) {
       if ((n['id'] as num?)?.toInt() == notifikasiId) {
         n['dibaca'] = true;
         break;
       }
     }
+    notifyBellRefresh();
   }
 }

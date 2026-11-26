@@ -80,6 +80,7 @@ extension _KelolaPengaduanClusterX on _KelolaPengaduanCluster {
             p.status == PengaduanStatus.revisiInvestigasi;
       case _KelolaPengaduanCluster.tindakLanjut:
         return p.status == PengaduanStatus.menungguDirutTahap2 ||
+            p.status == PengaduanStatus.menungguDirutTahap3 ||
             p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
             p.status == PengaduanStatus.tindakLanjutBerjalan ||
             p.status == PengaduanStatus.tindakLanjut ||
@@ -177,6 +178,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case PengaduanStatus.menungguInvestigasi:
       case PengaduanStatus.revisiInvestigasi:
       case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguDirutTahap3:
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
       case PengaduanStatus.tindakLanjutBerjalan:
       case PengaduanStatus.tindakLanjut:

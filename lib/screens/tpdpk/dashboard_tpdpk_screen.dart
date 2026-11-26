@@ -842,23 +842,37 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             } else {
               final semua = List<Pengaduan>.from(snapshot.data ?? [])
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final menungguPetugas = semua
-                  .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
+              final menungguPetugasAktif = semua
+                  .where((p) => p.tpdpkMenungguPetugas)
                   .toList();
-              final berjalan = semua
-                  .where((p) =>
-                      p.status == PengaduanStatus.investigasiBerjalan &&
-                      p.eksekutor == Eksekutor.tpdpk)
+              final menungguPetugasCluster = urutkanClusterPengaduan(
+                semua.where((p) => p.tpdpkMasukClusterMenungguPetugas),
+                (p) => p.tpdpkMenungguPetugas,
+              );
+              final berjalanAktif = semua
+                  .where((p) => p.tpdpkInvestigasiAktif)
                   .toList();
+              final berjalanCluster = urutkanClusterPengaduan(
+                semua.where((p) => p.tpdpkMasukClusterInvestigasi),
+                (p) => p.tpdpkInvestigasiAktif,
+              );
               final revisi = semua
-                  .where((p) =>
-                      p.status == PengaduanStatus.revisiInvestigasi &&
-                      p.eksekutor == Eksekutor.tpdpk)
+                  .where((p) => p.tpdpkPerluRevisi)
                   .toList();
-              final tindakLanjut = semua
+              final tindakLanjutAktif = semua
+                  .where((p) => p.tpdpkTindakLanjutAktif)
+                  .toList();
+              final tindakLanjutCluster = urutkanClusterPengaduan(
+                semua.where((p) => p.tpdpkMasukClusterTindakLanjut),
+                (p) => p.tpdpkTindakLanjutAktif,
+              );
+              final prosesLanjutan = semua
                   .where((p) =>
-                      p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                      p.eksekutorTindakLanjut == Eksekutor.tpdpk)
+                      !p.tpdpkMenungguPetugas &&
+                      !p.tpdpkInvestigasiAktif &&
+                      !p.tpdpkPerluRevisi &&
+                      !p.tpdpkTindakLanjutAktif &&
+                      !p.status.isFinal)
                   .toList();
               final selesai = semua
                   .where((p) =>
@@ -874,14 +888,14 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                     children: [
                       _buildSection(
                         'MENUNGGU PENUGASAN PETUGAS',
-                        menungguPetugas,
+                        menungguPetugasAktif,
                         (p) => _bukaPilihPetugas(p),
                         'Tidak ada tugas baru.',
                         'Tetapkan Petugas',
                       ),
                       _buildSection(
                         'INVESTIGASI BERJALAN',
-                        berjalan,
+                        berjalanAktif,
                         (p) => _bukaKirimHasil(p, revisi: false),
                         'Tidak ada investigasi berjalan.',
                         'Kirim Hasil',
@@ -895,31 +909,59 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       ),
                       _buildSection(
                         'TINDAK LANJUT DARI DIREKTUR',
-                        tindakLanjut,
+                        tindakLanjutAktif,
                         (p) => _bukaSelesaikanTindakLanjut(p),
                         'Tidak ada tindak lanjut yang ditugaskan.',
                         'Selesaikan',
                       ),
+                      if (prosesLanjutan.isNotEmpty)
+                        _buildSection(
+                          'HASIL TERKIRIM / PROSES LANJUT',
+                          prosesLanjutan,
+                          null,
+                          '',
+                          'Detail',
+                        ),
+                      if (selesai.isNotEmpty)
+                        _buildSection(
+                          'SELESAI & ARSIP',
+                          selesai,
+                          null,
+                          '',
+                          'Detail',
+                        ),
                     ],
                   );
                   break;
                 case _TpdpkClusterFilter.menungguPetugas:
-                  listContent = menungguPetugas.isEmpty
+                  listContent = menungguPetugasCluster.isEmpty
                       ? _buildEmptyState('Tidak ada tugas penugasan baru.')
                       : Column(
-                          children: menungguPetugas
+                          children: menungguPetugasCluster
                               .map((p) => _buildPengaduanCard(
-                                  p, (item) => _bukaPilihPetugas(item), 'Tetapkan Petugas'))
+                                  p,
+                                  p.tpdpkMenungguPetugas
+                                      ? (item) => _bukaPilihPetugas(item)
+                                      : null,
+                                  p.tpdpkMenungguPetugas
+                                      ? 'Tetapkan Petugas'
+                                      : 'Detail'))
                               .toList(),
                         );
                   break;
                 case _TpdpkClusterFilter.investigasi:
-                  listContent = berjalan.isEmpty
+                  listContent = berjalanCluster.isEmpty
                       ? _buildEmptyState('Tidak ada investigasi berjalan.')
                       : Column(
-                          children: berjalan
+                          children: berjalanCluster
                               .map((p) => _buildPengaduanCard(
-                                  p, (item) => _bukaKirimHasil(item, revisi: false), 'Kirim Hasil'))
+                                  p,
+                                  p.tpdpkInvestigasiAktif
+                                      ? (item) => _bukaKirimHasil(item, revisi: false)
+                                      : null,
+                                  p.tpdpkInvestigasiAktif
+                                      ? 'Kirim Hasil'
+                                      : 'Detail'))
                               .toList(),
                         );
                   break;
@@ -934,12 +976,18 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                         );
                   break;
                 case _TpdpkClusterFilter.tindakLanjut:
-                  listContent = tindakLanjut.isEmpty
+                  listContent = tindakLanjutCluster.isEmpty
                       ? _buildEmptyState('Tidak ada tindak lanjut yang ditugaskan.')
                       : Column(
-                          children: tindakLanjut
+                          children: tindakLanjutCluster
                               .map((p) => _buildPengaduanCard(
-                                  p, (item) => _bukaSelesaikanTindakLanjut(item), 'Selesaikan'))
+                                  p,
+                                  p.tpdpkTindakLanjutAktif
+                                      ? (item) => _bukaSelesaikanTindakLanjut(item)
+                                      : null,
+                                  p.tpdpkTindakLanjutAktif
+                                      ? 'Selesaikan'
+                                      : 'Detail'))
                               .toList(),
                         );
                   break;
@@ -948,8 +996,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                       ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
                       : Column(
                           children: selesai
-                              .map((p) => _buildPengaduanCard(
-                                  p, (item) => _bukaDetail(item), 'Detail'))
+                              .map((p) => _buildPengaduanCard(p, null, 'Detail'))
                               .toList(),
                         );
                   break;
@@ -960,10 +1007,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 children: [
                   _buildClusterBar(
                     countSemua: semua.length,
-                    countMenungguPetugas: menungguPetugas.length,
-                    countInvestigasi: berjalan.length,
+                    countMenungguPetugas: menungguPetugasCluster.length,
+                    countInvestigasi: berjalanCluster.length,
                     countRevisi: revisi.length,
-                    countTindakLanjut: tindakLanjut.length,
+                    countTindakLanjut: tindakLanjutCluster.length,
                     countSelesai: selesai.length,
                   ),
                   listContent,
@@ -1447,7 +1494,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   Widget _buildSection(
     String title,
     List<Pengaduan> items,
-    Future<void> Function(Pengaduan) onAksi,
+    Future<void> Function(Pengaduan)? onAksi,
     String emptyText,
     String tombolLabel,
   ) {
@@ -1476,7 +1523,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   }
 
   Widget _buildPengaduanCard(Pengaduan p,
-      Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
+      Future<void> Function(Pengaduan)? onAksi, String tombolLabel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1557,17 +1604,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      final id = p.supabaseId;
-                      if (id == null) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
-                        ),
-                      );
-                    },
+                    onPressed: () => _bukaDetail(p),
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
@@ -1581,22 +1618,24 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => onAksi(p),
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
-                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9)),
+            if (onAksi != null && tombolLabel != 'Detail') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => onAksi(p),
+                  icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                  label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -37,56 +37,43 @@ class _PengaduanListScreenState extends State<PengaduanListScreen> {
       final list = await PengaduanService.punyaSayaSebagaiObjek();
       return list..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
     }
-    final semua = await PengaduanService.untukRoleSebagaiObjek(user.role);
+    final semua = await PengaduanService.untukRoleSebagaiObjek(
+      user.role,
+      divisiKadiv: user.divisiKadiv?.name,
+    );
     return (semua.where((p) => _perluDitindaklanjuti(p, user)).toList())
       ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
   }
 
-  /// Filter client-side tambahan (di luar RLS Supabase) untuk menentukan
-  /// apakah [p] muncul di kotak masuk [user] saat ini.
+  /// Filter client-side tambahan untuk menentukan apakah [p] muncul di kotak
+  /// masuk tindakan [user] saat ini sesuai kewenangan role dan status.
   bool _perluDitindaklanjuti(Pengaduan p, AppUser user) {
     switch (user.role) {
       case UserRole.pegawai:
         return true; // tidak dipakai, sudah ditangani di atas.
       case UserRole.kadivKategori:
-        final kategoriCocok = user.divisiKadiv == null ||
-            _kategoriCocokDivisi(p.kategori, user.divisiKadiv!);
-        final sebagaiVerifikator =
-            p.status == PengaduanStatus.menungguKadiv && kategoriCocok;
-        final sebagaiEksekutorInvestigasi =
-            p.status == PengaduanStatus.investigasiBerjalan &&
-                p.eksekutor == Eksekutor.kadiv;
-        final sebagaiEksekutorTindakLanjut =
-            p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                p.eksekutorTindakLanjut == Eksekutor.kadiv;
-        return sebagaiVerifikator ||
-            sebagaiEksekutorInvestigasi ||
-            sebagaiEksekutorTindakLanjut;
+        return (p.kadivPerluVerifikasi && p.kadivCocokDivisiKategori(user)) ||
+            p.kadivSedangInvestigasiAktif(user) ||
+            p.kadivPerluTindakLanjut(user);
       case UserRole.kspi:
-        return p.status == PengaduanStatus.menungguPilihEksekutor;
+        return p.kspiMenungguReviewAwal ||
+            p.kspiMenungguPilihEksekutor ||
+            p.kspiMenungguTinjauHasil ||
+            p.kspiTindakLanjutAktif ||
+            p.kspiPeninjauanAktif;
       case UserRole.tpdpk:
-        final sebagaiEksekutorInvestigasi =
-            p.status == PengaduanStatus.investigasiBerjalan &&
-                p.eksekutor == Eksekutor.tpdpk;
-        final sebagaiEksekutorTindakLanjut =
-            p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                p.eksekutorTindakLanjut == Eksekutor.tpdpk;
-        return sebagaiEksekutorInvestigasi || sebagaiEksekutorTindakLanjut;
+        return p.tpdpkMenungguPetugas ||
+            p.tpdpkInvestigasiAktif ||
+            p.tpdpkPerluRevisi ||
+            p.tpdpkTindakLanjutAktif;
       case UserRole.direktur:
-        return p.status == PengaduanStatus.menungguDirutTahap1 ||
-            p.status == PengaduanStatus.menungguDirutTahap2 ||
-            p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut;
+        return p.dirutPerluAksi;
       case UserRole.sdm:
-        return p.status == PengaduanStatus.menungguSdm;
+        return p.sdmMenungguTindakLanjut;
       case UserRole.keuangan:
         // Keuangan tidak ikut alur approval pengaduan.
         return false;
     }
-  }
-
-  bool _kategoriCocokDivisi(String kategori, DivisiKadiv divisi) {
-    final divisiKategori = divisiKadivDariKategori(kategori);
-    return divisiKategori == null || divisiKategori == divisi;
   }
 
   Future<void> _refresh() async {

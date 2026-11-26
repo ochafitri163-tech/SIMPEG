@@ -1,15 +1,10 @@
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/sk_sanksi_service.dart';
 import '../../models/task_model.dart';
 import '../../models/user_role.dart';
-import '../../services/api_service.dart';
+import '../../utils/lampiran_helper.dart';
 import '../../widgets/media_lampiran_picker.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
@@ -705,18 +700,28 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         itemCount: p.fotoBukti.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
-          return ClipRRect(
+          final url = p.fotoBukti[i];
+          return InkWell(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              p.fotoBukti[i],
-              width: 90,
-              height: 90,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+            onTap: () => LampiranHelper.bukaLampiran(
+              context,
+              url,
+              fallbackName: 'Foto_Bukti_${i + 1}',
+              forceImage: true,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: LampiranHelper.buildImageWidget(
+                url,
                 width: 90,
                 height: 90,
-                color: AppColors.card(context),
-                child: Icon(Icons.broken_image_outlined, color: hintGrey),
+                fit: BoxFit.cover,
+                errorBuilder: (context) => Container(
+                  width: 90,
+                  height: 90,
+                  color: AppColors.card(context),
+                  child: Icon(Icons.broken_image_outlined, color: hintGrey),
+                ),
               ),
             ),
           );
@@ -748,115 +753,196 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   }
 
   Widget _buildHasilInvestigasi(Pengaduan p) {
-    final punyaHasil =
-        (p.hasilInvestigasi != null && p.hasilInvestigasi!.isNotEmpty) ||
-            (p.suratRekomendasi != null && p.suratRekomendasi!.isNotEmpty);
-    final punyaMedia = p.investigasiFoto.isNotEmpty ||
-        p.investigasiVideo.isNotEmpty ||
-        p.investigasiVoice.isNotEmpty ||
-        p.investigasiDokumen.isNotEmpty;
-    if (!punyaHasil && !punyaMedia && !p.isTerbukti && !p.isTidakTerbukti) return const SizedBox.shrink();
+    final rounds = p.daftarHasilInvestigasi;
+    if (rounds.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Hasil Investigasi'),
+        _buildSectionTitle(
+          rounds.length > 1
+              ? 'Hasil Investigasi (${rounds.length} Putaran)'
+              : 'Hasil Investigasi',
+        ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
+        ...rounds.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final r = entry.value;
+          final isLast = idx == rounds.length - 1;
+          final isPk = r.jenisTahap == 'peninjauan_kembali';
+          final badgeBg = isPk
+              ? const Color(0xFFFFF7ED)
+              : const Color(0xFFF1F5F9);
+          final badgeFg = isPk
+              ? const Color(0xFFC2410C)
+              : AppColors.textSecondary(context);
+
+          return Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
               color: AppColors.card(context),
-              borderRadius: BorderRadius.circular(14)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (p.isTerbukti || p.isTidakTerbukti) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: p.isTerbukti
-                        ? red.withOpacity(0.08)
-                        : const Color(0xFF0284C7).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: p.isTerbukti
-                          ? red.withOpacity(0.3)
-                          : const Color(0xFF0284C7).withOpacity(0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p.isTerbukti
-                            ? 'KESIMPULAN: TERBUKTI'
-                            : 'KESIMPULAN: TIDAK TERBUKTI',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: p.isTerbukti
-                              ? red
-                              : const Color(0xFF0284C7),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isPk
+                    ? const Color(0xFFFED7AA)
+                    : AppColors.divider(context),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          r.labelTahap,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: badgeFg,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
+                    ),
+                    if (r.tanggal != null) ...[
+                      const SizedBox(width: 8),
                       Text(
-                        p.isTerbukti
-                            ? 'Dugaan pelanggaran terbukti sah berdasarkan hasil investigasi & diteruskan ke SDM.'
-                            : 'Tidak ditemukan bukti yang cukup atas dugaan pelanggaran.',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: p.isTerbukti ? red : hintGrey,
-                          height: 1.3,
-                        ),
+                        formatTanggalJam(r.tanggal!),
+                        style: TextStyle(fontSize: 11, color: hintGrey),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (p.hasilInvestigasi != null &&
-                  p.hasilInvestigasi!.isNotEmpty) ...[
-                Text('Temuan / Fakta Lapangan',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: labelDark)),
-                const SizedBox(height: 4),
-                Text(p.hasilInvestigasi!,
-                    style: TextStyle(
-                        fontSize: 12.5, color: labelDark, height: 1.4)),
                 const SizedBox(height: 10),
-              ],
-              if (p.suratRekomendasi != null &&
-                  p.suratRekomendasi!.isNotEmpty) ...[
-                Text('Surat Rekomendasi',
-                    style: TextStyle(
-                        fontSize: 12,
+                if (r.isTerbukti || r.isTidakTerbukti) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: r.isTerbukti
+                          ? red.withOpacity(0.08)
+                          : const Color(0xFF0284C7).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: r.isTerbukti
+                            ? red.withOpacity(0.3)
+                            : const Color(0xFF0284C7).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r.isTerbukti
+                              ? 'KESIMPULAN: TERBUKTI'
+                              : 'KESIMPULAN: TIDAK TERBUKTI',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: r.isTerbukti
+                                ? red
+                                : const Color(0xFF0284C7),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          r.isTerbukti
+                              ? 'Dugaan pelanggaran dinyatakan TERBUKTI pada putaran ini.'
+                              : 'Dugaan pelanggaran dinyatakan TIDAK TERBUKTI pada putaran ini.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: r.isTerbukti ? red : hintGrey,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                if (r.catatanPeninjauanKembali != null &&
+                    r.catatanPeninjauanKembali!.trim().isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Text(
+                      'Instruksi Peninjauan Kembali (Dirut): ${r.catatanPeninjauanKembali!.trim()}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF1D4ED8),
                         fontWeight: FontWeight.w600,
-                        color: labelDark)),
-                const SizedBox(height: 4),
-                Text(p.suratRekomendasi!,
+                      ),
+                    ),
+                  ),
+                ],
+                if (r.petugasInvestigasi != null &&
+                    r.petugasInvestigasi!.trim().isNotEmpty) ...[
+                  Text(
+                    'Tim Investigator: ${r.petugasInvestigasi!.trim()}',
                     style: TextStyle(
-                        fontSize: 12.5, color: labelDark, height: 1.4)),
-                const SizedBox(height: 10),
+                      fontSize: 11.5,
+                      color: hintGrey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (r.hasilInvestigasi != null &&
+                    r.hasilInvestigasi!.trim().isNotEmpty) ...[
+                  Text('Temuan / Fakta Lapangan',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: labelDark)),
+                  const SizedBox(height: 4),
+                  Text(r.hasilInvestigasi!,
+                      style: TextStyle(
+                          fontSize: 12.5, color: labelDark, height: 1.4)),
+                  const SizedBox(height: 10),
+                ],
+                if (r.suratRekomendasi != null &&
+                    r.suratRekomendasi!.trim().isNotEmpty) ...[
+                  Text('Surat Rekomendasi',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: labelDark)),
+                  const SizedBox(height: 4),
+                  Text(r.suratRekomendasi!,
+                      style: TextStyle(
+                          fontSize: 12.5, color: labelDark, height: 1.4)),
+                  const SizedBox(height: 10),
+                ],
+                if (r.investigasiFoto.isNotEmpty)
+                  _buildLampiranLinks(
+                      'Foto (${r.labelTahap})', r.investigasiFoto, Icons.image_rounded),
+                if (r.investigasiVideo.isNotEmpty)
+                  _buildLampiranLinks(
+                      'Video (${r.labelTahap})', r.investigasiVideo, Icons.videocam_rounded),
+                if (r.investigasiVoice.isNotEmpty)
+                  _buildLampiranLinks(
+                      'Voice Note (${r.labelTahap})', r.investigasiVoice, Icons.mic_rounded),
+                if (r.investigasiDokumen.isNotEmpty)
+                  _buildLampiranLinks(
+                      'Dokumen (${r.labelTahap})', r.investigasiDokumen, Icons.attach_file_rounded),
               ],
-              if (p.investigasiFoto.isNotEmpty)
-                _buildLampiranLinks(
-                    'Foto', p.investigasiFoto, Icons.image_rounded),
-              if (p.investigasiVideo.isNotEmpty)
-                _buildLampiranLinks(
-                    'Video', p.investigasiVideo, Icons.videocam_rounded),
-              if (p.investigasiVoice.isNotEmpty)
-                _buildLampiranLinks(
-                    'Voice Note', p.investigasiVoice, Icons.mic_rounded),
-              if (p.investigasiDokumen.isNotEmpty)
-                _buildLampiranLinks(
-                    'Dokumen', p.investigasiDokumen, Icons.attach_file_rounded),
-            ],
-          ),
-        ),
+            ),
+          );
+        }),
         const SizedBox(height: 16),
       ],
     );
@@ -1078,46 +1164,7 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
   }
 
   Future<void> _bukaUrl(String url) async {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty) {
-      _showSnack('Lampiran tidak ditemukan.', red);
-      return;
-    }
-
-    // 1. Tangani Data URI (base64) — format unggahan berkas SK dari mobile/in-memory
-    if (trimmed.startsWith('data:')) {
-      try {
-        final commaIdx = trimmed.indexOf(',');
-        if (commaIdx == -1) {
-          _showSnack('Format berkas tidak valid.', red);
-          return;
-        }
-        final base64Part =
-            trimmed.substring(commaIdx + 1).replaceAll(RegExp(r'\s+'), '');
-        final bytes = base64Decode(base64Part);
-        final fileName = _namaFile(trimmed);
-
-        _tampilkanDetailDokumen(namaFile: fileName, bytes: bytes);
-        return;
-      } catch (e) {
-        _showSnack('Gagal memproses dokumen lampiran: $e', red);
-        return;
-      }
-    }
-
-    // 2. Tangani path relatif backend (misal: /storage/surat_putusan/xxx.pdf atau storage/...)
-    String resolvedUrl = trimmed;
-    if (trimmed.startsWith('/storage/') || trimmed.startsWith('storage/')) {
-      final host =
-          ApiService.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
-      final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
-      resolvedUrl = '$host$cleanPath';
-    }
-
-    _tampilkanDetailDokumen(
-      namaFile: _namaFile(resolvedUrl),
-      networkUrl: resolvedUrl,
-    );
+    await LampiranHelper.bukaLampiran(context, url);
   }
 
   /// Kartu info pelaku/pihak yang diadukan (Nama, NIK, Jabatan) — selalu
@@ -1473,414 +1520,11 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     );
   }
 
-  void _tampilkanDetailDokumen({
-    required String namaFile,
-    Uint8List? bytes,
-    String? networkUrl,
-  }) {
-    if (!mounted) return;
+  bool _isGambar(String url) => LampiranHelper.isImageUrl(url);
 
-    final lower = namaFile.toLowerCase();
-    final isGambar = _isGambar(namaFile, bytes) ||
-        (networkUrl != null && _isGambar(networkUrl));
-    final isPdf =
-        _isPdf(namaFile, bytes) || (networkUrl != null && _isPdf(networkUrl));
-    final isWord = lower.endsWith('.doc') || lower.endsWith('.docx');
-    final isExcel = lower.endsWith('.xls') || lower.endsWith('.xlsx');
+  bool _isPdf(String url) => LampiranHelper.isPdfUrl(url);
 
-    // 1. Jika GAMBAR, tampilkan viewer foto penuh tema gelap (seperti contoh gambar 2)
-    if (isGambar) {
-      showDialog(
-        context: context,
-        barrierColor: Colors.black.withValues(alpha: 0.94),
-        builder: (ctx) => Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: Column(
-              children: [
-                // Top Header Bar
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  color: Colors.black.withValues(alpha: 0.7),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded,
-                            color: Colors.white),
-                        tooltip: 'Tutup',
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          namaFile,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (bytes != null && bytes.isNotEmpty)
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            try {
-                              await Printing.sharePdf(
-                                  bytes: bytes, filename: namaFile);
-                              if (mounted) {
-                                _showSnack(
-                                    'Berkas $namaFile berhasil diunduh.',
-                                    green);
-                              }
-                            } catch (_) {}
-                          },
-                          icon: const Icon(Icons.download_rounded,
-                              size: 16, color: Colors.white),
-                          label: const Text('Unduh',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: navy,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                // Area Gambar Zoomable
-                Expanded(
-                  child: Center(
-                    child: InteractiveViewer(
-                      maxScale: 5.0,
-                      child: bytes != null
-                          ? Image.memory(bytes, fit: BoxFit.contain)
-                          : (networkUrl != null
-                              ? Image.network(networkUrl, fit: BoxFit.contain)
-                              : const SizedBox()),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      return;
-    }
-
-    // 2. Jika DOKUMEN (Word, Excel, PDF, dll.), tampilkan Modal Detail Dokumen
-    final ukuranKb =
-        bytes != null ? (bytes.length / 1024).toStringAsFixed(1) : null;
-    Color iconColor = navy;
-    Color iconBg = navy.withValues(alpha: 0.1);
-    IconData docIcon = Icons.insert_drive_file_rounded;
-    String jenisLabel = 'Dokumen Lampiran';
-
-    if (isWord) {
-      iconColor = const Color(0xFF185ABD);
-      iconBg = const Color(0xFF185ABD).withValues(alpha: 0.1);
-      docIcon = Icons.description_rounded;
-      final ext = lower.split('.').last.toUpperCase();
-      jenisLabel = 'Dokumen Microsoft Word (.$ext)';
-    } else if (isExcel) {
-      iconColor = const Color(0xFF107C41);
-      iconBg = const Color(0xFF107C41).withValues(alpha: 0.1);
-      docIcon = Icons.table_chart_rounded;
-      final ext = lower.split('.').last.toUpperCase();
-      jenisLabel = 'Spreadsheet Microsoft Excel (.$ext)';
-    } else if (isPdf) {
-      iconColor = const Color(0xFFD32F2F);
-      iconBg = const Color(0xFFD32F2F).withValues(alpha: 0.1);
-      docIcon = Icons.picture_as_pdf_rounded;
-      jenisLabel = 'Dokumen PDF (Portable Document Format)';
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                color: navy,
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline_rounded,
-                        color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Detail Berkas Dokumen',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Colors.white, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: 'Tutup',
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-              ),
-              // Body
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: iconBg,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(docIcon, size: 36, color: iconColor),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      namaFile,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      jenisLabel,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: hintGrey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (ukuranKb != null) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Ukuran: $ukuranKb KB',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: labelDark,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    // Tombol Aksi di dalam dialog
-                    if (isPdf && bytes != null && bytes.isNotEmpty) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            try {
-                              await Printing.layoutPdf(
-                                name: namaFile,
-                                onLayout: (_) async => bytes,
-                              );
-                            } catch (_) {}
-                          },
-                          icon: const Icon(Icons.visibility_rounded, size: 16),
-                          label: const Text('Buka Pratinjau PDF',
-                              style: TextStyle(fontSize: 12.5)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: navy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            try {
-                              await Printing.sharePdf(
-                                  bytes: bytes, filename: namaFile);
-                              if (mounted) {
-                                _showSnack(
-                                    'Berkas $namaFile berhasil diunduh.',
-                                    green);
-                              }
-                            } catch (_) {}
-                          },
-                          icon: const Icon(Icons.download_rounded, size: 16),
-                          label: const Text('Unduh Berkas PDF',
-                              style: TextStyle(fontSize: 12.5)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: navy,
-                            side:
-                                BorderSide(color: navy.withValues(alpha: 0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 11),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9)),
-                          ),
-                        ),
-                      ),
-                    ] else if (bytes != null && bytes.isNotEmpty) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            try {
-                              await Printing.sharePdf(
-                                  bytes: bytes, filename: namaFile);
-                              if (mounted) {
-                                _showSnack(
-                                    'Berkas $namaFile berhasil diunduh.',
-                                    green);
-                              }
-                            } catch (_) {}
-                          },
-                          icon: const Icon(Icons.download_rounded, size: 17),
-                          label: const Text('Unduh Berkas',
-                              style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: navy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9)),
-                          ),
-                        ),
-                      ),
-                    ] else if (networkUrl != null) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.tryParse(networkUrl);
-                            if (uri != null && await canLaunchUrl(uri)) {
-                              await launchUrl(uri,
-                                  mode: LaunchMode.externalApplication);
-                            }
-                          },
-                          icon:
-                              const Icon(Icons.open_in_new_rounded, size: 16),
-                          label: const Text('Buka Tautan Berkas',
-                              style: TextStyle(fontSize: 12.5)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: navy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  bool _isGambar(String url, [Uint8List? bytes]) {
-    final lower = url.toLowerCase();
-    if (lower.startsWith('data:')) {
-      final header = lower.split(',').first;
-      if (header.contains('image/')) return true;
-    }
-    final clean = lower.split('?').first;
-    if (clean.endsWith('.png') ||
-        clean.endsWith('.jpg') ||
-        clean.endsWith('.jpeg') ||
-        clean.endsWith('.webp') ||
-        clean.endsWith('.gif') ||
-        clean.endsWith('.bmp')) {
-      return true;
-    }
-    if (bytes != null && bytes.length >= 4) {
-      if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return true;
-      if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
-      if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) return true;
-    }
-    return false;
-  }
-
-  bool _isPdf(String url, [Uint8List? bytes]) {
-    if (url.startsWith('data:')) {
-      final header = url.split(',').first.toLowerCase();
-      if (header.contains('application/pdf') || header.contains('.pdf')) return true;
-    }
-    final clean = url.split('?').first.toLowerCase();
-    if (clean.endsWith('.pdf')) return true;
-    if (bytes != null && bytes.length >= 4) {
-      if (bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46) return true;
-    }
-    return false;
-  }
-
-  String _namaFile(String url) {
-    if (url.startsWith('data:')) {
-      final match = RegExp(r'name=([^;]+)').firstMatch(url);
-      if (match != null) return Uri.decodeComponent(match.group(1)!);
-      if (url.contains('application/pdf')) return 'Dokumen_SK.pdf';
-      if (url.contains('word') || url.contains('msword')) {
-        return 'Dokumen_SK.docx';
-      }
-      if (url.contains('excel') || url.contains('sheet')) {
-        return 'Dokumen_SK.xlsx';
-      }
-      if (url.contains('image/png')) return 'Dokumen_SK.png';
-      if (url.contains('image/jpeg') || url.contains('image/jpg')) {
-        return 'Dokumen_SK.jpg';
-      }
-      return 'Dokumen_Lampiran';
-    }
-    try {
-      final clean = url.split('?').first;
-      final seg = clean.split('/').last;
-      if (seg.isNotEmpty) {
-        var nama = Uri.decodeComponent(seg);
-        final pisah = nama.split('_');
-        if (pisah.length > 1 && int.tryParse(pisah.first) != null) {
-          nama = pisah.sublist(1).join('_');
-        }
-        return nama;
-      }
-    } catch (_) {}
-    return url;
-  }
+  String _namaFile(String url) => LampiranHelper.extractFileName(url);
 
   Widget _buildTimeline(Pengaduan p) {
     if (p.riwayatStatus.isEmpty) {
@@ -2080,9 +1724,10 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     Widget? panel;
 
     if (role == UserRole.kadivKategori) {
-      if (p.status == PengaduanStatus.menungguKadiv) {
+      if (p.kadivPerluVerifikasi) {
         panel = _panelVerifikasiKadiv(p, oleh);
-      } else if (p.status == PengaduanStatus.investigasiBerjalan) {
+      } else if (p.status == PengaduanStatus.investigasiBerjalan ||
+          p.status == PengaduanStatus.revisiInvestigasi) {
         panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.kadivKategori);
       } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
           p.eksekutorTindakLanjut == Eksekutor.kadiv) {
@@ -2091,9 +1736,11 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     } else if (role == UserRole.kspi) {
       if (p.status == PengaduanStatus.reviewKspi) {
         panel = _panelTeruskanKeDirut(p, oleh);
-      } else if (p.status == PengaduanStatus.menungguPilihEksekutor) {
+      } else if (p.status == PengaduanStatus.menungguPilihEksekutor ||
+          p.status == PengaduanStatus.peninjauanKembali) {
         panel = _panelKspiPilihEksekutor(p, oleh);
-      } else if (p.status == PengaduanStatus.investigasiBerjalan &&
+      } else if ((p.status == PengaduanStatus.investigasiBerjalan ||
+              p.status == PengaduanStatus.revisiInvestigasi) &&
           (widget.user.nik == '1711161' ||
               widget.user.name.toLowerCase().contains('dodi'))) {
         panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.tpdpk);
@@ -2103,8 +1750,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
       }
     } else if (role == UserRole.tpdpk) {
       if (p.status == PengaduanStatus.menungguInvestigasi ||
-          p.status == PengaduanStatus.investigasiBerjalan) {
+          p.status == PengaduanStatus.investigasiBerjalan ||
+          p.status == PengaduanStatus.revisiInvestigasi) {
         panel = _panelKirimHasilInvestigasi(p, oleh, UserRole.tpdpk);
+      } else if (p.status == PengaduanStatus.tindakLanjutBerjalan &&
+          p.eksekutorTindakLanjut == Eksekutor.tpdpk) {
+        panel = _panelSelesaikanTindakLanjut(p, oleh, UserRole.tpdpk);
       }
     } else if (role == UserRole.direktur) {
       if (p.status == PengaduanStatus.menungguDirutTahap1) {
@@ -2137,7 +1788,8 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             );
           },
         );
-      } else if (p.status == PengaduanStatus.menungguDirutTahap2) {
+      } else if (p.status == PengaduanStatus.menungguDirutTahap2 ||
+          p.status == PengaduanStatus.menungguDirutTahap3) {
         panel = _panelDirutTahap2(p, oleh);
       }
     } else if (role == UserRole.sdm) {
@@ -2274,7 +1926,11 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Persetujuan Direktur Utama (Tahap 2)'),
+        _buildSectionTitle(
+          p.dirutMenungguTahap3
+              ? 'Persetujuan Direktur Utama (Tahap 3 — Peninjauan Kembali)'
+              : 'Persetujuan Direktur Utama (Tahap 2)',
+        ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,

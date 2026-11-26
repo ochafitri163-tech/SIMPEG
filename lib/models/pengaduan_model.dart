@@ -20,6 +20,7 @@ enum PengaduanStatus {
   menungguPilihEksekutor,
   investigasiBerjalan,
   menungguDirutTahap2,
+  menungguDirutTahap3,
   menungguPilihEksekutorTindakLanjut,
   tindakLanjutBerjalan,
   menungguSdm,
@@ -58,6 +59,8 @@ extension PengaduanStatusX on PengaduanStatus {
         return 'Revisi Investigasi';
       case PengaduanStatus.menungguDirutTahap2:
         return 'Menunggu Persetujuan Dirut (Tahap 2)';
+      case PengaduanStatus.menungguDirutTahap3:
+        return 'Menunggu Persetujuan Dirut (Tahap 3)';
       case PengaduanStatus.ditolakDirektur:
         return 'Ditolak Direktur';
       case PengaduanStatus.peninjauanKembali:
@@ -84,6 +87,7 @@ extension PengaduanStatusX on PengaduanStatus {
         return const Color(0xFF95A5A6);
       case PengaduanStatus.menungguDirutTahap1:
       case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguDirutTahap3:
         return const Color(0xFFE67E22);
       case PengaduanStatus.menungguPilihEksekutor:
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
@@ -121,6 +125,7 @@ extension PengaduanStatusX on PengaduanStatus {
         return Icons.hourglass_top_rounded;
       case PengaduanStatus.menungguDirutTahap1:
       case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguDirutTahap3:
         return Icons.fact_check_rounded;
       case PengaduanStatus.menungguPilihEksekutor:
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
@@ -168,6 +173,7 @@ extension PengaduanStatusX on PengaduanStatus {
       case PengaduanStatus.revisiInvestigasi:
         return 5;
       case PengaduanStatus.menungguDirutTahap2:
+      case PengaduanStatus.menungguDirutTahap3:
       case PengaduanStatus.ditolakDirektur:
       case PengaduanStatus.peninjauanKembali:
         return 6;
@@ -235,6 +241,66 @@ class StatusHistoryEntry {
   });
 }
 
+/// Satu putaran hasil investigasi (awal, peninjauan kembali, atau revisi)
+/// beserta seluruh bukti media yang diunggah pada putaran tersebut.
+class InvestigasiHistoryEntry {
+  final int? id;
+  final int tahapKe;
+  final String jenisTahap;
+  final String labelTahap;
+  final String? eksekutor;
+  final String? eksekutorDivisiKadiv;
+  final String? petugasInvestigasi;
+  final String? oleh;
+  final String? role;
+  final String? kesimpulanInvestigasi;
+  final String? hasilInvestigasi;
+  final String? suratRekomendasi;
+  final String? catatanPeninjauanKembali;
+  final List<String> investigasiFoto;
+  final List<String> investigasiVideo;
+  final List<String> investigasiVoice;
+  final List<String> investigasiDokumen;
+  final DateTime? tanggal;
+
+  const InvestigasiHistoryEntry({
+    this.id,
+    required this.tahapKe,
+    required this.jenisTahap,
+    required this.labelTahap,
+    this.eksekutor,
+    this.eksekutorDivisiKadiv,
+    this.petugasInvestigasi,
+    this.oleh,
+    this.role,
+    this.kesimpulanInvestigasi,
+    this.hasilInvestigasi,
+    this.suratRekomendasi,
+    this.catatanPeninjauanKembali,
+    this.investigasiFoto = const [],
+    this.investigasiVideo = const [],
+    this.investigasiVoice = const [],
+    this.investigasiDokumen = const [],
+    this.tanggal,
+  });
+
+  bool get isTerbukti {
+    final val = (kesimpulanInvestigasi ?? '').trim().toLowerCase();
+    return val.contains('terbukti') && !val.contains('tidak');
+  }
+
+  bool get isTidakTerbukti {
+    final val = (kesimpulanInvestigasi ?? '').trim().toLowerCase();
+    return val.contains('tidak') && val.contains('terbukti');
+  }
+
+  bool get punyaMedia =>
+      investigasiFoto.isNotEmpty ||
+      investigasiVideo.isNotEmpty ||
+      investigasiVoice.isNotEmpty ||
+      investigasiDokumen.isNotEmpty;
+}
+
 /// Model utama satu pengaduan pegawai.
 class Pengaduan {
   final String nomorPengaduan;
@@ -266,6 +332,7 @@ class Pengaduan {
   final List<String> investigasiVoice;
   final List<String> investigasiDokumen;
   final List<StatusHistoryEntry> riwayatStatus;
+  final List<InvestigasiHistoryEntry> riwayatInvestigasi;
 
   PengaduanStatus status;
 
@@ -345,6 +412,7 @@ class Pengaduan {
     List<String>? investigasiVoice,
     List<String>? investigasiDokumen,
     List<StatusHistoryEntry>? riwayatStatus,
+    List<InvestigasiHistoryEntry>? riwayatInvestigasi,
     this.keputusanKadiv,
     this.catatanKadiv,
     this.keputusanDirutTahap1,
@@ -382,7 +450,8 @@ class Pengaduan {
         investigasiVideo = investigasiVideo ?? [],
         investigasiVoice = investigasiVoice ?? [],
         investigasiDokumen = investigasiDokumen ?? [],
-        riwayatStatus = riwayatStatus ?? [];
+        riwayatStatus = riwayatStatus ?? [],
+        riwayatInvestigasi = riwayatInvestigasi ?? [];
 
   /// Apakah data pelaku (nama/NIK/jabatan) sudah lengkap diisi.
   bool get adaDataPelaku =>
@@ -434,6 +503,360 @@ class Pengaduan {
     }
     return null;
   }
+
+  bool _punyaRiwayat(bool Function(StatusHistoryEntry h) test) =>
+      riwayatStatus.any(test);
+
+  static String? _normDivisiStr(DivisiKadiv? d) => d?.name.toLowerCase();
+
+  bool _eksekutorCocokKadivUser(
+    AppUser user,
+    DivisiKadiv? targetDivisi,
+    Eksekutor? ek,
+  ) {
+    if (ek != Eksekutor.kadiv) return false;
+    final userDiv = _normDivisiStr(user.divisiKadiv);
+    final tgtDiv = _normDivisiStr(targetDivisi);
+    if (userDiv == null) return true;
+    if (tgtDiv != null && tgtDiv == userDiv) return true;
+    final petugasLower = (petugasInvestigasi ?? '').toLowerCase();
+    if (user.name.trim().isNotEmpty &&
+        petugasLower.contains(user.name.trim().toLowerCase())) {
+      return true;
+    }
+    if (executorId != null &&
+        ((user.id.isNotEmpty && executorId == user.id) ||
+            (user.nik.isNotEmpty && executorId == user.nik))) {
+      return true;
+    }
+    return tgtDiv == null && divisiKadivDariKategori(kategori) == user.divisiKadiv;
+  }
+
+  // ---------- Cluster membership helpers per role ----------
+
+  bool get kadivPerluVerifikasi =>
+      status == PengaduanStatus.menungguKadiv ||
+      status == PengaduanStatus.menungguVerifikasiKadiv;
+
+  bool get kadivSudahVerifikasi =>
+      keputusanKadiv != null ||
+      (!kadivPerluVerifikasi &&
+          status != PengaduanStatus.arsip &&
+          _punyaRiwayat((h) =>
+              h.role == UserRole.kadivKategori ||
+              h.statusLama == PengaduanStatus.menungguKadiv ||
+              h.statusLama == PengaduanStatus.menungguVerifikasiKadiv)) ||
+      (status == PengaduanStatus.arsip && arsipPadaTahap == 'kadiv');
+
+  bool kadivCocokDivisiKategori(AppUser user) {
+    if (user.divisiKadiv == null) return true;
+    final div = divisiKadivDariKategori(kategori);
+    return div == null || div == user.divisiKadiv;
+  }
+
+  bool kadivMasukClusterVerifikasi(AppUser user) =>
+      (kadivPerluVerifikasi && kadivCocokDivisiKategori(user)) ||
+      (kadivSudahVerifikasi && kadivCocokDivisiKategori(user));
+
+  bool kadivSedangInvestigasiAktif(AppUser user) =>
+      (status == PengaduanStatus.investigasiBerjalan ||
+          status == PengaduanStatus.revisiInvestigasi) &&
+      (_eksekutorCocokKadivUser(user, eksekutorDivisiKadiv, eksekutor) ||
+          (status == PengaduanStatus.investigasiBerjalan &&
+              eksekutor == null &&
+              kadivCocokDivisiKategori(user)));
+
+  bool kadivPerluTindakLanjut(AppUser user) =>
+      status == PengaduanStatus.tindakLanjutBerjalan &&
+      _eksekutorCocokKadivUser(
+        user,
+        eksekutorTindakLanjutDivisiKadiv,
+        eksekutorTindakLanjut,
+      );
+
+  bool kadivMasukClusterInvestigasi(AppUser user) {
+    if (kadivSedangInvestigasiAktif(user) || kadivPerluTindakLanjut(user)) {
+      return true;
+    }
+    final assignedAsInvestigator =
+        _eksekutorCocokKadivUser(user, eksekutorDivisiKadiv, eksekutor) &&
+            !kadivPerluVerifikasi &&
+            status != PengaduanStatus.reviewKspi &&
+            status != PengaduanStatus.menungguDirutTahap1 &&
+            status != PengaduanStatus.menungguPilihEksekutor;
+    final assignedAsFollowUp = _eksekutorCocokKadivUser(
+          user,
+          eksekutorTindakLanjutDivisiKadiv,
+          eksekutorTindakLanjut,
+        ) &&
+        (status == PengaduanStatus.menungguSdm || status == PengaduanStatus.selesai);
+    return assignedAsInvestigator || assignedAsFollowUp;
+  }
+
+  bool get kspiMenungguReviewAwal => status == PengaduanStatus.reviewKspi;
+
+  bool get _kspiSudahLewatReviewAwal =>
+      !kspiMenungguReviewAwal &&
+      status != PengaduanStatus.menungguKadiv &&
+      status != PengaduanStatus.menungguVerifikasiKadiv &&
+      (keputusanKadiv != null ||
+          status != PengaduanStatus.arsip ||
+          arsipPadaTahap == 'kspi' ||
+          _punyaRiwayat((h) =>
+              h.status == PengaduanStatus.reviewKspi ||
+              h.statusLama == PengaduanStatus.reviewKspi ||
+              h.role == UserRole.kspi));
+
+  bool get kspiMasukClusterDiterimaKadiv =>
+      (kspiMenungguReviewAwal && keputusanKadiv != Keputusan.tolak) ||
+      (_kspiSudahLewatReviewAwal && keputusanKadiv != Keputusan.tolak);
+
+  bool get kspiMasukClusterDitolakKadiv =>
+      keputusanKadiv == Keputusan.tolak &&
+      (kspiMenungguReviewAwal || _kspiSudahLewatReviewAwal);
+
+  bool get kspiMenungguPilihEksekutor =>
+      status == PengaduanStatus.menungguPilihEksekutor;
+
+  bool get kspiMasukClusterPilihEksekutor =>
+      kspiMenungguPilihEksekutor ||
+      eksekutor != null ||
+      (petugasInvestigasi != null && petugasInvestigasi!.trim().isNotEmpty) ||
+      status == PengaduanStatus.menungguInvestigasi ||
+      status == PengaduanStatus.investigasiBerjalan ||
+      status == PengaduanStatus.revisiInvestigasi ||
+      status == PengaduanStatus.menungguReviewKspi ||
+      status == PengaduanStatus.menungguDirutTahap2 ||
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      status == PengaduanStatus.ditolakDirektur ||
+      status == PengaduanStatus.peninjauanKembali ||
+      status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+      status == PengaduanStatus.tindakLanjutBerjalan ||
+      status == PengaduanStatus.menungguSdm ||
+      status == PengaduanStatus.selesai ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.menungguPilihEksekutor ||
+          h.statusLama == PengaduanStatus.menungguPilihEksekutor);
+
+  bool get kspiMenungguTinjauHasil =>
+      status == PengaduanStatus.menungguReviewKspi;
+
+  bool get kspiMasukClusterTinjauHasil =>
+      kspiMenungguTinjauHasil ||
+      (hasilInvestigasi != null && hasilInvestigasi!.trim().isNotEmpty) ||
+      status == PengaduanStatus.revisiInvestigasi ||
+      (catatanReviewHasilKspi != null &&
+          catatanReviewHasilKspi!.trim().isNotEmpty) ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.menungguReviewKspi ||
+          h.statusLama == PengaduanStatus.menungguReviewKspi);
+
+  bool get kspiTindakLanjutAktif =>
+      status == PengaduanStatus.tindakLanjutBerjalan &&
+      eksekutorTindakLanjut == Eksekutor.kspi;
+
+  bool get kspiMasukClusterTindakLanjut =>
+      eksekutorTindakLanjut == Eksekutor.kspi &&
+      (status == PengaduanStatus.tindakLanjutBerjalan ||
+          status == PengaduanStatus.menungguSdm ||
+          status == PengaduanStatus.selesai);
+
+  bool get kspiPeninjauanAktif =>
+      status == PengaduanStatus.peninjauanKembali ||
+      (status == PengaduanStatus.menungguPilihEksekutor &&
+          catatanPeninjauanKembali != null &&
+          catatanPeninjauanKembali!.trim().isNotEmpty);
+
+  bool get kspiMasukClusterPeninjauanKembali =>
+      kspiPeninjauanAktif ||
+      (catatanPeninjauanKembali != null &&
+          catatanPeninjauanKembali!.trim().isNotEmpty) ||
+      status == PengaduanStatus.ditolakDirektur;
+
+  bool get pernahPeninjauanKembali =>
+      status == PengaduanStatus.peninjauanKembali ||
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      (catatanPeninjauanKembali != null &&
+          catatanPeninjauanKembali!.trim().isNotEmpty) ||
+      riwayatInvestigasi.any((r) => r.jenisTahap == 'peninjauan_kembali') ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.peninjauanKembali ||
+          (h.statusLama == PengaduanStatus.menungguDirutTahap2 &&
+              h.status == PengaduanStatus.menungguPilihEksekutor) ||
+          h.aksi.toLowerCase().contains('peninjauan kembali') ||
+          h.aksi.toLowerCase().contains('tinjau ulang'));
+
+  bool get _adaHasilPascaPeninjauanKembali =>
+      riwayatInvestigasi.any((r) => r.jenisTahap == 'peninjauan_kembali') ||
+      riwayatInvestigasi.length > 1 ||
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      _punyaRiwayat((h) => h.status == PengaduanStatus.menungguDirutTahap3);
+
+  /// Daftar seluruh putaran investigasi (awal, peninjauan kembali, revisi).
+  /// Fallback ke kolom tunggal di record jika backend belum menyertakan `riwayat_investigasi`.
+  List<InvestigasiHistoryEntry> get daftarHasilInvestigasi {
+    if (riwayatInvestigasi.isNotEmpty) return riwayatInvestigasi;
+    final adaIsi = (kesimpulanInvestigasi ?? '').trim().isNotEmpty ||
+        (hasilInvestigasi ?? '').trim().isNotEmpty ||
+        (suratRekomendasi ?? '').trim().isNotEmpty ||
+        investigasiFoto.isNotEmpty ||
+        investigasiVideo.isNotEmpty ||
+        investigasiVoice.isNotEmpty ||
+        investigasiDokumen.isNotEmpty;
+    if (!adaIsi) return const [];
+    final isPk = pernahPeninjauanKembali;
+    return [
+      InvestigasiHistoryEntry(
+        tahapKe: isPk ? 2 : 1,
+        jenisTahap: isPk ? 'peninjauan_kembali' : 'awal',
+        labelTahap: isPk
+            ? 'Putaran #2 (Peninjauan Kembali)'
+            : 'Putaran #1 (Investigasi Awal)',
+        eksekutor: eksekutor?.name,
+        eksekutorDivisiKadiv: eksekutorDivisiKadiv?.name,
+        petugasInvestigasi: petugasInvestigasi,
+        kesimpulanInvestigasi: kesimpulanInvestigasi,
+        hasilInvestigasi: hasilInvestigasi,
+        suratRekomendasi: suratRekomendasi,
+        catatanPeninjauanKembali: catatanPeninjauanKembali,
+        investigasiFoto: investigasiFoto,
+        investigasiVideo: investigasiVideo,
+        investigasiVoice: investigasiVoice,
+        investigasiDokumen: investigasiDokumen,
+        tanggal: tanggalHasilInvestigasi,
+      ),
+    ];
+  }
+
+  /// Label status tampilan (membedakan Tahap 2 vs Tahap 3 pasca PK).
+  String get statusTampilLabel => dirutMenungguTahap3
+      ? PengaduanStatus.menungguDirutTahap3.label
+      : status.label;
+
+  bool get dirutMenungguTahap1 => status == PengaduanStatus.menungguDirutTahap1;
+
+  bool get dirutMasukClusterTahap1 =>
+      dirutMenungguTahap1 ||
+      keputusanDirutTahap1 != null ||
+      arsipPadaTahap == 'dirutTahap1' ||
+      status == PengaduanStatus.menungguPilihEksekutor ||
+      status == PengaduanStatus.menungguInvestigasi ||
+      status == PengaduanStatus.investigasiBerjalan ||
+      status == PengaduanStatus.revisiInvestigasi ||
+      status == PengaduanStatus.menungguReviewKspi ||
+      status == PengaduanStatus.menungguDirutTahap2 ||
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      status == PengaduanStatus.ditolakDirektur ||
+      status == PengaduanStatus.peninjauanKembali ||
+      status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+      status == PengaduanStatus.tindakLanjutBerjalan ||
+      status == PengaduanStatus.menungguSdm ||
+      status == PengaduanStatus.selesai ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.menungguDirutTahap1 ||
+          h.statusLama == PengaduanStatus.menungguDirutTahap1 ||
+          h.status == PengaduanStatus.menungguPilihEksekutor);
+
+  bool get dirutMenungguTahap2 =>
+      status == PengaduanStatus.menungguDirutTahap2 &&
+      !pernahPeninjauanKembali;
+
+  bool get dirutMasukClusterTahap2 =>
+      dirutMenungguTahap2 ||
+      keputusanDirutTahap2 != null ||
+      arsipPadaTahap == 'dirutTahap2' ||
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      status == PengaduanStatus.ditolakDirektur ||
+      status == PengaduanStatus.peninjauanKembali ||
+      (catatanPeninjauanKembali != null &&
+          catatanPeninjauanKembali!.trim().isNotEmpty) ||
+      status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+      status == PengaduanStatus.tindakLanjutBerjalan ||
+      status == PengaduanStatus.menungguSdm ||
+      status == PengaduanStatus.selesai ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.menungguDirutTahap2 ||
+          h.statusLama == PengaduanStatus.menungguDirutTahap2);
+
+  bool get dirutMenungguTahap3 =>
+      status == PengaduanStatus.menungguDirutTahap3 ||
+      (status == PengaduanStatus.menungguDirutTahap2 &&
+          pernahPeninjauanKembali);
+
+  bool get dirutMasukClusterTahap3 =>
+      dirutMenungguTahap3 ||
+      (pernahPeninjauanKembali &&
+          (_adaHasilPascaPeninjauanKembali ||
+              status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+              status == PengaduanStatus.tindakLanjutBerjalan ||
+              status == PengaduanStatus.menungguSdm ||
+              status == PengaduanStatus.selesai ||
+              (status == PengaduanStatus.arsip &&
+                  arsipPadaTahap == 'dirutTahap2') ||
+              status == PengaduanStatus.ditolakDirektur));
+
+  bool get dirutMenungguPilihEksekutor =>
+      status == PengaduanStatus.menungguPilihEksekutorTindakLanjut;
+
+  bool get dirutMasukClusterPilihEksekutor =>
+      dirutMenungguPilihEksekutor ||
+      eksekutorTindakLanjut != null ||
+      status == PengaduanStatus.tindakLanjutBerjalan ||
+      _punyaRiwayat((h) =>
+          h.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut ||
+          h.statusLama == PengaduanStatus.menungguPilihEksekutorTindakLanjut);
+
+  bool get dirutPerluAksi =>
+      dirutMenungguTahap1 ||
+      dirutMenungguTahap2 ||
+      dirutMenungguTahap3 ||
+      dirutMenungguPilihEksekutor;
+
+  bool get tpdpkMenungguPetugas => status == PengaduanStatus.menungguInvestigasi;
+
+  bool get tpdpkMasukClusterMenungguPetugas =>
+      tpdpkMenungguPetugas ||
+      (eksekutor == Eksekutor.tpdpk &&
+          _punyaRiwayat((h) =>
+              h.status == PengaduanStatus.menungguInvestigasi ||
+              h.statusLama == PengaduanStatus.menungguInvestigasi));
+
+  bool get tpdpkInvestigasiAktif =>
+      status == PengaduanStatus.investigasiBerjalan &&
+      eksekutor == Eksekutor.tpdpk;
+
+  bool get tpdpkMasukClusterInvestigasi =>
+      tpdpkInvestigasiAktif ||
+      (eksekutor == Eksekutor.tpdpk &&
+          status != PengaduanStatus.revisiInvestigasi &&
+          status != PengaduanStatus.menungguInvestigasi &&
+          status != PengaduanStatus.menungguPilihEksekutor);
+
+  bool get tpdpkPerluRevisi =>
+      status == PengaduanStatus.revisiInvestigasi &&
+      eksekutor == Eksekutor.tpdpk;
+
+  bool get tpdpkTindakLanjutAktif =>
+      status == PengaduanStatus.tindakLanjutBerjalan &&
+      eksekutorTindakLanjut == Eksekutor.tpdpk;
+
+  bool get tpdpkMasukClusterTindakLanjut =>
+      eksekutorTindakLanjut == Eksekutor.tpdpk &&
+      (status == PengaduanStatus.tindakLanjutBerjalan ||
+          status == PengaduanStatus.menungguSdm ||
+          status == PengaduanStatus.selesai);
+
+  bool get sdmMenungguTindakLanjut => status == PengaduanStatus.menungguSdm;
+
+  bool get sdmMasukClusterMenunggu =>
+      sdmMenungguTindakLanjut ||
+      (status == PengaduanStatus.selesai &&
+          (adaPutusanSdm ||
+              isTerbukti ||
+              _punyaRiwayat((h) =>
+                  h.status == PengaduanStatus.menungguSdm ||
+                  h.statusLama == PengaduanStatus.menungguSdm ||
+                  h.role == UserRole.sdm)));
 
   void _ubahStatus({
     required PengaduanStatus statusBaru,
@@ -697,4 +1120,25 @@ String formatTanggalJam(DateTime date) {
   final jam = d.hour.toString().padLeft(2, '0');
   final menit = d.minute.toString().padLeft(2, '0');
   return '${d.day} ${bulanSingkat[d.month - 1]} ${d.year}, $jam:$menit';
+}
+
+/// Mengurutkan daftar cluster pengaduan: item yang masih membutuhkan aksi
+/// role saat ini ([isPending] == true) selalu di atas (terbaru dulu), disusul
+/// item yang sudah diproses/diteruskan agar tetap terlihat di cluster tersebut.
+List<Pengaduan> urutkanClusterPengaduan(
+  Iterable<Pengaduan> items,
+  bool Function(Pengaduan p) isPending,
+) {
+  final pending = <Pengaduan>[];
+  final processed = <Pengaduan>[];
+  for (final p in items) {
+    if (isPending(p)) {
+      pending.add(p);
+    } else {
+      processed.add(p);
+    }
+  }
+  pending.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+  processed.sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+  return [...pending, ...processed];
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'models/user_role.dart';
 import 'screens/pegawai/pegawai_dashboard.dart';
 import 'services/api_service.dart';
+import 'services/notification_nav_helper.dart';
 import 'services/remembered_account_service.dart';
 import 'services/onesignal_service.dart';
 import 'services/audit_log_service.dart';
@@ -320,6 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
       MaterialPageRoute(builder: (_) => _dashboardForRole(user)),
     );
+    await NotificationNavHelper.markDashboardReadyAndFlush();
   }
 
   void _resetCaptcha() {

@@ -1873,29 +1873,60 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
 
               if (_activeRoleTab == 0) {
-                final siapTeruskanSemua = semuaKspi
-                    .where((p) => p.status == PengaduanStatus.reviewKspi)
-                    .toList();
-                final siapTeruskanDiterima = siapTeruskanSemua
-                    .where((p) => p.keputusanKadiv == Keputusan.terima)
-                    .toList();
-                final siapTeruskanDitolak = siapTeruskanSemua
-                    .where((p) => p.keputusanKadiv == Keputusan.tolak)
-                    .toList();
-                final reviewAwal = semuaKspi
-                    .where(
-                        (p) => p.status == PengaduanStatus.menungguPilihEksekutor)
-                    .toList();
-                final reviewHasil = semuaKspi
-                    .where((p) => p.status == PengaduanStatus.menungguReviewKspi)
-                    .toList();
-                final ditolak = semuaKspi
+                final siapTeruskanDiterimaAktif = semuaKspi
                     .where((p) =>
-                        p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                        p.eksekutorTindakLanjut == Eksekutor.kspi)
+                        p.kspiMenungguReviewAwal &&
+                        p.keputusanKadiv != Keputusan.tolak)
                     .toList();
-                final peninjauan = semuaKspi
-                    .where((p) => p.status == PengaduanStatus.peninjauanKembali)
+                final siapTeruskanDiterimaCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterDiterimaKadiv),
+                  (p) => p.kspiMenungguReviewAwal,
+                );
+                final siapTeruskanDitolakAktif = semuaKspi
+                    .where((p) =>
+                        p.kspiMenungguReviewAwal &&
+                        p.keputusanKadiv == Keputusan.tolak)
+                    .toList();
+                final siapTeruskanDitolakCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterDitolakKadiv),
+                  (p) => p.kspiMenungguReviewAwal,
+                );
+                final reviewAwalAktif = semuaKspi
+                    .where((p) => p.kspiMenungguPilihEksekutor)
+                    .toList();
+                final reviewAwalCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterPilihEksekutor),
+                  (p) => p.kspiMenungguPilihEksekutor,
+                );
+                final reviewHasilAktif = semuaKspi
+                    .where((p) => p.kspiMenungguTinjauHasil)
+                    .toList();
+                final reviewHasilCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterTinjauHasil),
+                  (p) => p.kspiMenungguTinjauHasil,
+                );
+                final tindakLanjutAktif = semuaKspi
+                    .where((p) => p.kspiTindakLanjutAktif)
+                    .toList();
+                final tindakLanjutCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterTindakLanjut),
+                  (p) => p.kspiTindakLanjutAktif,
+                );
+                final peninjauanAktif = semuaKspi
+                    .where((p) => p.kspiPeninjauanAktif)
+                    .toList();
+                final peninjauanCluster = urutkanClusterPengaduan(
+                  semuaKspi.where((p) => p.kspiMasukClusterPeninjauanKembali),
+                  (p) => p.kspiPeninjauanAktif,
+                );
+                final dalamProsesLain = semuaKspi
+                    .where((p) =>
+                        !p.kspiMenungguReviewAwal &&
+                        !p.kspiMenungguPilihEksekutor &&
+                        !p.kspiMenungguTinjauHasil &&
+                        !p.kspiTindakLanjutAktif &&
+                        !p.kspiPeninjauanAktif &&
+                        !p.status.isFinal)
                     .toList();
                 final selesai = semuaKspi
                     .where((p) =>
@@ -1911,100 +1942,134 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       children: [
                         _buildSection(
                             'REVIEW AWAL — DITERIMA KADIV',
-                            siapTeruskanDiterima,
+                            siapTeruskanDiterimaAktif,
                             _bukaTeruskanKeDirut,
                             'Belum ada pengaduan yang diterima Kadiv.',
                             'Tinjau & Verifikasi'),
                         _buildSection(
                             'REVIEW AWAL — DITOLAK KADIV',
-                            siapTeruskanDitolak,
+                            siapTeruskanDitolakAktif,
                             _bukaTeruskanKeDirut,
                             'Belum ada pengaduan yang ditolak Kadiv.',
                             'Tinjau & Verifikasi'),
                         _buildSection(
                             'PILIH EKSEKUTOR INVESTIGASI',
-                            reviewAwal,
+                            reviewAwalAktif,
                             _bukaReviewAwal,
                             'Belum ada pengaduan siap ditugaskan.',
                             'Pilih Eksekutor'),
                         _buildSection(
                             'TINJAU HASIL INVESTIGASI',
-                            reviewHasil,
+                            reviewHasilAktif,
                             _bukaReviewHasil,
                             'Belum ada hasil investigasi masuk.',
                             'Tinjau Hasil'),
                         _buildSection(
                             'TINDAK LANJUT DITUGASKAN',
-                            ditolak,
+                            tindakLanjutAktif,
                             _bukaSelesaikanTindakLanjut,
                             'Tidak ada tindak lanjut yang ditugaskan.',
                             'Jalankan'),
                         _buildSection(
                             'PENINJAUAN KEMBALI DARI DIREKTUR',
-                            peninjauan,
+                            peninjauanAktif,
                             _bukaPeninjauanKembali,
                             'Tidak ada permintaan peninjauan kembali.',
                             'Tindak Lanjuti'),
+                        if (dalamProsesLain.isNotEmpty)
+                          _buildSection(
+                              'SEDANG DIPROSES DI TAHAP LAIN',
+                              dalamProsesLain,
+                              null,
+                              '',
+                              'Detail'),
+                        if (selesai.isNotEmpty)
+                          _buildSection(
+                              'SELESAI & ARSIP',
+                              selesai,
+                              null,
+                              '',
+                              'Detail'),
                       ],
                     );
                     break;
                   case _KspiClusterFilter.diterimaKadiv:
-                    listContent = siapTeruskanDiterima.isEmpty
+                    listContent = siapTeruskanDiterimaCluster.isEmpty
                         ? _buildEmptyState('Belum ada pengaduan yang diterima Kadiv.')
                         : Column(
-                            children: siapTeruskanDiterima
+                            children: siapTeruskanDiterimaCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi'))
+                                    p,
+                                    p.kspiMenungguReviewAwal ? _bukaTeruskanKeDirut : null,
+                                    p.kspiMenungguReviewAwal ? 'Tinjau & Verifikasi' : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _KspiClusterFilter.ditolakKadiv:
-                    listContent = siapTeruskanDitolak.isEmpty
+                    listContent = siapTeruskanDitolakCluster.isEmpty
                         ? _buildEmptyState('Belum ada pengaduan yang ditolak Kadiv.')
                         : Column(
-                            children: siapTeruskanDitolak
+                            children: siapTeruskanDitolakCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaTeruskanKeDirut, 'Tinjau & Verifikasi'))
+                                    p,
+                                    p.kspiMenungguReviewAwal ? _bukaTeruskanKeDirut : null,
+                                    p.kspiMenungguReviewAwal ? 'Tinjau & Verifikasi' : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _KspiClusterFilter.pilihEksekutor:
-                    listContent = reviewAwal.isEmpty
+                    listContent = reviewAwalCluster.isEmpty
                         ? _buildEmptyState('Belum ada pengaduan siap ditugaskan.')
                         : Column(
-                            children: reviewAwal
+                            children: reviewAwalCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaReviewAwal, 'Pilih Eksekutor'))
+                                    p,
+                                    p.kspiMenungguPilihEksekutor ? _bukaReviewAwal : null,
+                                    p.kspiMenungguPilihEksekutor ? 'Pilih Eksekutor' : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _KspiClusterFilter.tinjauHasil:
-                    listContent = reviewHasil.isEmpty
+                    listContent = reviewHasilCluster.isEmpty
                         ? _buildEmptyState('Belum ada hasil investigasi masuk.')
                         : Column(
-                            children: reviewHasil
+                            children: reviewHasilCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaReviewHasil, 'Tinjau Hasil'))
+                                    p,
+                                    p.kspiMenungguTinjauHasil ? _bukaReviewHasil : null,
+                                    p.kspiMenungguTinjauHasil ? 'Tinjau Hasil' : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _KspiClusterFilter.tindakLanjut:
-                    listContent = ditolak.isEmpty
+                    listContent = tindakLanjutCluster.isEmpty
                         ? _buildEmptyState('Tidak ada tindak lanjut yang ditugaskan.')
                         : Column(
-                            children: ditolak
+                            children: tindakLanjutCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaSelesaikanTindakLanjut, 'Jalankan'))
+                                    p,
+                                    p.kspiTindakLanjutAktif ? _bukaSelesaikanTindakLanjut : null,
+                                    p.kspiTindakLanjutAktif ? 'Jalankan' : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _KspiClusterFilter.peninjauanKembali:
-                    listContent = peninjauan.isEmpty
+                    listContent = peninjauanCluster.isEmpty
                         ? _buildEmptyState('Tidak ada permintaan peninjauan kembali.')
                         : Column(
-                            children: peninjauan
+                            children: peninjauanCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, _bukaPeninjauanKembali, 'Tindak Lanjuti'))
+                                    p,
+                                    p.kspiPeninjauanAktif
+                                        ? (p.status == PengaduanStatus.menungguPilihEksekutor
+                                            ? _bukaReviewAwal
+                                            : _bukaPeninjauanKembali)
+                                        : null,
+                                    p.kspiPeninjauanAktif
+                                        ? (p.status == PengaduanStatus.menungguPilihEksekutor
+                                            ? 'Pilih Eksekutor'
+                                            : 'Tindak Lanjuti')
+                                        : 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -2013,8 +2078,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
                         : Column(
                             children: selesai
-                                .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaDetail(item), 'Detail'))
+                                .map((p) => _buildPengaduanCard(p, null, 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -2025,35 +2089,49 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   children: [
                     _buildClusterBar(
                       countSemua: semuaKspi.length,
-                      countDiterimaKadiv: siapTeruskanDiterima.length,
-                      countDitolakKadiv: siapTeruskanDitolak.length,
-                      countPilihEksekutor: reviewAwal.length,
-                      countTinjauHasil: reviewHasil.length,
-                      countTindakLanjut: ditolak.length,
-                      countPeninjauanKembali: peninjauan.length,
+                      countDiterimaKadiv: siapTeruskanDiterimaCluster.length,
+                      countDitolakKadiv: siapTeruskanDitolakCluster.length,
+                      countPilihEksekutor: reviewAwalCluster.length,
+                      countTinjauHasil: reviewHasilCluster.length,
+                      countTindakLanjut: tindakLanjutCluster.length,
+                      countPeninjauanKembali: peninjauanCluster.length,
                       countSelesai: selesai.length,
                     ),
                     listContent,
                   ],
                 );
               } else {
-                final menungguPetugas = semuaTpdpk
-                    .where((p) => p.status == PengaduanStatus.menungguInvestigasi)
+                final menungguPetugasAktif = semuaTpdpk
+                    .where((p) => p.tpdpkMenungguPetugas)
                     .toList();
-                final berjalan = semuaTpdpk
-                    .where((p) =>
-                        p.status == PengaduanStatus.investigasiBerjalan &&
-                        p.eksekutor == Eksekutor.tpdpk)
+                final menungguPetugasCluster = urutkanClusterPengaduan(
+                  semuaTpdpk.where((p) => p.tpdpkMasukClusterMenungguPetugas),
+                  (p) => p.tpdpkMenungguPetugas,
+                );
+                final berjalanAktif = semuaTpdpk
+                    .where((p) => p.tpdpkInvestigasiAktif)
                     .toList();
+                final berjalanCluster = urutkanClusterPengaduan(
+                  semuaTpdpk.where((p) => p.tpdpkMasukClusterInvestigasi),
+                  (p) => p.tpdpkInvestigasiAktif,
+                );
                 final revisi = semuaTpdpk
-                    .where((p) =>
-                        p.status == PengaduanStatus.revisiInvestigasi &&
-                        p.eksekutor == Eksekutor.tpdpk)
+                    .where((p) => p.tpdpkPerluRevisi)
                     .toList();
-                final tindakLanjut = semuaTpdpk
+                final tindakLanjutAktif = semuaTpdpk
+                    .where((p) => p.tpdpkTindakLanjutAktif)
+                    .toList();
+                final tindakLanjutCluster = urutkanClusterPengaduan(
+                  semuaTpdpk.where((p) => p.tpdpkMasukClusterTindakLanjut),
+                  (p) => p.tpdpkTindakLanjutAktif,
+                );
+                final prosesLanjutanTpdpk = semuaTpdpk
                     .where((p) =>
-                        p.status == PengaduanStatus.tindakLanjutBerjalan &&
-                        p.eksekutorTindakLanjut == Eksekutor.tpdpk)
+                        !p.tpdpkMenungguPetugas &&
+                        !p.tpdpkInvestigasiAktif &&
+                        !p.tpdpkPerluRevisi &&
+                        !p.tpdpkTindakLanjutAktif &&
+                        !p.status.isFinal)
                     .toList();
                 final selesai = semuaTpdpk
                     .where((p) =>
@@ -2069,14 +2147,14 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                       children: [
                         _buildSection(
                           'MENUNGGU PENUGASAN PETUGAS',
-                          menungguPetugas,
+                          menungguPetugasAktif,
                           (p) => _bukaPilihPetugasTpdpk(p),
                           'Tidak ada tugas baru.',
                           'Tetapkan Petugas',
                         ),
                         _buildSection(
                           'INVESTIGASI BERJALAN',
-                          berjalan,
+                          berjalanAktif,
                           (p) => _bukaKirimHasilTpdpk(p, revisi: false),
                           'Tidak ada investigasi berjalan.',
                           'Kirim Hasil',
@@ -2090,31 +2168,59 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         ),
                         _buildSection(
                           'TINDAK LANJUT DARI DIREKTUR',
-                          tindakLanjut,
+                          tindakLanjutAktif,
                           (p) => _bukaSelesaikanTindakLanjutTpdpk(p),
                           'Tidak ada tindak lanjut yang ditugaskan.',
                           'Selesaikan',
                         ),
+                        if (prosesLanjutanTpdpk.isNotEmpty)
+                          _buildSection(
+                            'HASIL TERKIRIM / PROSES LANJUT',
+                            prosesLanjutanTpdpk,
+                            null,
+                            '',
+                            'Detail',
+                          ),
+                        if (selesai.isNotEmpty)
+                          _buildSection(
+                            'SELESAI & ARSIP',
+                            selesai,
+                            null,
+                            '',
+                            'Detail',
+                          ),
                       ],
                     );
                     break;
                   case _TpdpkClusterFilter.menungguPetugas:
-                    listContent = menungguPetugas.isEmpty
+                    listContent = menungguPetugasCluster.isEmpty
                         ? _buildEmptyState('Tidak ada tugas penugasan baru.')
                         : Column(
-                            children: menungguPetugas
+                            children: menungguPetugasCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaPilihPetugasTpdpk(item), 'Tetapkan Petugas'))
+                                    p,
+                                    p.tpdpkMenungguPetugas
+                                        ? (item) => _bukaPilihPetugasTpdpk(item)
+                                        : null,
+                                    p.tpdpkMenungguPetugas
+                                        ? 'Tetapkan Petugas'
+                                        : 'Detail'))
                                 .toList(),
                           );
                     break;
                   case _TpdpkClusterFilter.investigasi:
-                    listContent = berjalan.isEmpty
+                    listContent = berjalanCluster.isEmpty
                         ? _buildEmptyState('Tidak ada investigasi berjalan.')
                         : Column(
-                            children: berjalan
+                            children: berjalanCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaKirimHasilTpdpk(item, revisi: false), 'Kirim Hasil'))
+                                    p,
+                                    p.tpdpkInvestigasiAktif
+                                        ? (item) => _bukaKirimHasilTpdpk(item, revisi: false)
+                                        : null,
+                                    p.tpdpkInvestigasiAktif
+                                        ? 'Kirim Hasil'
+                                        : 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -2129,12 +2235,18 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                           );
                     break;
                   case _TpdpkClusterFilter.tindakLanjut:
-                    listContent = tindakLanjut.isEmpty
+                    listContent = tindakLanjutCluster.isEmpty
                         ? _buildEmptyState('Tidak ada tindak lanjut yang ditugaskan.')
                         : Column(
-                            children: tindakLanjut
+                            children: tindakLanjutCluster
                                 .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaSelesaikanTindakLanjutTpdpk(item), 'Selesaikan'))
+                                    p,
+                                    p.tpdpkTindakLanjutAktif
+                                        ? (item) => _bukaSelesaikanTindakLanjutTpdpk(item)
+                                        : null,
+                                    p.tpdpkTindakLanjutAktif
+                                        ? 'Selesaikan'
+                                        : 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -2143,8 +2255,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         ? _buildEmptyState('Belum ada pengaduan selesai atau diarsipkan.')
                         : Column(
                             children: selesai
-                                .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaDetail(item), 'Detail'))
+                                .map((p) => _buildPengaduanCard(p, null, 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -2155,10 +2266,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   children: [
                     _buildTpdpkClusterBar(
                       countSemua: semuaTpdpk.length,
-                      countMenungguPetugas: menungguPetugas.length,
-                      countInvestigasi: berjalan.length,
+                      countMenungguPetugas: menungguPetugasCluster.length,
+                      countInvestigasi: berjalanCluster.length,
                       countRevisi: revisi.length,
-                      countTindakLanjut: tindakLanjut.length,
+                      countTindakLanjut: tindakLanjutCluster.length,
                       countSelesai: selesai.length,
                     ),
                     listContent,
@@ -2680,7 +2791,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   Widget _buildSection(
     String title,
     List<Pengaduan> items,
-    Future<void> Function(Pengaduan) onAksi,
+    Future<void> Function(Pengaduan)? onAksi,
     String emptyText,
     String tombolLabel,
   ) {
@@ -2709,7 +2820,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   }
 
   Widget _buildPengaduanCard(Pengaduan p,
-      Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
+      Future<void> Function(Pengaduan)? onAksi, String tombolLabel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -2793,17 +2904,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      final id = p.supabaseId;
-                      if (id == null) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PengaduanDetailScreen(
-                              user: widget.user, pengaduanId: id),
-                        ),
-                      );
-                    },
+                    onPressed: () => _bukaDetail(p),
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
@@ -2817,22 +2918,24 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => onAksi(p),
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
-                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9)),
+            if (onAksi != null && tombolLabel != 'Detail') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => onAksi(p),
+                  icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                  label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

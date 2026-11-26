@@ -7,7 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../utils/lampiran_helper.dart';
 
 /// Menampung URL hasil upload lampiran multi-media (foto, video, voice note,
 /// dokumen). Dipakai bersama oleh form pengaduan pegawai & form hasil
@@ -343,82 +344,14 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
   }
 
   /// Filename ringkas dari URL lampiran (buang query string & path).
-  String _namaFile(String url) {
-    if (url.startsWith('data:')) {
-      final match = RegExp(r'name=([^;]+)').firstMatch(url);
-      if (match != null) return match.group(1)!;
-      return 'lampiran_${url.length}b';
-    }
-    final withoutQuery = url.split('?').first;
-    final segments = withoutQuery.split('/');
-    return segments.isNotEmpty ? segments.last : url;
-  }
+  String _namaFile(String url) => LampiranHelper.extractFileName(url);
 
   Future<void> _bukaUrl(String url) async {
-    if (url.startsWith('data:')) {
-      try {
-        final commaIdx = url.indexOf(',');
-        if (commaIdx != -1) {
-          final base64Part = url.substring(commaIdx + 1);
-          final bytes = base64Decode(base64Part);
-          final name = _namaFile(url);
-          final dir = await getTemporaryDirectory();
-          final file = File('${dir.path}/$name');
-          await file.writeAsBytes(bytes);
-          final uri = Uri.file(file.path);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri);
-            return;
-          }
-        }
-      } catch (_) {}
-    }
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
-      );
-    }
+    await LampiranHelper.bukaLampiran(context, url);
   }
 
   void _lihatFotoPenuh(String url) {
-    ImageProvider imgProvider;
-    if (url.startsWith('data:')) {
-      final base64Part = url.split(',').last;
-      imgProvider = MemoryImage(base64Decode(base64Part));
-    } else {
-      imgProvider = NetworkImage(url);
-    }
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.9),
-      builder: (ctx) => GestureDetector(
-        onTap: () => Navigator.pop(ctx),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Stack(
-            children: [
-              Center(
-                child: InteractiveViewer(
-                  child: Image(image: imgProvider, fit: BoxFit.contain),
-                ),
-              ),
-              Positioned(
-                top: 40,
-                right: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white, size: 28),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    LampiranHelper.bukaLampiran(context, url, forceImage: true);
   }
 
   /// Kombinasi semua lampiran yang sudah terunggah, ditampilkan visual:
@@ -520,13 +453,6 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
           fontSize: 11, fontWeight: FontWeight.w700, color: navy));
 
   Widget _thumbnailFoto(String url, int index) {
-    ImageProvider imgProvider;
-    if (url.startsWith('data:')) {
-      final base64Part = url.split(',').last;
-      imgProvider = MemoryImage(base64Decode(base64Part));
-    } else {
-      imgProvider = NetworkImage(url);
-    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -534,12 +460,12 @@ class _MediaLampiranPickerState extends State<MediaLampiranPicker> {
           onTap: () => _lihatFotoPenuh(url),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image(
-              image: imgProvider,
+            child: LampiranHelper.buildImageWidget(
+              url,
               width: 64,
               height: 64,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => Container(
+              errorBuilder: (context) => Container(
                 width: 64,
                 height: 64,
                 color: accent.withValues(alpha: 0.08),

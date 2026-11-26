@@ -19,6 +19,7 @@ enum _DirutClusterFilter {
   semua,
   tahap1,
   tahap2,
+  tahap3,
   pilihEksekutor,
   selesai,
 }
@@ -358,8 +359,12 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _grip(),
-            const Text('Persetujuan Tahap 2 (Direktur Utama)',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              p.dirutMenungguTahap3
+                  ? 'Persetujuan Tahap 3 (Hasil Peninjauan Kembali)'
+                  : 'Persetujuan Tahap 2 (Direktur Utama)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(p.nomorPengaduan,
                 style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary(context))),
@@ -689,32 +694,54 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   }
 
   /// Menentukan aksi utama yang perlu dilakukan Direktur untuk [p], sesuai
-  /// status pengaduan saat ini. Return null kalau tidak ada aksi (seharusnya
-  /// tidak terjadi karena list sudah difilter, tapi dijaga untuk keamanan).
+  /// status pengaduan saat ini. Return null kalau pengaduan sudah diproses Dirut
+  /// sehingga tampil sebagai riwayat read-only di cluster terkait.
   void Function()? _aksiUntuk(Pengaduan p) {
-    switch (p.status) {
-      case PengaduanStatus.menungguDirutTahap1:
-        return () => _bukaKeputusanTahap1(p);
-      case PengaduanStatus.menungguDirutTahap2:
-        return () => _bukaKeputusanTahap2(p);
-      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
-        return () => _bukaPilihEksekutorTindakLanjut(p);
-      default:
-        return null;
+    if (p.dirutMenungguTahap1) {
+      return () => _bukaKeputusanTahap1(p);
     }
+    if (p.dirutMenungguTahap2 || p.dirutMenungguTahap3) {
+      return () => _bukaKeputusanTahap2(p);
+    }
+    if (p.dirutMenungguPilihEksekutor) {
+      return () => _bukaPilihEksekutorTindakLanjut(p);
+    }
+    return null;
+  }
+
+  String _ringkasanKeputusanDirut(Pengaduan p) {
+    final bagian = <String>[];
+    if (p.keputusanDirutTahap1 != null) {
+      bagian.add('Tahap 1: ${p.keputusanDirutTahap1!.label}');
+    }
+    if (p.pernahPeninjauanKembali) {
+      bagian.add('Tahap 2: Peninjauan Kembali');
+      if (p.keputusanDirutTahap2 != null) {
+        bagian.add('Tahap 3: ${p.keputusanDirutTahap2!.label}');
+      }
+    } else if (p.keputusanDirutTahap2 != null) {
+      bagian.add('Tahap 2: ${p.keputusanDirutTahap2!.label}');
+    }
+    if (bagian.isEmpty) {
+      return 'Status proses saat ini: ${p.statusTampilLabel}';
+    }
+    return '${bagian.join(' · ')} • Posisi: ${p.statusTampilLabel}';
   }
 
   String _labelAksi(Pengaduan p) {
-    switch (p.status) {
-      case PengaduanStatus.menungguDirutTahap1:
-        return 'Tinjau & Verifikasi';
-      case PengaduanStatus.menungguDirutTahap2:
-        return 'Tinjau & Verifikasi (Tahap 2)';
-      case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
-        return 'Pilih Eksekutor';
-      default:
-        return 'Tinjau & Verifikasi';
+    if (p.dirutMenungguTahap1) {
+      return 'Tinjau & Verifikasi';
     }
+    if (p.dirutMenungguTahap3) {
+      return 'Tinjau & Verifikasi (Tahap 3)';
+    }
+    if (p.dirutMenungguTahap2) {
+      return 'Tinjau & Verifikasi (Tahap 2)';
+    }
+    if (p.dirutMenungguPilihEksekutor) {
+      return 'Pilih Eksekutor';
+    }
+    return 'Tinjau & Verifikasi';
   }
 
   @override
@@ -749,43 +776,45 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             } else {
               final semua = List<Pengaduan>.from(snapshot.data ?? [])
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final tahap1 = semua
-                  .where((p) => p.status == PengaduanStatus.menungguDirutTahap1)
-                  .toList();
-              final tahap2 = semua
-                  .where((p) => p.status == PengaduanStatus.menungguDirutTahap2)
-                  .toList();
-              final pilihEksekutor = semua
-                  .where((p) =>
-                      p.status ==
-                      PengaduanStatus.menungguPilihEksekutorTindakLanjut)
-                  .toList();
+              final tahap1 = urutkanClusterPengaduan(
+                semua.where((p) => p.dirutMasukClusterTahap1),
+                (p) => p.dirutMenungguTahap1,
+              );
+              final tahap2 = urutkanClusterPengaduan(
+                semua.where((p) => p.dirutMasukClusterTahap2),
+                (p) => p.dirutMenungguTahap2,
+              );
+              final tahap3 = urutkanClusterPengaduan(
+                semua.where((p) => p.dirutMasukClusterTahap3),
+                (p) => p.dirutMenungguTahap3,
+              );
+              final pilihEksekutor = urutkanClusterPengaduan(
+                semua.where((p) => p.dirutMasukClusterPilihEksekutor),
+                (p) => p.dirutMenungguPilihEksekutor,
+              );
               final selesai = semua
                   .where((p) =>
                       p.status == PengaduanStatus.selesai ||
                       p.status == PengaduanStatus.arsip)
                   .toList();
-              final menunggu = semua
-                  .where((p) =>
-                      p.status == PengaduanStatus.menungguDirutTahap1 ||
-                      p.status == PengaduanStatus.menungguDirutTahap2 ||
-                      p.status ==
-                          PengaduanStatus.menungguPilihEksekutorTindakLanjut)
-                  .toList();
+              final menunggu = semua.where((p) => p.dirutPerluAksi).toList();
+              final semuaTerurut =
+                  urutkanClusterPengaduan(semua, (p) => p.dirutPerluAksi);
 
               Widget listContent;
               switch (_clusterFilter) {
                 case _DirutClusterFilter.semua:
-                  listContent = menunggu.isEmpty
-                      ? _buildEmptyState('Tidak ada pengaduan yang menunggu persetujuan.')
+                  listContent = semuaTerurut.isEmpty
+                      ? _buildEmptyState('Belum ada pengaduan yang perlu atau pernah diproses Dirut.')
                       : Column(
-                          children:
-                              menunggu.map((p) => _buildPengaduanCard(p)).toList(),
+                          children: semuaTerurut
+                              .map((p) => _buildPengaduanCard(p))
+                              .toList(),
                         );
                   break;
                 case _DirutClusterFilter.tahap1:
                   listContent = tahap1.isEmpty
-                      ? _buildEmptyState('Tidak ada pengaduan menunggu Approval Tahap 1.')
+                      ? _buildEmptyState('Tidak ada pengaduan pada Approval Tahap 1.')
                       : Column(
                           children:
                               tahap1.map((p) => _buildPengaduanCard(p)).toList(),
@@ -793,15 +822,23 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   break;
                 case _DirutClusterFilter.tahap2:
                   listContent = tahap2.isEmpty
-                      ? _buildEmptyState('Tidak ada pengaduan menunggu Approval Tahap 2.')
+                      ? _buildEmptyState('Tidak ada pengaduan pada Approval Tahap 2.')
                       : Column(
                           children:
                               tahap2.map((p) => _buildPengaduanCard(p)).toList(),
                         );
                   break;
+                case _DirutClusterFilter.tahap3:
+                  listContent = tahap3.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan pada Approval Tahap 3.')
+                      : Column(
+                          children:
+                              tahap3.map((p) => _buildPengaduanCard(p)).toList(),
+                        );
+                  break;
                 case _DirutClusterFilter.pilihEksekutor:
                   listContent = pilihEksekutor.isEmpty
-                      ? _buildEmptyState('Tidak ada pengaduan menunggu penetapan eksekutor.')
+                      ? _buildEmptyState('Tidak ada pengaduan pada penetapan eksekutor.')
                       : Column(
                           children: pilihEksekutor
                               .map((p) => _buildPengaduanCard(p))
@@ -822,9 +859,10 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildClusterBar(
-                    countSemua: menunggu.length,
+                    countSemua: semuaTerurut.length,
                     countTahap1: tahap1.length,
                     countTahap2: tahap2.length,
+                    countTahap3: tahap3.length,
                     countPilihEksekutor: pilihEksekutor.length,
                     countSelesai: selesai.length,
                   ),
@@ -856,10 +894,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                             offset: const Offset(0, -28),
                             child: _buildProfileCard(
                                 snapshot.data
-                                        ?.where((p) =>
-                                            p.status == PengaduanStatus.menungguDirutTahap1 ||
-                                            p.status == PengaduanStatus.menungguDirutTahap2 ||
-                                            p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut)
+                                        ?.where((p) => p.dirutPerluAksi)
                                         .length ??
                                     0),
                           ),
@@ -1147,7 +1182,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                   decoration: BoxDecoration(
                       color: p.status.color.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8)),
-                  child: Text(p.status.label,
+                  child: Text(p.statusTampilLabel,
                       style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
@@ -1161,13 +1196,33 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                     fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              p.status == PengaduanStatus.menungguDirutTahap2
+              (p.dirutMenungguTahap2 || p.dirutMenungguTahap3)
                   ? 'Rekomendasi: ${p.suratRekomendasi ?? '-'}'
                   : p.deskripsi,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary(context)),
             ),
+            if (aksi == null) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _accent.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  _ringkasanKeputusanDirut(p),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _accent,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1276,6 +1331,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     required int countSemua,
     required int countTahap1,
     required int countTahap2,
+    required int countTahap3,
     required int countPilihEksekutor,
     required int countSelesai,
   }) {
@@ -1283,6 +1339,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
       (filter: _DirutClusterFilter.semua, label: 'Semua', count: countSemua, icon: Icons.grid_view_rounded),
       (filter: _DirutClusterFilter.tahap1, label: 'Approval Tahap 1', count: countTahap1, icon: Icons.how_to_reg_rounded),
       (filter: _DirutClusterFilter.tahap2, label: 'Approval Tahap 2', count: countTahap2, icon: Icons.gavel_rounded),
+      (filter: _DirutClusterFilter.tahap3, label: 'Approval Tahap 3', count: countTahap3, icon: Icons.verified_rounded),
       (filter: _DirutClusterFilter.pilihEksekutor, label: 'Pilih Eksekutor', count: countPilihEksekutor, icon: Icons.person_pin_rounded),
       (filter: _DirutClusterFilter.selesai, label: 'Selesai & Arsip', count: countSelesai, icon: Icons.task_alt_rounded),
     ];

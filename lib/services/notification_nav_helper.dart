@@ -5,11 +5,19 @@ import '../models/pengumuman_model.dart';
 import '../models/user_role.dart';
 import '../screens/pegawai/absensi_screen.dart';
 import '../screens/pegawai/dokumen_resmi_screen.dart';
+import '../screens/pegawai/golongan_screen.dart';
+import '../screens/pegawai/insentif_screen.dart';
+import '../screens/pegawai/jabatan_screen.dart';
+import '../screens/pegawai/keluarga_screen.dart';
 import '../screens/pegawai/lembur_screen.dart';
 import '../screens/pegawai/payroll_screen.dart';
+import '../screens/pegawai/pendidikan_screen.dart';
 import '../screens/pegawai/pengajuan_cuti_screen.dart';
+import '../screens/pegawai/prestasi_screen.dart';
+import '../screens/pegawai/sanksi_screen.dart';
 import '../screens/pegawai/status_pengaduan_screen.dart';
 import '../screens/pegawai/thr_screen.dart';
+import '../screens/pegawai/tunjangan_pendidikan_screen.dart';
 import '../screens/kadiv/dashboard_kadiv_screen.dart';
 import '../screens/tpdpk/dashboard_tpdpk_screen.dart';
 import '../screens/shared/detail_pengaduan_screen.dart';
@@ -23,32 +31,45 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class NotificationNavHelper {
   NotificationNavHelper._();
 
-  /// Ambil AppUser aktif dari shared preferences / session untuk navigasi
+  static bool _dashboardReady = false;
+  static Map<String, dynamic>? _pendingNotificationData;
+
+  /// Tandai bahwa Dashboard telah terpasang dan jalankan navigasi notifikasi cold-start bila ada.
+  static Future<void> markDashboardReadyAndFlush() async {
+    _dashboardReady = true;
+    final pending = _pendingNotificationData;
+    _pendingNotificationData = null;
+    if (pending != null) {
+      await handleNotificationClick(pending);
+    }
+  }
+
+  /// Reset kesiapan navigasi saat user logout.
+  static void resetNavigationState() {
+    _dashboardReady = false;
+    _pendingNotificationData = null;
+  }
+
+  /// Ambil AppUser aktif lengkap (termasuk divisiKadiv, unitKerja, golongan) dari sesi tersimpan.
   static Future<AppUser?> _getActiveUser() async {
     final prefs = await SharedPreferences.getInstance();
     final nik = prefs.getString('user_nik') ?? '';
     if (nik.isEmpty) return null;
-    final nama = prefs.getString('user_nama') ?? 'Pegawai';
-    final jabatan = prefs.getString('user_jabatan') ?? '-';
 
-    UserRole role = UserRole.pegawai;
     try {
       final session = await ApiService.getSavedUserSession();
-      if (session != null && session['role'] != null) {
-        final roleVal = session['role'];
-        if (roleVal is int && roleVal >= 0 && roleVal < UserRole.values.length) {
-          role = UserRole.values[roleVal];
-        } else if (roleVal is String) {
-          role = UserRoleX.fromKode(roleVal);
-        }
+      if (session != null && session.isNotEmpty) {
+        return AppUser.fromJson(session);
       }
     } catch (_) {}
 
+    final nama = prefs.getString('user_nama') ?? 'Pegawai';
+    final jabatan = prefs.getString('user_jabatan') ?? '-';
     return AppUser(
       nik: nik,
       name: nama,
       jabatan: jabatan,
-      role: role,
+      role: UserRole.pegawai,
     );
   }
 
@@ -73,6 +94,14 @@ class NotificationNavHelper {
 
   /// Dispatcher utama saat notifikasi OneSignal atau Local Notification diklik
   static Future<void> handleNotificationClick(Map<String, dynamic>? data) async {
+    if (!_dashboardReady || navigatorKey.currentState == null) {
+      final activeUser = await _getActiveUser();
+      if (activeUser == null || !_dashboardReady) {
+        _pendingNotificationData = data ?? const {'type': 'pengumuman'};
+        return;
+      }
+    }
+
     if (data == null) {
       await openPengumuman();
       return;
@@ -95,8 +124,13 @@ class NotificationNavHelper {
       case 'gaji':
       case 'payroll':
       case 'gaji_13':
-      case 'insentif':
         await openPayroll();
+        break;
+      case 'insentif':
+        await openInsentif();
+        break;
+      case 'tunjangan_pendidikan':
+        await openTunjanganPendidikan();
         break;
       case 'thr':
         await openThr();
@@ -114,6 +148,25 @@ class NotificationNavHelper {
       case 'dokumen':
       case 'sk':
         await openDokumen();
+        break;
+      case 'sanksi':
+        await openSanksi();
+        break;
+      case 'golongan':
+        await openGolongan();
+        break;
+      case 'jabatan_riwayat':
+      case 'jabatan':
+        await openJabatan();
+        break;
+      case 'pendidikan':
+        await openPendidikan();
+        break;
+      case 'keluarga':
+        await openKeluarga();
+        break;
+      case 'prestasi':
+        await openPrestasi();
         break;
       default:
         if (data.containsKey('task_id')) {
@@ -177,14 +230,53 @@ class NotificationNavHelper {
   }
 
   /// Navigasi ke Slip Gaji / Payroll
-  static Future<void> openPayroll() async {
+  static Future<void> openPayroll() =>
+      _openUserScreen((user) => PayrollScreen(user: user));
+
+  /// Navigasi ke Rincian Insentif
+  static Future<void> openInsentif() =>
+      _openUserScreen((user) => InsentifScreen(user: user));
+
+  /// Navigasi ke Tunjangan Pendidikan
+  static Future<void> openTunjanganPendidikan() =>
+      _openUserScreen((user) => TunjanganPendidikanScreen(user: user));
+
+  /// Navigasi ke Sanksi
+  static Future<void> openSanksi() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final navState = navigatorKey.currentState;
+    if (navState == null) return;
+    navState.push(MaterialPageRoute(builder: (_) => const SanksiScreen()));
+  }
+
+  /// Navigasi ke Riwayat Golongan
+  static Future<void> openGolongan() =>
+      _openUserScreen((user) => GolonganScreen(user: user));
+
+  /// Navigasi ke Riwayat Jabatan
+  static Future<void> openJabatan() =>
+      _openUserScreen((user) => JabatanScreen(user: user));
+
+  /// Navigasi ke Riwayat Pendidikan
+  static Future<void> openPendidikan() =>
+      _openUserScreen((user) => PendidikanScreen(user: user));
+
+  /// Navigasi ke Data Keluarga
+  static Future<void> openKeluarga() =>
+      _openUserScreen((user) => KeluargaScreen(user: user));
+
+  /// Navigasi ke Riwayat Prestasi
+  static Future<void> openPrestasi() =>
+      _openUserScreen((user) => PrestasiScreen(user: user));
+
+  static Future<void> _openUserScreen(Widget Function(AppUser user) builder) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final navState = navigatorKey.currentState;
     if (navState == null) return;
 
     final user = await _getActiveUser();
     if (user != null) {
-      navState.push(MaterialPageRoute(builder: (_) => PayrollScreen(user: user)));
+      navState.push(MaterialPageRoute(builder: (_) => builder(user)));
     }
   }
 
@@ -231,7 +323,9 @@ class NotificationNavHelper {
 
     final user = await _getActiveUser();
     if (user != null) {
-      if (user.role == UserRole.sdm || user.role == UserRole.direktur) {
+      if (user.role == UserRole.sdm ||
+          user.role == UserRole.direktur ||
+          user.isManajerSdm) {
         navState.push(MaterialPageRoute(builder: (_) => PersetujuanCutiScreen(user: user)));
       } else {
         navState.push(MaterialPageRoute(builder: (_) => PengajuanCutiScreen(user: user)));

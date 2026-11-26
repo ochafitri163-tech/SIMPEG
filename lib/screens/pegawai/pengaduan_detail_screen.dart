@@ -3,6 +3,7 @@ import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/lampiran_helper.dart';
 import '../../widgets/pegawai_picker_sheet.dart';
 import '../../widgets/konfirmasi_dialog.dart';
 import '../shared/surat_detail_pengaduan_screen.dart';
@@ -273,6 +274,16 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
                       _buildFotoBukti(p, isSmallScreen),
                       const SizedBox(height: 18),
                     ],
+                    if (p.dokumenPendukung.isNotEmpty ||
+                        p.videoBukti.isNotEmpty ||
+                        p.voiceNote.isNotEmpty ||
+                        (p.fileSuratPutusan != null &&
+                            p.fileSuratPutusan!.trim().isNotEmpty)) ...[
+                      _buildSectionTitle('Lampiran Berkas', isSmallScreen),
+                      const SizedBox(height: 10),
+                      _buildLampiranBerkas(p, isSmallScreen),
+                      const SizedBox(height: 18),
+                    ],
                     _buildSectionTitle('Riwayat Status', isSmallScreen),
                     const SizedBox(height: 10),
                     _buildTimeline(p, isSmallScreen),
@@ -536,23 +547,117 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
         itemCount: p.fotoBukti.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
-          return ClipRRect(
+          final url = p.fotoBukti[i];
+          return InkWell(
             borderRadius: BorderRadius.circular(14),
-            child: Image.network(
-              p.fotoBukti[i],
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+            onTap: () => LampiranHelper.bukaLampiran(
+              context,
+              url,
+              fallbackName: 'Foto_Bukti_${i + 1}',
+              forceImage: true,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: LampiranHelper.buildImageWidget(
+                url,
                 width: size,
                 height: size,
-                color: AppColors.card(context),
-                child: Icon(Icons.broken_image_outlined, color: hintGrey),
+                fit: BoxFit.cover,
+                errorBuilder: (context) => Container(
+                  width: size,
+                  height: size,
+                  color: AppColors.card(context),
+                  child: Icon(Icons.broken_image_outlined, color: hintGrey),
+                ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLampiranBerkas(Pengaduan p, bool isSmallScreen) {
+    final items = <(String, String, IconData)>[
+      for (int i = 0; i < p.dokumenPendukung.length; i++)
+        (
+          LampiranHelper.extractFileName(
+            p.dokumenPendukung[i],
+            fallback: 'Dokumen_${i + 1}',
+          ),
+          p.dokumenPendukung[i],
+          Icons.attach_file_rounded,
+        ),
+      for (int i = 0; i < p.videoBukti.length; i++)
+        (
+          LampiranHelper.extractFileName(
+            p.videoBukti[i],
+            fallback: 'Video_${i + 1}',
+          ),
+          p.videoBukti[i],
+          Icons.videocam_rounded,
+        ),
+      for (int i = 0; i < p.voiceNote.length; i++)
+        (
+          LampiranHelper.extractFileName(
+            p.voiceNote[i],
+            fallback: 'Voice_Note_${i + 1}',
+          ),
+          p.voiceNote[i],
+          Icons.mic_rounded,
+        ),
+      if (p.fileSuratPutusan != null && p.fileSuratPutusan!.trim().isNotEmpty)
+        (
+          LampiranHelper.extractFileName(
+            p.fileSuratPutusan!,
+            fallback: 'Surat_Putusan_Sanksi',
+          ),
+          p.fileSuratPutusan!,
+          Icons.gavel_rounded,
+        ),
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final item in items)
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => LampiranHelper.bukaLampiran(
+              context,
+              item.$2,
+              fallbackName: item.$1,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: accent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(item.$3, size: 15, color: accent),
+                  const SizedBox(width: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 200),
+                    child: Text(
+                      item.$1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 11.0 : 12.0,
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -869,9 +974,12 @@ class _PengaduanDetailScreenState extends State<PengaduanDetailScreen> {
             );
           },
         );
-      } else if (p.status == PengaduanStatus.menungguDirutTahap2) {
+      } else if (p.status == PengaduanStatus.menungguDirutTahap2 ||
+          p.status == PengaduanStatus.menungguDirutTahap3) {
         panel = _panelTerimaTolak(
-          judul: 'Persetujuan Tahap 2 — Hasil Investigasi Diterima?',
+          judul: p.dirutMenungguTahap3
+              ? 'Persetujuan Tahap 3 — Hasil Peninjauan Kembali Diterima?'
+              : 'Persetujuan Tahap 2 — Hasil Investigasi Diterima?',
           onTerima: () => _jalankan(
             () => PengaduanService.direksiTahap2Aksi(
               pengaduanId: p.supabaseId!,

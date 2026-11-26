@@ -22,6 +22,7 @@ import 'status_pengaduan_screen.dart';
 import 'thr_screen.dart';
 import 'absensi_detail_screen.dart';
 import '../../theme/app_colors.dart';
+import '../../services/onesignal_service.dart';
 import '../../services/theme_controller.dart';
 
 /// Ambil ringkasan kehadiran bulan berjalan milik pegawai yang sedang
@@ -84,6 +85,11 @@ class _PegawaiDashboardState extends State<PegawaiDashboard> {
     // Pop-up pengumuman otomatis SETIAP KALI aplikasi/dashboard dibuka
     // jika ada pengumuman aktif dari web yang ditujukan untuk role pengguna.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      OneSignalService.instance.ensurePermissionAndSync(
+        widget.user.nik,
+        role: widget.user.role.name,
+        divisiKadiv: widget.user.divisiKadiv?.name,
+      );
       _tampilkanPopupPengumuman();
     });
   }

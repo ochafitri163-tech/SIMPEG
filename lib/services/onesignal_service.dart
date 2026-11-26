@@ -18,6 +18,12 @@ class OneSignalService {
       ));
 
   bool _initialized = false;
+  bool _permissionRequestedOnce = false;
+  static VoidCallback? onForegroundNotification;
+  static final ValueNotifier<int> foregroundVersion = ValueNotifier<int>(0);
+  String? _lastLoginNik;
+  String? _lastRole;
+  String? _lastDivisi;
 
   bool get _isSupportedPlatform {
     if (kIsWeb) return false;
@@ -33,18 +39,9 @@ class OneSignalService {
       }
 
       OneSignal.initialize(appId);
-      await OneSignal.Notifications.requestPermission(true);
 
-      // Pastikan Push Subscription aktif
-      try {
-        OneSignal.User.pushSubscription.optIn();
-      } catch (_) {}
-
-      // Bersihkan notifikasi lawas agar tidak menumpuk saat start
-      try {
-        await OneSignal.Notifications.clearAll();
-      } catch (_) {}
-
+      // Daftarkan listener secara sinkron TEPAT setelah initialize()
+      // agar tap notifikasi saat cold-start tidak pernah terlewat.
       OneSignal.Notifications.addClickListener((event) {
         if (kDebugMode) {
           print('Notifikasi OneSignal Diklik: ${event.notification.title}');
@@ -61,7 +58,11 @@ class OneSignalService {
         }
         if (NotificationDeduplicator.shouldDisplay(title, body)) {
           event.notification.display();
+          foregroundVersion.value++;
+          onForegroundNotification?.call();
         } else {
+          // OneSignal SDK v5 wajib memanggil preventDefault() agar notifikasi duplikat tidak muncul.
+          event.preventDefault();
           if (kDebugMode) {
             print(
               'Notifikasi OneSignal di-suppress (duplikat dicegah): $title | $body',
@@ -69,6 +70,26 @@ class OneSignalService {
           }
         }
       });
+
+      OneSignal.Notifications.addPermissionObserver((granted) {
+        if (granted) {
+          try {
+            OneSignal.User.pushSubscription.optIn();
+          } catch (_) {}
+          _resyncLastUserIfNeeded();
+        }
+      });
+
+      OneSignal.User.pushSubscription.addObserver((state) {
+        if (state.current.id != null && state.current.id!.isNotEmpty) {
+          _resyncLastUserIfNeeded();
+        }
+      });
+
+      // Pastikan Push Subscription aktif tanpa memblokir Activity startup sebelum UI ter-mount.
+      try {
+        OneSignal.User.pushSubscription.optIn();
+      } catch (_) {}
 
       _initialized = true;
       if (kDebugMode) {
@@ -81,6 +102,41 @@ class OneSignalService {
         print('OneSignal Init Error: $e');
       }
     }
+  }
+
+  Future<void> _resyncLastUserIfNeeded() async {
+    final nik = _lastLoginNik;
+    if (nik == null || nik.isEmpty) return;
+    try {
+      await OneSignal.login(nik);
+      if (_lastRole != null && _lastRole!.isNotEmpty) {
+        await OneSignal.User.addTagWithKey('role', _lastRole!.toLowerCase().trim());
+      }
+      if (_lastDivisi != null && _lastDivisi!.isNotEmpty) {
+        await OneSignal.User.addTagWithKey('divisi_kadiv', _lastDivisi!.toLowerCase().trim());
+      }
+    } catch (_) {}
+  }
+
+  /// Dipanggil setelah Dashboard / UI utama aktif (aman di Android 13–15 & semua OEM)
+  /// untuk memastikan runtime permission POST_NOTIFICATIONS diminta dan sesi OneSignal tersinkron.
+  Future<void> ensurePermissionAndSync(
+    String nik, {
+    String? role,
+    String? divisiKadiv,
+  }) async {
+    if (!_isSupportedPlatform) return;
+    if (!_initialized) {
+      await init();
+    }
+    try {
+      final hasPermission = OneSignal.Notifications.permission;
+      if (!hasPermission && !_permissionRequestedOnce) {
+        _permissionRequestedOnce = true;
+        await OneSignal.Notifications.requestPermission(true);
+      }
+      await loginUser(nik, role: role, divisiKadiv: divisiKadiv);
+    } catch (_) {}
   }
 
   /// Pasang Tag Role pengguna saat login
@@ -123,10 +179,10 @@ class OneSignalService {
     String? divisiKadiv,
   }) async {
     if (!_isSupportedPlatform) return;
+    _lastLoginNik = nik.trim();
+    _lastRole = role;
+    _lastDivisi = divisiKadiv;
     try {
-      try {
-        await OneSignal.Notifications.clearAll();
-      } catch (_) {}
       await OneSignal.login(nik.trim());
       try {
         OneSignal.User.pushSubscription.optIn();
@@ -149,6 +205,9 @@ class OneSignalService {
 
   /// Logout user dari OneSignal
   Future<void> logoutUser() async {
+    _lastLoginNik = null;
+    _lastRole = null;
+    _lastDivisi = null;
     if (!_isSupportedPlatform) return;
     try {
       try {
@@ -167,7 +226,8 @@ class OneSignalService {
     await _sendNotificationApi(
       payload: {
         'app_id': appId,
-        'included_segments': ['All'],
+        'included_segments': ['Total Subscriptions'],
+        'target_channel': 'push',
         'headings': {'en': title, 'id': title},
         'contents': {'en': body, 'id': body},
         if (data != null) 'data': data,
@@ -290,7 +350,6 @@ class OneSignalService {
       finalPayload.putIfAbsent('large_icon', () => 'ic_launcher');
       // Warna aksen navy SIMPEG (#0D2C6E)
       finalPayload.putIfAbsent('android_accent_color', () => 'FF0D2C6E');
-      finalPayload.putIfAbsent('android_sound', () => 'notification');
       // Berikan android_group unik per notifikasi agar OneSignal TIDAK menggabungkan
       // notifikasi baru dengan riwayat notifikasi kemarin yang sudah di-swipe oleh user
       finalPayload.putIfAbsent(
@@ -302,15 +361,17 @@ class OneSignalService {
 
       final endpoints = kIsWeb
           ? [
-              'https://corsproxy.io/?https://onesignal.com/api/v1/notifications',
               'https://corsproxy.io/?https://api.onesignal.com/notifications',
-              'https://onesignal.com/api/v1/notifications',
+              'https://corsproxy.io/?https://onesignal.com/api/v1/notifications',
+              'https://api.onesignal.com/notifications',
             ]
           : [
-              'https://onesignal.com/api/v1/notifications',
               'https://api.onesignal.com/notifications',
+              'https://onesignal.com/api/v1/notifications',
             ];
-      final authPrefixes = ['Basic', 'Key', 'Bearer'];
+      final authPrefixes = _restApiKey.startsWith('os_v2_')
+          ? ['Key', 'Basic', 'Bearer']
+          : ['Basic', 'Key', 'Bearer'];
 
       http.Response? lastResponse;
       String? successfulPrefix;
@@ -344,20 +405,20 @@ class OneSignalService {
       }
 
       if (kDebugMode && lastResponse != null) {
-        print('═══ OneSignal Push [$logLabel] ═══');
+        debugPrint('═══ OneSignal Push [$logLabel] ═══');
         if (successfulPrefix != null) {
-          print('  Endpoint: $successfulEndpoint');
-          print('  Auth    : $successfulPrefix');
+          debugPrint('  Endpoint: $successfulEndpoint');
+          debugPrint('  Auth    : $successfulPrefix');
         }
-        print('  Status  : ${lastResponse.statusCode}');
-        print('  Body    : ${lastResponse.body}');
-        print('═══════════════════════════════════');
+        debugPrint('  Status  : ${lastResponse.statusCode}');
+        debugPrint('  Body    : ${lastResponse.body}');
+        debugPrint('═══════════════════════════════════');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('═══ OneSignal Push ERROR [$logLabel] ═══');
-        print('  Exception: $e');
-        print('════════════════════════════════════════');
+        debugPrint('═══ OneSignal Push ERROR [$logLabel] ═══');
+        debugPrint('  Exception: $e');
+        debugPrint('════════════════════════════════════════');
       }
     }
   }

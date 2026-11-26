@@ -11,6 +11,7 @@ import 'golongan_screen.dart';
 import 'prestasi_screen.dart';
 import 'keluarga_screen.dart';
 import 'pendidikan_screen.dart';
+import 'pengajuan_cuti_screen.dart';
 import 'pengaturan_screen.dart';
 import 'prestasi_sanksi_screen.dart';
 
@@ -125,6 +126,18 @@ class ProfileScreen extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => DokumenResmiScreen(user: user)),
+                        ),
+                        isSmallScreen: isSmallScreen,
+                      ),
+                      const _TileDivider(),
+                      _MenuTile(
+                        icon: Icons.event_available_rounded,
+                        iconColor: accent,
+                        title: 'Data & Surat Cuti',
+                        subtitle: 'Riwayat cuti dari web & cetak surat izin cuti',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => PengajuanCutiScreen(user: user)),
                         ),
                         isSmallScreen: isSmallScreen,
                       ),

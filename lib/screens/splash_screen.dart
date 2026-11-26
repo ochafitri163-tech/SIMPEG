@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import '../models/user_role.dart';
 import '../services/api_service.dart';
+import '../services/notification_nav_helper.dart';
 import '../services/onesignal_service.dart';
 import '../screens/pegawai/pegawai_dashboard.dart';
 
@@ -77,6 +78,9 @@ class _SplashScreenState extends State<SplashScreen>
         },
       ),
     );
+    if (savedSession != null && hasToken) {
+      await NotificationNavHelper.markDashboardReadyAndFlush();
+    }
   }
 
   @override

@@ -3,24 +3,30 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'audit_log_service.dart';
+import 'notification_nav_helper.dart';
 import 'onesignal_service.dart';
 
 class ApiService {
-  // Dynamic Host URL per platform:
-  // - Web / Windows / macOS / iOS: http://127.0.0.1:8000/api/v1
-  // - Android Emulator: http://10.0.2.2:8000/api/v1
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000/api/v1';
-    } else if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api/v1';
-    } else {
-      return 'http://127.0.0.1:8000/api/v1';
-    }
-  }
+  static const String _envApiHost = String.fromEnvironment('API_HOST');
+  static const String _prefHostOverrideKey = 'api_host_override';
+  static String? _runtimeHostOverride;
+
+  /// Dynamic Host URL per platform:
+  /// - Bisa di-override saat build/run via `--dart-define=API_HOST=http://...`
+  /// - Web / Windows / macOS / iOS: http://127.0.0.1:8000/api/v1
+  /// - Android Emulator: http://10.0.2.2:8000/api/v1
+  /// - HP Android fisik via `adb reverse tcp:8000 tcp:8000`: http://127.0.0.1:8000/api/v1
+  static String get baseUrl => '$rootHost/api/v1';
 
   /// Host dasar server (tanpa /api/v1) untuk memuat asset & file storage
   static String get rootHost {
+    final envHost = _envApiHost.trim().replaceAll(RegExp(r'/+$'), '');
+    if (envHost.isNotEmpty) {
+      return envHost;
+    }
+    if (_runtimeHostOverride != null && _runtimeHostOverride!.isNotEmpty) {
+      return _runtimeHostOverride!;
+    }
     if (kIsWeb) {
       return 'http://127.0.0.1:8000';
     } else if (defaultTargetPlatform == TargetPlatform.android) {
@@ -35,18 +41,26 @@ class ApiService {
     if (rawUrl == null || rawUrl.trim().isEmpty) return null;
     var trimmed = rawUrl.trim();
 
-    // Reroute static storage path ke endpoint API v1 storage yang didukung CORS lengkap
-    // Hanya lakukan bila BELUM diawali /api/v1/storage/
-    if (trimmed.contains('/storage/pengumuman/') && !trimmed.contains('/api/v1/storage/')) {
-      trimmed = trimmed.replaceFirst('/storage/pengumuman/', '/api/v1/storage/pengumuman/');
+    if (trimmed.startsWith('data:')) {
+      return trimmed;
     }
 
-    // Android emulator host resolution: mapping 127.0.0.1 / localhost ke 10.0.2.2
+    // Reroute path /storage/ lokal ke endpoint API v1 storage yang didukung CORS lengkap
+    // (kecuali URL eksternal seperti Supabase /storage/v1/object/).
+    if (trimmed.contains('/storage/') &&
+        !trimmed.contains('/api/v1/storage/') &&
+        !trimmed.contains('/storage/v1/object/')) {
+      trimmed = trimmed.replaceFirst('/storage/', '/api/v1/storage/');
+    } else if (trimmed.startsWith('storage/')) {
+      trimmed = '/api/v1/$trimmed';
+    }
+
+    // Android host resolution: mapping 127.0.0.1 / localhost ke rootHost aktif
     if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
       if (trimmed.startsWith('http://127.0.0.1:8000')) {
-        trimmed = trimmed.replaceFirst('http://127.0.0.1:8000', 'http://10.0.2.2:8000');
+        trimmed = trimmed.replaceFirst('http://127.0.0.1:8000', rootHost);
       } else if (trimmed.startsWith('http://localhost:8000')) {
-        trimmed = trimmed.replaceFirst('http://localhost:8000', 'http://10.0.2.2:8000');
+        trimmed = trimmed.replaceFirst('http://localhost:8000', rootHost);
       }
     }
 
@@ -84,31 +98,63 @@ class ApiService {
 
   /// 1. Login Pegawai
   static Future<Map<String, dynamic>> login(String nik, String password) async {
-    final url = Uri.parse('$baseUrl/login');
-    try {
-      final deviceInfo = await AuditLogService.getDeviceInfo();
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Device-Info': deviceInfo,
-        },
-        body: jsonEncode({'nik': nik, 'password': password}),
-      ).timeout(const Duration(seconds: 3));
+    final envHost = _envApiHost.trim().replaceAll(RegExp(r'/+$'), '');
+    final candidates = <String>[
+      if (envHost.isNotEmpty)
+        envHost
+      else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+        if (_runtimeHostOverride != null && _runtimeHostOverride!.isNotEmpty)
+          _runtimeHostOverride!,
+        'http://127.0.0.1:8000',
+        'http://10.0.2.2:8000',
+      ] else
+        rootHost,
+    ];
+    final uniqueHosts = candidates.toSet().toList();
 
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', data['data']['token']);
-        await prefs.setString('user_nik', data['data']['user']['nik']);
-        await prefs.setString('user_nama', data['data']['user']['nama']);
-        await prefs.setString('user_jabatan', data['data']['user']['jabatan']);
+    Object? lastError;
+    final deviceInfo = await AuditLogService.getDeviceInfo();
+
+    for (final host in uniqueHosts) {
+      final url = Uri.parse('$host/api/v1/login');
+      try {
+        final response = await http
+            .post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Device-Info': deviceInfo,
+              },
+              body: jsonEncode({'nik': nik, 'password': password}),
+            )
+            .timeout(const Duration(seconds: 12));
+
+        if (!kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android &&
+            envHost.isEmpty) {
+          _runtimeHostOverride = host;
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(_prefHostOverrideKey, host);
+          } catch (_) {}
+        }
+
+        final data = jsonDecode(response.body);
+        if (response.statusCode == 200 && data['success'] == true) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', data['data']['token']);
+          await prefs.setString('user_nik', data['data']['user']['nik']);
+          await prefs.setString('user_nama', data['data']['user']['nama']);
+          await prefs.setString('user_jabatan', data['data']['user']['jabatan']);
+        }
+        return data;
+      } catch (e) {
+        lastError = e;
       }
-      return data;
-    } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server Laravel: $e'};
     }
+
+    return {'success': false, 'message': 'Gagal terhubung ke server Laravel: $lastError'};
   }
 
   /// 2. Get Profil Pegawai
@@ -248,6 +294,10 @@ class ApiService {
   /// Ambil data session pengguna yang tersimpan (jika ada)
   static Future<Map<String, dynamic>?> getSavedUserSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedHost = prefs.getString(_prefHostOverrideKey);
+    if (savedHost != null && savedHost.isNotEmpty) {
+      _runtimeHostOverride = savedHost;
+    }
     final jsonStr = prefs.getString('user_session_json');
     if (jsonStr == null || jsonStr.isEmpty) return null;
     try {
@@ -298,10 +348,19 @@ class ApiService {
   }
 
   /// 11. Cuti Pegawai
-  static Future<Map<String, dynamic>> getCuti({String? nik, bool all = false}) async {
+  static Future<Map<String, dynamic>> getCuti({
+    String? nik,
+    bool all = false,
+    int? tahun,
+    String? status,
+  }) async {
     final params = <String, String>{};
     if (nik != null && nik.isNotEmpty) params['nik'] = nik;
     if (all) params['all'] = '1';
+    if (tahun != null) params['tahun'] = tahun.toString();
+    if (status != null && status.isNotEmpty && status != 'all') {
+      params['status'] = status;
+    }
     final uri = Uri.parse('$baseUrl/cuti').replace(
       queryParameters: params.isNotEmpty ? params : null,
     );
@@ -313,14 +372,32 @@ class ApiService {
     }
   }
 
+  /// 11a. Detail Surat Izin Cuti Resmi (+ Pejabat Penandatangan dinamis)
+  static Future<Map<String, dynamic>> getCutiSurat(dynamic id) async {
+    final uri = Uri.parse('$baseUrl/cuti/$id/surat');
+    try {
+      final response = await http.get(uri, headers: await _getHeaders());
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
   /// 11b. Update Status Cuti Pegawai (Persetujuan oleh SDM / Direktur)
-  static Future<Map<String, dynamic>> updateStatusCuti(int id, String status) async {
+  static Future<Map<String, dynamic>> updateStatusCuti(
+    int id,
+    String status, {
+    String? catatan,
+  }) async {
     final url = Uri.parse('$baseUrl/cuti/$id/status');
     try {
       final response = await http.put(
         url,
         headers: await _getHeaders(),
-        body: jsonEncode({'status': status}),
+        body: jsonEncode({
+          'status': status,
+          if (catatan != null) 'catatan_approver': catatan,
+        }),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -334,21 +411,35 @@ class ApiService {
     required String tglSelesai,
     required String alasan,
     String? nik,
+    String? alamatCuti,
+    String? noTelp,
+    bool autoApprove = false,
   }) async {
     final url = Uri.parse('$baseUrl/cuti');
     final prefs = await SharedPreferences.getInstance();
-    final activeNik = nik ?? prefs.getString('user_nik') ?? '';
+    final activeNik = (nik != null && nik.isNotEmpty)
+        ? nik
+        : (prefs.getString('user_nik') ?? '');
 
     try {
       final response = await http.post(
         url,
-        headers: await _getHeaders(explicitNik: activeNik),
+        headers: await _getHeaders(),
         body: jsonEncode({
           'nik': activeNik,
+          'pegawai_nik': activeNik,
+          'jenis': jenis,
           'jenis_cuti': jenis,
+          'tanggal_mulai': tglMulai,
           'tgl_mulai': tglMulai,
+          'tanggal_selesai': tglSelesai,
           'tgl_selesai': tglSelesai,
           'alasan': alasan,
+          if (alamatCuti != null && alamatCuti.trim().isNotEmpty)
+            'alamat_cuti': alamatCuti.trim(),
+          if (noTelp != null && noTelp.trim().isNotEmpty)
+            'no_telp': noTelp.trim(),
+          if (autoApprove) 'auto_approve': true,
         }),
       );
       return jsonDecode(response.body);
@@ -374,6 +465,18 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> getPengaduanDetail(int id) async {
+    final uri = Uri.parse('$baseUrl/pengaduan/$id');
+    try {
+      final response = await http
+          .get(uri, headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> storePengaduan({
     required String subjek,
     required String pesan,
@@ -384,6 +487,8 @@ class ApiService {
     String? jabatanPelaku,
     List<String>? fotoBukti,
     List<String>? dokumenPendukung,
+    List<String>? videoBukti,
+    List<String>? voiceNote,
     bool? anonim,
     String? status,
   }) async {
@@ -405,6 +510,8 @@ class ApiService {
           'jabatan_pelaku': jabatanPelaku,
           'foto_bukti': fotoBukti,
           'dokumen_pendukung': dokumenPendukung,
+          if (videoBukti != null && videoBukti.isNotEmpty) 'video_bukti': videoBukti,
+          if (voiceNote != null && voiceNote.isNotEmpty) 'voice_note': voiceNote,
           'anonim': anonim ?? false,
           'status': status ?? 'menungguKadiv',
         }),
@@ -579,8 +686,42 @@ class ApiService {
     }
   }
 
-  /// 17. Logout - membersihkan seluruh sesi aktif, OneSignal, dan SharedPreferences
+  /// 17. Pusat Notifikasi Mobile (sinkron PostgreSQL `notifikasi`)
+  static Future<Map<String, dynamic>> getNotifikasi({int limit = 50}) async {
+    final uri = Uri.parse('$baseUrl/notifikasi').replace(
+      queryParameters: {'limit': limit.toString()},
+    );
+    try {
+      final response = await http.get(uri, headers: await _getHeaders());
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e', 'data': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> markNotifikasiRead(int id) async {
+    final uri = Uri.parse('$baseUrl/notifikasi/$id/read');
+    try {
+      final response = await http.post(uri, headers: await _getHeaders());
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> markAllNotifikasiRead() async {
+    final uri = Uri.parse('$baseUrl/notifikasi/read-all');
+    try {
+      final response = await http.post(uri, headers: await _getHeaders());
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  /// 18. Logout - membersihkan seluruh sesi aktif, OneSignal, dan SharedPreferences
   static Future<void> logout() async {
+    NotificationNavHelper.resetNavigationState();
     try {
       await OneSignalService.instance.logoutUser();
     } catch (_) {}

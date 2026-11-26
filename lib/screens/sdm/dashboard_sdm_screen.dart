@@ -337,9 +337,14 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
               } else {
                 final semua = List<Pengaduan>.from(snapshot.data ?? [])
                   ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-                final menungguSdm = semua
-                    .where((p) => p.status == PengaduanStatus.menungguSdm)
+                final menungguAktif = semua
+                    .where((p) => p.sdmMenungguTindakLanjut)
                     .toList();
+                final sdmTerproses = semua
+                    .where((p) =>
+                        p.sdmMasukClusterMenunggu && !p.sdmMenungguTindakLanjut)
+                    .toList();
+                final clusterMenungguSdm = [...menungguAktif, ...sdmTerproses];
                 final selesai = semua
                     .where((p) =>
                         p.status == PengaduanStatus.selesai ||
@@ -354,7 +359,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                       children: [
                         _buildSection(
                           'MENUNGGU TINDAK LANJUT SDM',
-                          menungguSdm,
+                          menungguAktif,
                           (p) => _bukaTerbitkanSk(p),
                           'Tidak ada pengaduan yang perlu ditindaklanjuti.',
                           'Terbitkan SK Sanksi',
@@ -371,12 +376,18 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                     );
                     break;
                   case _SdmClusterFilter.menungguTindakLanjut:
-                    listContent = menungguSdm.isEmpty
+                    listContent = clusterMenungguSdm.isEmpty
                         ? _buildEmptyState('Tidak ada pengaduan yang perlu ditindaklanjuti.')
                         : Column(
-                            children: menungguSdm
+                            children: clusterMenungguSdm
                                 .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaTerbitkanSk(item), 'Terbitkan SK Sanksi'))
+                                    p,
+                                    p.sdmMenungguTindakLanjut
+                                        ? (item) => _bukaTerbitkanSk(item)
+                                        : null,
+                                    p.sdmMenungguTindakLanjut
+                                        ? 'Terbitkan SK Sanksi'
+                                        : 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -386,7 +397,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                         : Column(
                             children: selesai
                                 .map((p) => _buildPengaduanCard(
-                                    p, (item) => _bukaDetail(item), 'Detail'))
+                                    p, null, 'Detail'))
                                 .toList(),
                           );
                     break;
@@ -397,7 +408,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                   children: [
                     _buildClusterBar(
                       countSemua: semua.length,
-                      countMenunggu: menungguSdm.length,
+                      countMenunggu: clusterMenungguSdm.length,
                       countSelesai: selesai.length,
                     ),
                     listContent,
@@ -783,7 +794,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
   }
 
   Widget _buildPengaduanCard(Pengaduan p,
-      Future<void> Function(Pengaduan) onAksi, String tombolLabel) {
+      Future<void> Function(Pengaduan)? onAksi, String tombolLabel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -901,22 +912,24 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => onAksi(p),
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
-                label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9)),
+            if (onAksi != null && tombolLabel != 'Detail') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => onAksi(p),
+                  icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                  label: Text(tombolLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9)),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

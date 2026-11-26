@@ -938,45 +938,38 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
             } else {
               final semua = List<Pengaduan>.from(snapshot.data ?? [])
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final menungguVerifikasi = semua
-                  .where((p) => p.status == PengaduanStatus.menungguKadiv)
-                  .where((p) => widget.user.divisiKadiv == null
-                      ? true
-                      : divisiKadivDariKategori(p.kategori) ==
-                          widget.user.divisiKadiv)
-                  .toList()
-                ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final tindakLanjut = semua
+              final menungguVerifikasiAktif = semua
                   .where((p) =>
-                      p.status == PengaduanStatus.investigasiBerjalan &&
-                      p.eksekutor == Eksekutor.kadiv &&
-                      (widget.user.divisiKadiv == null ||
-                          p.eksekutorDivisiKadiv == null ||
-                          p.eksekutorDivisiKadiv == widget.user.divisiKadiv ||
-                          (p.petugasInvestigasi ?? '').toLowerCase().contains(widget.user.name.toLowerCase()) ||
-                          p.executorId == widget.user.id ||
-                          p.executorId == widget.user.nik))
+                      p.kadivPerluVerifikasi &&
+                      p.kadivCocokDivisiKategori(widget.user))
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              // Riwayat keputusan Kadiv (Terima/Tolak) yang sudah dicatat,
-              // dikelompokkan untuk topbar status "Diterima" / "Ditolak".
-              // Kedua kelompok ini SAMA-SAMA sudah/sedang ditinjau ulang
-              // oleh KSPI — keputusan Kadiv hanya dicatat, bukan final.
-              final keputusanKadivSaya = semua
-                  .where((p) => p.keputusanKadiv != null)
-                  .where((p) => widget.user.divisiKadiv == null
-                      ? true
-                      : divisiKadivDariKategori(p.kategori) ==
-                              widget.user.divisiKadiv ||
-                          p.kategoriDivisi != null)
+              final menungguVerifikasiCluster = urutkanClusterPengaduan(
+                semua.where((p) => p.kadivMasukClusterVerifikasi(widget.user)),
+                (p) => p.kadivPerluVerifikasi,
+              );
+              final investigasiAktif = semua
+                  .where((p) =>
+                      p.kadivSedangInvestigasiAktif(widget.user) ||
+                      p.kadivPerluTindakLanjut(widget.user))
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final diterimaKadiv = keputusanKadivSaya
-                  .where((p) => p.keputusanKadiv == Keputusan.terima)
+              final investigasiCluster = urutkanClusterPengaduan(
+                semua.where((p) => p.kadivMasukClusterInvestigasi(widget.user)),
+                (p) =>
+                    p.kadivSedangInvestigasiAktif(widget.user) ||
+                    p.kadivPerluTindakLanjut(widget.user),
+              );
+              final diterimaKadiv = semua
+                  .where((p) =>
+                      p.keputusanKadiv == Keputusan.terima &&
+                      p.kadivCocokDivisiKategori(widget.user))
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
-              final ditolakKadiv = keputusanKadivSaya
-                  .where((p) => p.keputusanKadiv == Keputusan.tolak)
+              final ditolakKadiv = semua
+                  .where((p) =>
+                      p.keputusanKadiv == Keputusan.tolak &&
+                      p.kadivCocokDivisiKategori(widget.user))
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
               final selesai = semua
@@ -985,6 +978,45 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                       p.status == PengaduanStatus.arsip)
                   .toList()
                 ..sort((a, b) => b.tanggalPengaduan.compareTo(a.tanggalPengaduan));
+
+              Widget cardUntukInvestigasi(Pengaduan p) {
+                if (p.kadivSedangInvestigasiAktif(widget.user)) {
+                  return _buildPengaduanCard(
+                    p,
+                    tombolLabel: p.status == PengaduanStatus.revisiInvestigasi
+                        ? 'Kirim Ulang Revisi'
+                        : 'Kirim Hasil Investigasi',
+                    onAksi: () => _bukaKirimHasil(p),
+                  );
+                }
+                if (p.kadivPerluTindakLanjut(widget.user)) {
+                  return _buildPengaduanCard(
+                    p,
+                    tombolLabel: 'Selesaikan Tindak Lanjut',
+                    onAksi: () => _bukaSelesaikanTindakLanjut(p),
+                  );
+                }
+                return _buildPengaduanCard(
+                  p,
+                  tombolLabel: 'Detail',
+                  onAksi: () => _bukaDetail(p),
+                );
+              }
+
+              Widget cardUntukVerifikasi(Pengaduan p) {
+                if (p.kadivPerluVerifikasi) {
+                  return _buildPengaduanCard(
+                    p,
+                    tombolLabel: 'Tinjau & Verifikasi',
+                    onAksi: () => _bukaVerifikasi(p),
+                  );
+                }
+                return _buildPengaduanCard(
+                  p,
+                  tombolLabel: 'Detail',
+                  onAksi: () => _bukaDetail(p),
+                );
+              }
 
               Widget listContent;
               switch (_clusterFilter) {
@@ -995,24 +1027,20 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                     listContent = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (menungguVerifikasi.isNotEmpty) ...[
-                          _buildSectionTitle('PENGADUAN MASUK — MENUNGGU VERIFIKASI', menungguVerifikasi.length),
+                        if (menungguVerifikasiAktif.isNotEmpty) ...[
+                          _buildSectionTitle('PENGADUAN MASUK — MENUNGGU VERIFIKASI', menungguVerifikasiAktif.length),
                           const SizedBox(height: 10),
-                          ...menungguVerifikasi.map((p) => _buildPengaduanCard(
+                          ...menungguVerifikasiAktif.map((p) => _buildPengaduanCard(
                                 p,
                                 tombolLabel: 'Tinjau & Verifikasi',
                                 onAksi: () => _bukaVerifikasi(p),
                               )),
                           const SizedBox(height: 16),
                         ],
-                        if (tindakLanjut.isNotEmpty) ...[
-                          _buildSectionTitle('INVESTIGASI DITUGASKAN', tindakLanjut.length),
+                        if (investigasiAktif.isNotEmpty) ...[
+                          _buildSectionTitle('INVESTIGASI / TINDAK LANJUT DITUGASKAN', investigasiAktif.length),
                           const SizedBox(height: 10),
-                          ...tindakLanjut.map((p) => _buildPengaduanCard(
-                                p,
-                                tombolLabel: 'Kirim Hasil Investigasi',
-                                onAksi: () => _bukaKirimHasil(p),
-                              )),
+                          ...investigasiAktif.map(cardUntukInvestigasi),
                           const SizedBox(height: 16),
                         ],
                         if (diterimaKadiv.isNotEmpty) ...[
@@ -1049,25 +1077,21 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   }
                   break;
                 case _KadivClusterFilter.menungguVerifikasi:
-                  listContent = menungguVerifikasi.isEmpty
-                      ? _buildEmptyState('Tidak ada pengaduan yang menunggu verifikasi.')
+                  listContent = menungguVerifikasiCluster.isEmpty
+                      ? _buildEmptyState('Tidak ada pengaduan pada cluster verifikasi Kadiv.')
                       : Column(
-                          children: menungguVerifikasi.map((p) => _buildPengaduanCard(
-                                p,
-                                tombolLabel: 'Tinjau & Verifikasi',
-                                onAksi: () => _bukaVerifikasi(p),
-                              )).toList(),
+                          children: menungguVerifikasiCluster
+                              .map(cardUntukVerifikasi)
+                              .toList(),
                         );
                   break;
                 case _KadivClusterFilter.investigasi:
-                  listContent = tindakLanjut.isEmpty
+                  listContent = investigasiCluster.isEmpty
                       ? _buildEmptyState('Tidak ada investigasi yang ditugaskan ke Anda.')
                       : Column(
-                          children: tindakLanjut.map((p) => _buildPengaduanCard(
-                                p,
-                                tombolLabel: 'Kirim Hasil Investigasi',
-                                onAksi: () => _bukaKirimHasil(p),
-                              )).toList(),
+                          children: investigasiCluster
+                              .map(cardUntukInvestigasi)
+                              .toList(),
                         );
                   break;
                 case _KadivClusterFilter.diterima:
@@ -1110,8 +1134,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                 children: [
                   _buildClusterBar(
                     countSemua: semua.length,
-                    countMenunggu: menungguVerifikasi.length,
-                    countInvestigasi: tindakLanjut.length,
+                    countMenunggu: menungguVerifikasiCluster.length,
+                    countInvestigasi: investigasiCluster.length,
                     countDiterima: diterimaKadiv.length,
                     countDitolak: ditolakKadiv.length,
                     countSelesai: selesai.length,

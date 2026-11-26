@@ -108,21 +108,69 @@ class NotificationService {
       },
     );
 
-    // Daftarkan Channel Notifikasi Prioritas Maksimal (Heads-up banner & suara)
+    // Daftarkan semua Notification Channel Android 8+ dengan Importance.max
+    // agar notifikasi muncul sebagai pop-up banner & bersuara di semua tipe Android.
     final androidImpl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (androidImpl != null) {
-      await androidImpl.createNotificationChannel(
-        const AndroidNotificationChannel(
+      const channels = [
+        AndroidNotificationChannel(
           'simpeg_urgent_channel',
           'Notifikasi Penting SIMPEG',
-          description: 'Notifikasi pop-up banner di layar dan bersuara untuk pengaduan & info SIMPEG',
+          description:
+              'Notifikasi pop-up banner di layar dan bersuara untuk pengaduan & pengumuman SIMPEG',
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
+          enableLights: true,
           showBadge: true,
         ),
-      );
+        AndroidNotificationChannel(
+          'absensi_channel',
+          'Pengingat Absensi',
+          description: 'Pengingat jam masuk, pulang, dan rekap absensi',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          showBadge: true,
+        ),
+        AndroidNotificationChannel(
+          'gaji_channel',
+          'Gaji & Payroll',
+          description:
+              'Notifikasi slip gaji, insentif, dan tunjangan pendidikan',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          showBadge: true,
+        ),
+        AndroidNotificationChannel(
+          'thr_channel',
+          'THR & Gaji 13',
+          description: 'Notifikasi THR dan gaji ke-13',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          showBadge: true,
+        ),
+        AndroidNotificationChannel(
+          'kepegawaian_channel',
+          'Kepegawaian',
+          description:
+              'Notifikasi cuti, lembur, dokumen, sanksi, dan info kepegawaian',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          showBadge: true,
+        ),
+      ];
+      for (final ch in channels) {
+        await androidImpl.createNotificationChannel(ch);
+      }
     }
 
     _initialized = true;
