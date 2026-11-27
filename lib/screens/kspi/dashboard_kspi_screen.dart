@@ -132,9 +132,12 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- Jalankan & selesaikan tindak lanjut (status tindakLanjutBerjalan) ----------
   Future<void> _bukaSelesaikanTindakLanjut(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +159,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  catatanText = catatanController.text.trim();
+                  Navigator.pop(ctx, true);
+                },
                 icon: const Icon(Icons.task_alt_rounded, size: 18),
                 label: const Text('Tandai Selesai & Teruskan ke SDM'),
                 style: ElevatedButton.styleFrom(
@@ -170,6 +176,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -194,9 +201,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         role: UserRole.kspi,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       final detail = await PengaduanService.detail(id);
@@ -227,10 +232,13 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // (wajib isi alasan) — bila ditolak, proses berhenti & diarsipkan.
   Future<void> _bukaTeruskanKeDirut(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorCatatan;
 
     final aksi = await _openSheet<String>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,6 +338,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                         });
                         return;
                       }
+                      catatanText = catatanController.text.trim();
                       Navigator.pop(ctx, 'tolak');
                     },
                     icon: const Icon(Icons.close_rounded, size: 18),
@@ -346,7 +355,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(ctx, 'teruskan'),
+                    onPressed: () {
+                      catatanText = catatanController.text.trim();
+                      Navigator.pop(ctx, 'teruskan');
+                    },
                     icon: const Icon(Icons.send_rounded, size: 18),
                     label: const Text('Teruskan'),
                     style: ElevatedButton.styleFrom(
@@ -362,6 +374,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -398,9 +411,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         await PengaduanService.kspiTeruskanKeDirut(
           pengaduanId: id,
           oleh: widget.user.name,
-          catatan: catatanController.text.trim().isEmpty
-              ? null
-              : catatanController.text.trim(),
+          catatan: catatanText.isEmpty ? null : catatanText,
         );
         if (!mounted) return;
         _showSnack('${p.nomorPengaduan} diteruskan ke Direktur.',
@@ -463,10 +474,13 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   Future<void> _bukaReviewAwal(Pengaduan p) async {
     List<PegawaiOption> selectedExecutors = [];
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorExecutors;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,6 +711,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     });
                     return;
                   }
+                  catatanText = catatanController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
@@ -714,6 +729,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -741,9 +757,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         selectedExecutors: selectedExecutors,
         eksekutorCategory: selectedExecutors.first.role,
         divisiKadiv: selectedExecutors.first.divisiKadiv,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       if (!mounted) return;
@@ -761,10 +775,13 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   Future<void> _bukaReviewHasil(Pengaduan p) async {
     bool sesuai = true;
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorCatatan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -866,6 +883,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     });
                     return;
                   }
+                  catatanText = catatanController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: Icon(sesuai ? Icons.send_rounded : Icons.replay_rounded,
@@ -883,6 +901,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -908,9 +927,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         sesuai: sesuai,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       await NotificationService.kirimKeRole(
@@ -940,10 +957,13 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ignore: unused_element
   Future<void> _bukaRevisiPenolakan(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorCatatan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1007,6 +1027,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     });
                     return;
                   }
+                  catatanText = catatanController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
@@ -1022,6 +1043,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -1045,7 +1067,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       await PengaduanService.kirimUlangSetelahRevisiKspi(
         pengaduanId: id,
         oleh: widget.user.name,
-        catatanRevisi: catatanController.text.trim(),
+        catatanRevisi: catatanText,
       );
 
       await NotificationService.kirimKeRole(
@@ -1067,8 +1089,11 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- 4. Peninjauan kembali dari Direktur ----------
   Future<void> _bukaPeninjauanKembali(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1090,7 +1115,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  catatanText = catatanController.text.trim();
+                  Navigator.pop(ctx, true);
+                },
                 icon: const Icon(Icons.search_rounded, size: 18),
                 label: const Text('Kirim untuk Investigasi Ulang'),
                 style: ElevatedButton.styleFrom(
@@ -1104,6 +1132,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -1127,9 +1156,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       await PengaduanService.kirimUntukInvestigasiUlang(
         pengaduanId: id,
         oleh: widget.user.name,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       await NotificationService.kirimKeRole(
@@ -1176,9 +1203,12 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- 1. TPDPK: Pilih petugas investigasi ----------
   Future<void> _bukaPilihPetugasTpdpk(Pengaduan p) async {
     final petugasController = TextEditingController();
+    String petugasText = '';
     String? errorPetugas;
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: petugasController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1238,6 +1268,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     });
                     return;
                   }
+                  petugasText = petugasController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.badge_rounded, size: 18),
@@ -1253,6 +1284,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -1265,7 +1297,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       context: context,
       judul: 'Konfirmasi Penetapan Petugas',
       pesan:
-          'Apakah Anda yakin ingin menetapkan ${petugasController.text.trim()} sebagai petugas investigasi pengaduan No. ${p.nomorPengaduan}?',
+          'Apakah Anda yakin ingin menetapkan $petugasText sebagai petugas investigasi pengaduan No. ${p.nomorPengaduan}?',
       labelKonfirmasi: 'Ya, Tetapkan',
       warnaKonfirmasi: _navy,
       iconHeader: Icons.badge_rounded,
@@ -1276,7 +1308,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
       await PengaduanService.tpdpkPilihPetugas(
         pengaduanId: id,
         oleh: widget.user.name,
-        petugas: petugasController.text.trim(),
+        petugas: petugasText,
       );
 
       if (!mounted) return;
@@ -1294,6 +1326,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
     final rekomendasiController =
         TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
+    String hasilText = '';
+    String rekomendasiText = '';
     String kesimpulanInvestigasi = p.kesimpulanInvestigasi ?? 'terbukti';
     String? errorHasil;
     final mediaController = MediaLampiranController();
@@ -1305,7 +1339,12 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
     }
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: () {
+          hasilController.dispose();
+          rekomendasiController.dispose();
+        },
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1537,6 +1576,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                     });
                     return;
                   }
+                  hasilText = hasilController.text.trim();
+                  rekomendasiText = rekomendasiController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
@@ -1554,6 +1595,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -1578,8 +1620,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         await PengaduanService.kirimRevisiInvestigasi(
           pengaduanId: id,
           oleh: widget.user.name,
-          hasil: hasilController.text.trim(),
-          rekomendasi: rekomendasiController.text.trim(),
+          hasil: hasilText,
+          rekomendasi: rekomendasiText,
           foto: mediaController.foto,
           video: mediaController.video,
           voice: mediaController.voice,
@@ -1597,8 +1639,8 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
           pengaduanId: id,
           oleh: widget.user.name,
           role: UserRole.tpdpk,
-          hasil: hasilController.text.trim(),
-          rekomendasi: rekomendasiController.text.trim(),
+          hasil: hasilText,
+          rekomendasi: rekomendasiText,
           kesimpulanInvestigasi: kesimpulanInvestigasi,
           foto: mediaController.foto,
           video: mediaController.video,
@@ -1624,13 +1666,16 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
   // ---------- 3. TPDPK: Selesaikan tindak lanjut ----------
   Future<void> _bukaSelesaikanTindakLanjutTpdpk(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
 
     final konfirmasi = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Padding(
+        return OnWidgetDispose(
+          onDispose: catatanController.dispose,
+          child: Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
@@ -1670,7 +1715,10 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(ctx, true),
+                      onPressed: () {
+                        catatanText = catatanController.text.trim();
+                        Navigator.pop(ctx, true);
+                      },
                       icon: const Icon(Icons.task_alt_rounded, size: 18),
                       label: const Text('Tandai Selesai'),
                       style: ElevatedButton.styleFrom(
@@ -1686,6 +1734,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
               ),
             ),
           ),
+        ),
         );
       },
     );
@@ -1711,9 +1760,7 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         role: UserRole.tpdpk,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       final detail = await PengaduanService.detail(id);
@@ -2904,7 +2951,17 @@ class _DashboardKspiScreenState extends State<DashboardKspiScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _bukaDetail(p),
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(

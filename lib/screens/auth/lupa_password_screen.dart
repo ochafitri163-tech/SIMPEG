@@ -69,14 +69,14 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
             ).paddingCenter(),
             const SizedBox(height: 20),
             if (_terkirim) ...[
-              const Icon(Icons.mark_email_read_rounded,
-                  color: Color(0xFF27AE60), size: 40),
+              const Icon(Icons.support_agent_rounded,
+                  color: Color(0xFF0D2C6E), size: 40),
               const SizedBox(height: 12),
               Text(
-                'Tautan reset password telah dikirim ke '
-                '${_emailC.text.trim()}.\nSilakan cek kotak masuk (dan folder spam).',
+                'Permintaan reset password akun (${_emailC.text.trim()}) belum tersedia secara mandiri melalui email.\n\n'
+                'Untuk menjaga keamanan akun kepegawaian, silakan hubungi Bagian SDM / Admin SIMPEG secara langsung agar dilakukan verifikasi identitas dan reset kata sandi sementara.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13.5, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 13.5, color: Colors.grey[700], height: 1.45),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -92,8 +92,8 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
               ),
             ] else ...[
               const Text(
-                'Masukkan email akun Anda. Kami akan mengirimkan tautan '
-                'untuk mengatur ulang password.',
+                'Reset password akun SIMPEG dilakukan melalui verifikasi Bagian SDM. '
+                'Masukkan email dinas/NIK Anda untuk melihat panduan tindak lanjut.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13.5, color: Color(0xFF7F8C8D)),
               ),
@@ -102,7 +102,7 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
                 controller: _emailC,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email / Identitas Akun',
                   prefixIcon: const Icon(Icons.email_rounded),
                   filled: true,
                   fillColor: Colors.white,
@@ -126,7 +126,7 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Text('Kirim Tautan Reset',
+                    : const Text('Lihat Panduan Reset SDM',
                         style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w700)),
               ),

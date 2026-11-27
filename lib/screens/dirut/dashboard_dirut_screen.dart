@@ -202,10 +202,13 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
   Future<void> _bukaKeputusanTahap1(Pengaduan p) async {
     Keputusan keputusan = Keputusan.terima;
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorAlasan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,6 +289,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                     });
                     return;
                   }
+                  catatanText = catatanController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.gavel_rounded, size: 18),
@@ -301,6 +305,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -325,9 +330,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         keputusan: keputusan,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       if (!mounted) return;
@@ -349,11 +352,14 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     // atau Tinjau Ulang (dikembalikan ke KSPI untuk investigasi ulang).
     String pilihan = 'terima';
     final catatanController = TextEditingController();
+    String catatanText = '';
     final isTerbukti = p.isTerbukti;
     String? errorCatatan;
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: catatanController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,6 +521,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                     });
                     return;
                   }
+                  catatanText = catatanController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.gavel_rounded, size: 18),
@@ -530,6 +537,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -539,9 +547,7 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
     if (!mounted) return;
 
     try {
-      final catatan = catatanController.text.trim().isEmpty
-          ? null
-          : catatanController.text.trim();
+      final catatan = catatanText.isEmpty ? null : catatanText;
 
       if (pilihan == 'peninjauan') {
         final setuju = await showKonfirmasiDialog(
@@ -894,7 +900,10 @@ class _DashboardDirutScreenState extends State<DashboardDirutScreen> {
                             offset: const Offset(0, -28),
                             child: _buildProfileCard(
                                 snapshot.data
-                                        ?.where((p) => p.dirutPerluAksi)
+                                        ?.where((p) =>
+                                            p.status == PengaduanStatus.menungguDirutTahap1 ||
+                                            p.status == PengaduanStatus.menungguDirutTahap2 ||
+                                            p.status == PengaduanStatus.menungguPilihEksekutorTindakLanjut)
                                         .length ??
                                     0),
                           ),

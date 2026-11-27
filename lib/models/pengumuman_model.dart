@@ -236,7 +236,7 @@ class PengumumanService {
     final Set<int> seenIds = {};
 
     try {
-      final res = await ApiService.getPengumuman();
+      final res = await ApiService.getPengumuman(scope: 'all');
       if (res['success'] == true && res['data'] is List) {
         for (final r in (res['data'] as List)) {
           final p = Pengumuman.fromRow(Map<String, dynamic>.from(r as Map));
@@ -245,10 +245,14 @@ class PengumumanService {
             list.add(p);
           }
         }
-        if (list.isNotEmpty) {
-          _localCache.clear();
-          _localCache.addAll(list);
-        }
+        _localCache
+          ..clear()
+          ..addAll(list);
+        list.sort((a, b) {
+          if (a.disematkan != b.disematkan) return a.disematkan ? -1 : 1;
+          return b.tanggalTayang.compareTo(a.tanggalTayang);
+        });
+        return list;
       }
     } catch (_) {}
 
@@ -341,7 +345,7 @@ class PengumumanService {
     final pembuatId =
         pembuat is AppUser ? pembuat.nik : 'SDM';
 
-    final newP = Pengumuman(
+    Pengumuman newP = Pengumuman(
       id: DateTime.now().millisecondsSinceEpoch % 2147483647,
       judul: j,
       isi: i,
@@ -350,7 +354,7 @@ class PengumumanService {
       aktif: aktif,
       targetRoles: targetNames,
       pembuat: pembuatName,
-      pembuatId: pembuatId?.toString(),
+      pembuatId: pembuatId,
       tanggalPublikasi: DateTime.now(),
       terbitPada: terbitPada,
       kedaluwarsaPada: kedaluwarsaPada,
@@ -359,6 +363,32 @@ class PengumumanService {
       tanggalUbah: DateTime.now(),
     );
 
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.storePengumuman(
+        judul: j,
+        isi: i,
+        prioritas: prioritas,
+        disematkan: disematkan,
+        aktif: aktif,
+        targetRoles: targetNames,
+        terbitPada: terbitPada,
+        kedaluwarsaPada: kedaluwarsaPada,
+        lampiranUrl: lampiranUrl,
+        lampiranNama: lampiranNama,
+      );
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal membuat pengumuman di server.',
+        );
+      }
+      if (res['data'] is Map) {
+        newP = Pengumuman.fromRow(
+          Map<String, dynamic>.from(res['data'] as Map),
+        );
+      }
+    }
+
+    _localCache.removeWhere((p) => p.id == newP.id);
     _localCache.insert(0, newP);
     _jadwalkanTimerPengumuman(newP);
 
@@ -370,7 +400,7 @@ class PengumumanService {
     }
 
     AuditLogService.logAction(
-      userNik: pembuatId?.toString() ?? 'SDM',
+      userNik: pembuatId,
       userName: pembuatName,
       role: 'SDM',
       action: 'CREATE',
@@ -397,8 +427,41 @@ class PengumumanService {
     final i = isi.trim();
     final targetNames = target.map((r) => r.name).toList();
 
+    Pengumuman? serverUpdated;
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.updatePengumuman(
+        id: id,
+        judul: j,
+        isi: i,
+        prioritas: prioritas,
+        disematkan: disematkan,
+        targetRoles: targetNames,
+        terbitPada: terbitPada,
+        kedaluwarsaPada: kedaluwarsaPada,
+        lampiranUrl: lampiranUrl,
+        lampiranNama: lampiranNama,
+      );
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal memperbarui pengumuman di server.',
+        );
+      }
+      if (res['data'] is Map) {
+        serverUpdated = Pengumuman.fromRow(
+          Map<String, dynamic>.from(res['data'] as Map),
+        );
+      }
+    }
+
     final idx = _localCache.indexWhere((p) => p.id == id);
-    if (idx != -1) {
+    if (serverUpdated != null) {
+      if (idx != -1) {
+        _localCache[idx] = serverUpdated;
+      } else {
+        _localCache.insert(0, serverUpdated);
+      }
+      _jadwalkanTimerPengumuman(serverUpdated);
+    } else if (idx != -1) {
       final old = _localCache[idx];
       final updated = Pengumuman(
         id: old.id,
@@ -432,6 +495,15 @@ class PengumumanService {
   }
 
   static Future<void> setAktif({required int id, required bool aktif}) async {
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.togglePengumumanStatus(id, aktif: aktif);
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal mengubah status pengumuman.',
+        );
+      }
+    }
+
     final idx = _localCache.indexWhere((p) => p.id == id);
     if (idx != -1) {
       final old = _localCache[idx];
@@ -476,6 +548,15 @@ class PengumumanService {
   }
 
   static Future<void> hapus({required int id}) async {
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.deletePengumuman(id);
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal menghapus pengumuman di server.',
+        );
+      }
+    }
+
     _batalkanTimerPengumuman(id);
     await NotificationService.instance.cancelPengumuman(id);
     _localCache.removeWhere((p) => p.id == id);

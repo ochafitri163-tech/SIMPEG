@@ -150,9 +150,18 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     final catatanController = TextEditingController();
     final nikController = TextEditingController(text: p.nikPelaku ?? '');
     final nominalController = TextEditingController();
+    String catatanText = '';
+    String nikText = '';
+    String nominalText = '';
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: () {
+          catatanController.dispose();
+          nikController.dispose();
+          nominalController.dispose();
+        },
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,7 +241,12 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  catatanText = catatanController.text.trim();
+                  nikText = nikController.text.trim();
+                  nominalText = nominalController.text;
+                  Navigator.pop(ctx, true);
+                },
                 icon: const Icon(Icons.check_circle_rounded, size: 18),
                 label: const Text('Tandai Selesai'),
                 style: ElevatedButton.styleFrom(
@@ -246,6 +260,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -253,9 +268,9 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
     final id = p.supabaseId;
     if (id == null) return;
 
-    final nik = nikController.text.trim();
+    final nik = nikText;
     final nominal = int.tryParse(
-            nominalController.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            nominalText.replaceAll(RegExp(r'[^0-9]'), '')) ??
         0;
 
     // Kalau salah satu field penurunan gaji diisi, keduanya wajib benar.
@@ -282,9 +297,7 @@ class _DashboardSdmScreenState extends State<DashboardSdmScreen> {
       await PengaduanService.sdmSelesaikan(
         pengaduanId: id,
         oleh: widget.user.name,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
         nikTerlapor: nik.isEmpty ? null : nik,
         nominalPenurunanGaji: nominal > 0 ? nominal : null,
       );

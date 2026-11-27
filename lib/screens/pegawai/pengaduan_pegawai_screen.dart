@@ -64,6 +64,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
   final ImagePicker _picker = ImagePicker();
   final MediaLampiranController _mediaController = MediaLampiranController();
   bool _isSubmitting = false;
+  bool _anonim = false;
 
   @override
   void initState() {
@@ -319,7 +320,7 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
         videoBukti: _mediaController.video,
         voiceNote: _mediaController.voice,
         dokumenPendukung: _mediaController.dokumen,
-        anonim: false,
+        anonim: _anonim,
       );
 
       if (!mounted) return;
@@ -627,6 +628,39 @@ class _PengaduanPegawaiScreenState extends State<PengaduanPegawaiScreen> {
                   controller: _mediaController,
                   prefix: widget.user.nik,
                   includeFoto: false,
+                ),
+                const SizedBox(height: 16),
+                Material(
+                  color: const Color(0xFFF8FAFC),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: SwitchListTile.adaptive(
+                    value: _anonim,
+                    onChanged: (v) => setState(() => _anonim = v),
+                    activeTrackColor: navy,
+                    title: Text(
+                      'Kirim Sebagai Pelapor Anonim',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: labelDark,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Identitas Anda disamarkan kepada pihak terkait selain verifikator berwenang.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: hintGrey,
+                      ),
+                    ),
+                    secondary: const Icon(
+                      Icons.visibility_off_outlined,
+                      color: navy,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 22),
                 _buildKirimButton(),

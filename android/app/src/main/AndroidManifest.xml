@@ -12,7 +12,7 @@
         android:label="SIMPEG Mobile"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
         <!-- Notification icon & color for OneSignal & Android Status Bar / AOD -->
         <meta-data
             android:name="com.onesignal.NotificationIcon.default"

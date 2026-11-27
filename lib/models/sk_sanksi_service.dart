@@ -498,15 +498,38 @@ class SkSanksiService {
       dibuatPada: DateTime.now(),
     );
 
+    final hasServerAuth = await ApiService.hasAuthToken();
+
+    // Simpan ke database via API terlebih dahulu bila sesi server aktif
+    if (hasServerAuth) {
+      final apiRes = await ApiService.storeSkSanksi(sk.toRow());
+      if (apiRes['success'] != true) {
+        throw apiRes['message']?.toString() ?? 'Gagal menyimpan SK Sanksi ke server.';
+      }
+    }
+
+    if (pengaduanId != null) {
+      final skDocs = dokumen[JenisDokumenSk.sk] ?? const [];
+      final fileUtama = skDocs.isNotEmpty ? skDocs.first : '';
+      await PengaduanService.sdmSelesaikan(
+        pengaduanId: pengaduanId,
+        oleh: diterbitkanOleh,
+        catatan: 'SK ${sk.nomorSk} diterbitkan — $jenisSanksi'
+            '${sk.perubahanJabatan != null ? ' (${sk.perubahanJabatan})' : ''}.',
+        nikTerlapor: nik,
+        nominalPenurunanGaji:
+            nominalPenurunanGaji > 0 ? nominalPenurunanGaji : null,
+        nomorSuratPutusan: sk.nomorSk,
+        jenisSanksi: jenisSanksi,
+        fileSuratPutusan: fileUtama,
+        tanggalSuratPutusan: berlaku,
+      );
+    }
+
     await _ensureLoaded();
     _localSkList.removeWhere((s) => s.nomorSk == sk.nomorSk || (pengaduanId != null && s.pengaduanId == pengaduanId));
     _localSkList.insert(0, sk);
     await _saveToPrefs();
-
-    // Simpan juga ke database via API
-    try {
-      await ApiService.storeSkSanksi(sk.toRow());
-    } catch (_) {}
 
     AuditLogService.logAction(
       userNik: diterbitkanOleh,
@@ -527,26 +550,6 @@ class SkSanksiService {
             '${sk.totalBerkas} berkas dokumen pendukung.',
         pengaduanId: pengaduanId,
       );
-    }
-
-    if (pengaduanId != null) {
-      try {
-        final skDocs = dokumen[JenisDokumenSk.sk] ?? const [];
-        final fileUtama = skDocs.isNotEmpty ? skDocs.first : '';
-        await PengaduanService.sdmSelesaikan(
-          pengaduanId: pengaduanId,
-          oleh: diterbitkanOleh,
-          catatan: 'SK ${sk.nomorSk} diterbitkan — $jenisSanksi'
-              '${sk.perubahanJabatan != null ? ' (${sk.perubahanJabatan})' : ''}.',
-          nikTerlapor: nik,
-          nominalPenurunanGaji:
-              nominalPenurunanGaji > 0 ? nominalPenurunanGaji : null,
-          nomorSuratPutusan: sk.nomorSk,
-          jenisSanksi: jenisSanksi,
-          fileSuratPutusan: fileUtama,
-          tanggalSuratPutusan: berlaku,
-        );
-      } catch (_) {}
     }
 
     return sk;

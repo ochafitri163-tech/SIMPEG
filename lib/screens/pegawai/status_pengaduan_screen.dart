@@ -77,7 +77,8 @@ extension _KelolaPengaduanClusterX on _KelolaPengaduanCluster {
       case _KelolaPengaduanCluster.investigasi:
         return p.status == PengaduanStatus.menungguInvestigasi ||
             p.status == PengaduanStatus.investigasiBerjalan ||
-            p.status == PengaduanStatus.revisiInvestigasi;
+            p.status == PengaduanStatus.revisiInvestigasi ||
+            p.status == PengaduanStatus.peninjauanKembali;
       case _KelolaPengaduanCluster.tindakLanjut:
         return p.status == PengaduanStatus.menungguDirutTahap2 ||
             p.status == PengaduanStatus.menungguDirutTahap3 ||
@@ -89,8 +90,7 @@ extension _KelolaPengaduanClusterX on _KelolaPengaduanCluster {
         return p.status == PengaduanStatus.selesai;
       case _KelolaPengaduanCluster.arsip:
         return p.status == PengaduanStatus.arsip ||
-            p.status == PengaduanStatus.ditolakDirektur ||
-            p.status == PengaduanStatus.peninjauanKembali;
+            p.status == PengaduanStatus.ditolakDirektur;
     }
   }
 }
@@ -177,6 +177,7 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case PengaduanStatus.investigasiBerjalan:
       case PengaduanStatus.menungguInvestigasi:
       case PengaduanStatus.revisiInvestigasi:
+      case PengaduanStatus.peninjauanKembali:
       case PengaduanStatus.menungguDirutTahap2:
       case PengaduanStatus.menungguDirutTahap3:
       case PengaduanStatus.menungguPilihEksekutorTindakLanjut:
@@ -187,7 +188,6 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
       case PengaduanStatus.selesai:
       case PengaduanStatus.arsip:
       case PengaduanStatus.ditolakDirektur:
-      case PengaduanStatus.peninjauanKembali:
         return 4;
     }
   }
@@ -195,12 +195,20 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
   Widget _buildProgressStepper(Pengaduan p, bool isSmallScreen) {
     final currentStage = _getStageIndex(p.status);
     final isArsip = p.status == PengaduanStatus.arsip;
+    final isDitolak = p.status == PengaduanStatus.ditolakDirektur;
 
     final stages = [
       (label: 'Diajukan', icon: Icons.send_rounded),
       (label: 'Diverifikasi', icon: Icons.fact_check_rounded),
       (label: 'Diproses', icon: Icons.autorenew_rounded),
-      (label: isArsip ? 'Arsip' : 'Selesai', icon: isArsip ? Icons.archive_rounded : Icons.check_circle_rounded),
+      (
+        label: isArsip
+            ? 'Arsip'
+            : (isDitolak ? 'Ditolak' : 'Selesai'),
+        icon: isArsip
+            ? Icons.archive_rounded
+            : (isDitolak ? Icons.cancel_rounded : Icons.check_circle_rounded),
+      ),
     ];
 
     return Container(
@@ -226,13 +234,18 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
           Row(
             children: List.generate(stages.length, (index) {
               final stageNum = index + 1;
-              final isCompleted = stageNum < currentStage || (stageNum == currentStage && currentStage == 4);
+              final isCompleted = stageNum < currentStage ||
+                  (stageNum == currentStage && currentStage == 4 && !isArsip && !isDitolak);
+              final isTerminalNeutralOrRejected =
+                  stageNum == 4 && currentStage == 4 && (isArsip || isDitolak);
               final isCurrent = stageNum == currentStage && currentStage < 4;
               final color = isArsip && stageNum == 4
                   ? const Color(0xFF7F8C8D)
-                  : (isCompleted
-                      ? const Color(0xFF27AE60)
-                      : (isCurrent ? accent : hintGrey.withValues(alpha: 0.4)));
+                  : (isDitolak && stageNum == 4
+                      ? const Color(0xFFE74C3C)
+                      : (isCompleted
+                          ? const Color(0xFF27AE60)
+                          : (isCurrent ? accent : hintGrey.withValues(alpha: 0.4))));
 
               final isLast = index == stages.length - 1;
 
@@ -247,7 +260,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             width: isSmallScreen ? 22 : 26,
                             height: isSmallScreen ? 22 : 26,
                             decoration: BoxDecoration(
-                              color: isCompleted || isCurrent ? color : Colors.transparent,
+                              color: isCompleted || isCurrent || isTerminalNeutralOrRejected
+                                  ? color
+                                  : Colors.transparent,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: color,
@@ -257,7 +272,9 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             child: Icon(
                               isCompleted ? Icons.check_rounded : stages[index].icon,
                               size: isSmallScreen ? 12 : 14,
-                              color: isCompleted || isCurrent ? Colors.white : color,
+                              color: isCompleted || isCurrent || isTerminalNeutralOrRejected
+                                  ? Colors.white
+                                  : color,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -268,8 +285,12 @@ class _StatusPengaduanScreenState extends State<StatusPengaduanScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: isSmallScreen ? 8.5 : 9.5,
-                              fontWeight: isCurrent || isCompleted ? FontWeight.bold : FontWeight.w500,
-                              color: isCurrent || isCompleted ? labelDark : hintGrey,
+                              fontWeight: isCurrent || isCompleted || isTerminalNeutralOrRejected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isCurrent || isCompleted || isTerminalNeutralOrRejected
+                                  ? labelDark
+                                  : hintGrey,
                             ),
                           ),
                         ],

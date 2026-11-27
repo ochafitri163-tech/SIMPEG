@@ -118,16 +118,39 @@ class _NotificationBellState extends State<NotificationBell> {
       await _muatJumlahBelumDibaca();
     }
 
-    final pengumumanId = (n['pengumuman_id'] as num?)?.toInt();
-    final pengaduanId = (n['pengaduan_id'] as num?)?.toInt();
-    final taskId = (n['task_id'] as num?)?.toInt();
+    final pengumumanId = int.tryParse(n['pengumuman_id']?.toString() ?? '');
+    var pengaduanId = int.tryParse(n['pengaduan_id']?.toString() ?? '');
+    final taskId = int.tryParse(n['task_id']?.toString() ?? '');
     final judul = (n['judul'] as String? ?? '').toLowerCase();
     final pesan = (n['pesan'] as String? ?? '').toLowerCase();
+    if (pengaduanId == null) {
+      final match = RegExp(
+        r'pengaduan\s+#?(\d+)',
+        caseSensitive: false,
+      ).firstMatch('$judul $pesan');
+      if (match != null) {
+        pengaduanId = int.tryParse(match.group(1) ?? '');
+      }
+    }
     final adalahNotifPengumuman =
         pengumumanId != null || judul.contains('pengumuman') || pesan.contains('pengumuman');
 
     if (!mounted) return;
     Navigator.of(context).pop(); // tutup bottom sheet daftar notifikasi
+
+    if (pengaduanId != null) {
+      final targetPengaduanId = pengaduanId;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PengaduanDetailScreen(
+            user: widget.user,
+            pengaduanId: targetPengaduanId,
+            showAction: true,
+          ),
+        ),
+      );
+      return;
+    }
 
     if (taskId != null || judul.contains('penugasan') || judul.contains('tugas') || pesan.contains('ditunjuk')) {
       await NotificationNavHelper.openTugasSaya();
@@ -151,18 +174,6 @@ class _NotificationBellState extends State<NotificationBell> {
         // Popup langsung di atas layar saat ini, tanpa berpindah halaman.
         showPengumumanDetail(context, p);
       }
-      return;
-    }
-
-    if (pengaduanId != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PengaduanDetailScreen(
-            user: widget.user,
-            pengaduanId: pengaduanId,
-          ),
-        ),
-      );
       return;
     }
 
@@ -404,6 +415,37 @@ class _NotificationBellState extends State<NotificationBell> {
                                                          style: const TextStyle(
                                                              fontSize: 12,
                                                              color: Colors.grey)),
+                                                     if (n['pengaduan_status'] != null &&
+                                                         n['pengaduan_status'].toString().trim().isNotEmpty) ...[
+                                                       const SizedBox(height: 4),
+                                                       Builder(
+                                                         builder: (_) {
+                                                           final st = n['pengaduan_status'].toString();
+                                                           final stLower = st.toLowerCase();
+                                                           final isDone = stLower == 'selesai' || stLower == 'arsip';
+                                                           final label = (n['pengaduan_status_label'] ?? st).toString();
+                                                           final noSk = (n['nomor_surat_putusan'] ?? '').toString().trim();
+                                                           final teks = noSk.isNotEmpty && stLower == 'selesai'
+                                                               ? 'Status saat ini: $label · $noSk'
+                                                               : 'Status saat ini: $label';
+                                                           return Container(
+                                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                             decoration: BoxDecoration(
+                                                               color: (isDone ? Colors.green : _navy).withValues(alpha: 0.1),
+                                                               borderRadius: BorderRadius.circular(6),
+                                                             ),
+                                                             child: Text(
+                                                               teks,
+                                                               style: TextStyle(
+                                                                 fontSize: 10.5,
+                                                                 fontWeight: FontWeight.w700,
+                                                                 color: isDone ? Colors.green[700] : _navy,
+                                                               ),
+                                                             ),
+                                                           );
+                                                         },
+                                                       ),
+                                                     ],
                                                      const SizedBox(height: 2),
                                                      Text(
                                                          formatTanggalJam(waktu),

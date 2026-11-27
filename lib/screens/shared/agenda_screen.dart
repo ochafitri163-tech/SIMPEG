@@ -72,7 +72,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Agenda'),
-        content: Text('Hapus "${a.judul}"?'),
+        content: SingleChildScrollView(child: Text('Hapus "${a.judul}"?')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

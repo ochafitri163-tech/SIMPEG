@@ -1,4 +1,5 @@
 import 'user_role.dart';
+import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
 
 /// =============================================================
@@ -88,17 +89,40 @@ class AgendaService {
     required int tahun,
     required int bulan,
   }) async {
-    final list = _localAgendas.where((a) =>
-        a.tanggal.year == tahun && a.tanggal.month == bulan).toList();
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.getAgenda(tahun: tahun, bulan: bulan);
+      if (res['success'] == true && res['data'] is List) {
+        final list = (res['data'] as List)
+            .map((r) => Agenda.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList()
+          ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+        return list;
+      }
+    }
+    final list = _localAgendas
+        .where((a) => a.tanggal.year == tahun && a.tanggal.month == bulan)
+        .toList();
     list.sort((a, b) => a.tanggal.compareTo(b.tanggal));
     return list;
   }
 
   /// Agenda mendatang (>= hari ini) untuk ringkasan.
   static Future<List<Agenda>> mendatang({int limit = 20}) async {
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.getAgenda(upcoming: true, limit: limit);
+      if (res['success'] == true && res['data'] is List) {
+        final list = (res['data'] as List)
+            .map((r) => Agenda.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList()
+          ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+        return list.take(limit).toList();
+      }
+    }
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
-    final list = _localAgendas.where((a) => !a.tanggal.isBefore(todayStart)).toList();
+    final list = _localAgendas
+        .where((a) => !a.tanggal.isBefore(todayStart))
+        .toList();
     list.sort((a, b) => a.tanggal.compareTo(b.tanggal));
     return list.take(limit).toList();
   }
@@ -114,7 +138,7 @@ class AgendaService {
     if (judul.trim().isEmpty) {
       throw ArgumentError('Judul agenda wajib diisi.');
     }
-    final newAgenda = Agenda(
+    Agenda newAgenda = Agenda(
       id: DateTime.now().millisecondsSinceEpoch % 2147483647,
       judul: judul.trim(),
       deskripsi: deskripsi,
@@ -124,6 +148,29 @@ class AgendaService {
       dibuatOleh: dibuatOleh,
       dibuatPada: DateTime.now(),
     );
+
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.storeAgenda(
+        judul: judul.trim(),
+        tanggal: tanggal,
+        deskripsi: deskripsi,
+        waktu: waktu,
+        lokasi: lokasi,
+        dibuatOleh: dibuatOleh,
+      );
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal menyimpan agenda ke server.',
+        );
+      }
+      if (res['data'] is Map) {
+        newAgenda = Agenda.fromRow(
+          Map<String, dynamic>.from(res['data'] as Map),
+        );
+      }
+    }
+
+    _localAgendas.removeWhere((a) => a.id == newAgenda.id);
     _localAgendas.add(newAgenda);
 
     AuditLogService.logAction(
@@ -137,6 +184,14 @@ class AgendaService {
   }
 
   static Future<void> hapus({required int id}) async {
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.deleteAgenda(id);
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal menghapus agenda di server.',
+        );
+      }
+    }
     _localAgendas.removeWhere((a) => a.id == id);
     AuditLogService.logAction(
       userNik: 'SDM',

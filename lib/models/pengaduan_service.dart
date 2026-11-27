@@ -661,32 +661,43 @@ class PengaduanService {
 
     _localPengaduan.insert(0, row);
 
-    // Sync ke PostgreSQL via Laravel backend jika server aktif
-    try {
-      final res = await ApiService.storePengaduan(
-        nik: user.nik,
-        subjek: judul,
-        pesan: deskripsi,
-        kategori: kategori,
-        pihakTerlapor: pihakTerlapor.trim(),
-        nikPelaku: nikPelaku.trim(),
-        jabatanPelaku: jabatanPelaku.trim(),
-        fotoBukti: fotoBukti,
-        dokumenPendukung: dokumenPendukung,
-        videoBukti: videoBukti,
-        voiceNote: voiceNote,
-        anonim: anonim,
-        status: PengaduanStatus.menungguKadiv.name,
-      );
-      final data = res['data'];
-      if (res['success'] == true && data is Map && data['id'] != null) {
-        final serverId = (data['id'] as num).toInt();
-        row['id'] = serverId;
-        if (data['nomor_pengaduan'] != null) {
-          row['nomor_pengaduan'] = data['nomor_pengaduan'];
+    // Sync ke PostgreSQL via Laravel backend jika memiliki sesi auth aktif
+    if (await ApiService.hasAuthToken()) {
+      try {
+        final res = await ApiService.storePengaduan(
+          nik: user.nik,
+          subjek: judul,
+          pesan: deskripsi,
+          kategori: kategori,
+          pihakTerlapor: pihakTerlapor.trim(),
+          nikPelaku: nikPelaku.trim(),
+          jabatanPelaku: jabatanPelaku.trim(),
+          fotoBukti: fotoBukti,
+          dokumenPendukung: dokumenPendukung,
+          videoBukti: videoBukti,
+          voiceNote: voiceNote,
+          anonim: anonim,
+          status: PengaduanStatus.menungguKadiv.name,
+        );
+        if (res['success'] != true) {
+          _localPengaduan.remove(row);
+          throw Exception(
+            res['message']?.toString() ?? 'Gagal mengirim pengaduan ke server.',
+          );
         }
+        final data = res['data'];
+        if (data is Map && data['id'] != null) {
+          final serverId = (data['id'] as num).toInt();
+          row['id'] = serverId;
+          if (data['nomor_pengaduan'] != null) {
+            row['nomor_pengaduan'] = data['nomor_pengaduan'];
+          }
+        }
+      } catch (_) {
+        _localPengaduan.remove(row);
+        rethrow;
       }
-    } catch (_) {}
+    }
 
     AuditLogService.logAction(
       userNik: user.nik,
@@ -1132,8 +1143,9 @@ class PengaduanService {
     );
 
     // Sinkronisasi pembaruan status ke backend PostgreSQL
-    try {
-      await ApiService.updateStatusPengaduan(
+    final hasServerAuth = await ApiService.hasAuthToken();
+    if (hasServerAuth) {
+      final res = await ApiService.updateStatusPengaduan(
         id: pengaduanId,
         status: statusBaru,
         catatan: catatan,
@@ -1143,7 +1155,23 @@ class PengaduanService {
         catatanKadiv: kolomTambahan['catatan_kadiv'] as String?,
         extra: kolomTambahan,
       );
-    } catch (_) {}
+      if (res['success'] != true) {
+        throw Exception(res['message']?.toString() ?? 'Gagal memperbarui status pengaduan.');
+      }
+    } else {
+      try {
+        await ApiService.updateStatusPengaduan(
+          id: pengaduanId,
+          status: statusBaru,
+          catatan: catatan,
+          aksi: aksi,
+          kategori: kolomTambahan['kategori'] as String?,
+          keputusanKadiv: kolomTambahan['keputusan_kadiv'] as String?,
+          catatanKadiv: kolomTambahan['catatan_kadiv'] as String?,
+          extra: kolomTambahan,
+        );
+      } catch (_) {}
+    }
   }
 
   /// KADIV — terima/tolak aksi
@@ -1772,18 +1800,13 @@ class NotificationService {
   }
 
   static Future<bool> _hasServerAuth() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return (prefs.getString('auth_token') ?? '').isNotEmpty;
-    } catch (_) {
-      return false;
-    }
+    return ApiService.hasAuthToken();
   }
 
   static Future<List<Map<String, dynamic>>> untukSaya() async {
     final prefs = await SharedPreferences.getInstance();
     final currentNik = prefs.getString('user_nik') ?? '';
-    final hasAuth = (prefs.getString('auth_token') ?? '').isNotEmpty;
+    final hasAuth = await _hasServerAuth();
 
     if (hasAuth) {
       try {
@@ -1827,7 +1850,7 @@ class NotificationService {
   static Future<void> tandaiSemuaDibaca() async {
     final prefs = await SharedPreferences.getInstance();
     final currentNik = prefs.getString('user_nik') ?? '';
-    final hasAuth = (prefs.getString('auth_token') ?? '').isNotEmpty;
+    final hasAuth = await _hasServerAuth();
 
     if (hasAuth) {
       try {

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/sk_sanksi_service.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
+import 'konfirmasi_dialog.dart';
 
 /// Satu dokumen tambahan yang sedang disusun SDM (judul diisi bebas).
 class DokumenTambahanDraft {
@@ -677,66 +678,69 @@ class _DokumenSkPickerState extends State<DokumenSkPicker> {
     final controller = TextEditingController();
     final judul = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Dokumen tambahan',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Beri nama dokumen pendukung yang ingin ditambahkan.',
-                style: TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'mis. Berita Acara Pemeriksaan',
-                  hintStyle: const TextStyle(fontSize: 12.5),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
+      builder: (ctx) => OnWidgetDispose(
+        onDispose: controller.dispose,
+        child: AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text('Dokumen tambahan',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Beri nama dokumen pendukung yang ingin ditambahkan.',
+                  style: TextStyle(fontSize: 12),
                 ),
-                onSubmitted: (v) => Navigator.pop(ctx, v),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final saran in const [
-                    'Berita Acara Pemeriksaan',
-                    'Surat Panggilan',
-                    'Notulen Rapat',
-                    'Foto Lapangan',
-                  ])
-                    ActionChip(
-                      label: Text(saran,
-                          style: const TextStyle(fontSize: 10.5)),
-                      onPressed: () => Navigator.pop(ctx, saran),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'mis. Berita Acara Pemeriksaan',
+                    hintStyle: const TextStyle(fontSize: 12.5),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onSubmitted: (v) => Navigator.pop(ctx, v),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final saran in const [
+                      'Berita Acara Pemeriksaan',
+                      'Surat Panggilan',
+                      'Notulen Rapat',
+                      'Foto Lapangan',
+                    ])
+                      ActionChip(
+                        label: Text(saran,
+                            style: const TextStyle(fontSize: 10.5)),
+                        onPressed: () => Navigator.pop(ctx, saran),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Tambah'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Tambah'),
-          ),
-        ],
       ),
     );
     if (judul == null) return;

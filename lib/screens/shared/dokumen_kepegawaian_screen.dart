@@ -60,7 +60,7 @@ class _DokumenKepegawaianScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Dokumen'),
-        content: Text('Hapus "${d.judul}"?'),
+        content: SingleChildScrollView(child: Text('Hapus "${d.judul}"?')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

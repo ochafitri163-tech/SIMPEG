@@ -112,7 +112,12 @@ class NotificationNavHelper {
       case 'task':
       case 'tugas':
       case 'penugasan':
-        await openTugasSaya();
+        final pId = int.tryParse(data['pengaduan_id']?.toString() ?? '');
+        if (pId != null) {
+          await openPengaduan(pengaduanId: pId);
+        } else {
+          await openTugasSaya();
+        }
         break;
       case 'pengumuman':
         final pId = int.tryParse(data['pengumuman_id']?.toString() ?? data['id']?.toString() ?? '');
@@ -169,14 +174,14 @@ class NotificationNavHelper {
         await openPrestasi();
         break;
       default:
-        if (data.containsKey('task_id')) {
+        if (data.containsKey('pengaduan_id')) {
+          final pId = int.tryParse(data['pengaduan_id'].toString());
+          await openPengaduan(pengaduanId: pId);
+        } else if (data.containsKey('task_id')) {
           await openTugasSaya();
         } else if (data.containsKey('pengumuman_id')) {
           final pId = int.tryParse(data['pengumuman_id'].toString());
           await openPengumuman(pengumumanId: pId);
-        } else if (data.containsKey('pengaduan_id')) {
-          final pId = int.tryParse(data['pengaduan_id'].toString());
-          await openPengaduan(pengaduanId: pId);
         } else {
           await openPengumuman();
         }
@@ -306,9 +311,14 @@ class NotificationNavHelper {
             builder: (_) => PengaduanDetailScreen(
               user: user,
               pengaduanId: pengaduanId,
+              showAction: true,
             ),
           ),
         );
+      } else if (user.role == UserRole.kadivKategori) {
+        navState.push(MaterialPageRoute(builder: (_) => DashboardKadivScreen(user: user, showBackButton: true)));
+      } else if (user.role == UserRole.tpdpk) {
+        navState.push(MaterialPageRoute(builder: (_) => DashboardTpdpkScreen(user: user, showBackButton: true)));
       } else {
         navState.push(MaterialPageRoute(builder: (_) => StatusPengaduanScreen(user: user)));
       }

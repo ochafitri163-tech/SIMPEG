@@ -4,7 +4,6 @@ import '../../widgets/feature_scaffold.dart';
 import '../../services/audit_log_service.dart';
 
 /// B10 — GANTI PASSWORD (untuk user yang sedang login).
-/// Memakai Supabase Auth updateUser.
 class GantiPasswordScreen extends StatefulWidget {
   const GantiPasswordScreen({super.key});
 
@@ -15,24 +14,36 @@ class GantiPasswordScreen extends StatefulWidget {
 class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
   static const Color _navy = Color(0xFF0D2C6E);
 
+  final _lamaC = TextEditingController();
   final _baruC = TextEditingController();
   final _konfirmasiC = TextEditingController();
   bool _simpan = false;
+  bool _lihat0 = false;
   bool _lihat1 = false;
   bool _lihat2 = false;
 
   @override
   void dispose() {
+    _lamaC.dispose();
     _baruC.dispose();
     _konfirmasiC.dispose();
     super.dispose();
   }
 
   Future<void> _simpanPassword() async {
+    final lama = _lamaC.text;
     final baru = _baruC.text;
     final konfirmasi = _konfirmasiC.text;
+    if (lama.isEmpty) {
+      _pesan('Password lama wajib diisi.');
+      return;
+    }
     if (baru.length < 6) {
-      _pesan('Password minimal 6 karakter.');
+      _pesan('Password baru minimal 6 karakter.');
+      return;
+    }
+    if (baru == lama) {
+      _pesan('Password baru tidak boleh sama dengan password lama.');
       return;
     }
     if (baru != konfirmasi) {
@@ -42,19 +53,27 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
     setState(() => _simpan = true);
     try {
       final res = await ApiService.gantiPassword(
-        oldPassword: '',
+        oldPassword: lama,
         newPassword: baru,
       );
 
       if (res['success'] != true) {
-        throw Exception(res['message'] ?? 'Gagal memperbarui password di server.');
+        final msg = (res['message'] ?? 'Gagal memperbarui password di server.').toString();
+        if (!mounted) return;
+        setState(() => _simpan = false);
+        _pesan(msg);
+        return;
       }
 
-      // Catat log ganti password secara silent
+      final session = await ApiService.getSavedUserSession();
+      final nik = (session?['nik'] ?? 'PEGAWAI').toString();
+      final nama = (session?['name'] ?? session?['nama'] ?? 'Pegawai').toString();
+      final role = (session?['role'] ?? 'PEGAWAI').toString();
+
       AuditLogService.logAction(
-        userNik: 'PEGAWAI',
-        userName: 'Pegawai',
-        role: 'PEGAWAI',
+        userNik: nik,
+        userName: nama,
+        role: role,
         action: 'UPDATE',
         module: 'Autentikasi',
         description: 'Mengganti kata sandi akun via REST API',
@@ -63,15 +82,18 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
       if (!mounted) return;
       _pesan('Password berhasil diperbarui.');
       Navigator.pop(context);
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _simpan = false);
-      _pesan('Gagal memperbarui password: $e');
+      _pesan('Gagal memperbarui password. Silakan coba lagi.');
     }
   }
 
   void _pesan(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
   }
 
   @override
@@ -83,6 +105,13 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          _field(
+            controller: _lamaC,
+            label: 'Password Lama',
+            lihat: _lihat0,
+            onToggle: () => setState(() => _lihat0 = !_lihat0),
+          ),
+          const SizedBox(height: 14),
           _field(
             controller: _baruC,
             label: 'Password Baru',
@@ -97,7 +126,7 @@ class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
             onToggle: () => setState(() => _lihat2 = !_lihat2),
           ),
           const SizedBox(height: 8),
-          Text('Minimal 6 karakter.',
+          Text('Minimal 6 karakter dan berbeda dari password lama.',
               style: TextStyle(fontSize: 11.5, color: Colors.grey[600])),
           const SizedBox(height: 24),
           ElevatedButton(

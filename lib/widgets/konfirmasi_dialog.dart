@@ -88,6 +88,31 @@ Future<bool> showKonfirmasiDialog({
   return result ?? false;
 }
 
+class OnWidgetDispose extends StatefulWidget {
+  final VoidCallback onDispose;
+  final Widget child;
+
+  const OnWidgetDispose({
+    super.key,
+    required this.onDispose,
+    required this.child,
+  });
+
+  @override
+  State<OnWidgetDispose> createState() => _OnWidgetDisposeState();
+}
+
+class _OnWidgetDisposeState extends State<OnWidgetDispose> {
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class CatatanResult {
   final bool isConfirmed;
   final String? text;
@@ -109,51 +134,54 @@ Future<CatatanResult> showDialogCatatan({
     context: context,
     barrierDismissible: false,
     builder: (ctx) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actionsOverflowButtonSpacing: 8,
-        title: Text(
-          judul,
-          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
+      return OnWidgetDispose(
+        onDispose: controller.dispose,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          actionsOverflowButtonSpacing: 8,
+          title: Text(
+            judul,
+            style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: hint,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(const CatatanResult(isConfirmed: false)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey.shade700,
+                side: BorderSide(color: Colors.grey.shade400),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: warnaTombol,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                final text = controller.text.trim();
+                if (wajib && text.isEmpty) return;
+                Navigator.of(ctx)
+                    .pop(CatatanResult(isConfirmed: true, text: text.isEmpty ? null : text));
+              },
+              child: Text(labelTombol),
+            ),
+          ],
         ),
-        content: SingleChildScrollView(
-          child: TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: hint,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(const CatatanResult(isConfirmed: false)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.grey.shade700,
-              side: BorderSide(color: Colors.grey.shade400),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: warnaTombol,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              final text = controller.text.trim();
-              if (wajib && text.isEmpty) return;
-              Navigator.of(ctx)
-                  .pop(CatatanResult(isConfirmed: true, text: text.isEmpty ? null : text));
-            },
-            child: Text(labelTombol),
-          ),
-        ],
       );
     },
   );

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/audit_log_service.dart';
-import 'pengaduan_service.dart' as notif;
 
 /// =============================================================
 /// B9 — MANAJEMEN DOKUMEN KEPEGAWAIAN
@@ -110,15 +109,16 @@ class DokumenService {
   /// SDM — seluruh dokumen.
   static Future<List<DokumenKepegawaian>> semua() async {
     try {
-      final apiRes = await ApiService.getDokumenResmi();
+      final apiRes = await ApiService.getDokumenResmi(scope: 'all');
       if (apiRes['success'] == true && apiRes['data'] is List) {
         final rawList = apiRes['data'] as List;
-        final list = rawList.map((r) => DokumenKepegawaian.fromRow(Map<String, dynamic>.from(r as Map))).toList();
-        for (final loc in _localCache) {
-          if (!list.any((d) => d.id == loc.id)) {
-            list.insert(0, loc);
-          }
-        }
+        final list = rawList
+            .map((r) =>
+                DokumenKepegawaian.fromRow(Map<String, dynamic>.from(r as Map)))
+            .toList();
+        _localCache
+          ..clear()
+          ..addAll(list);
         return list;
       }
       return _localCache;
@@ -157,7 +157,7 @@ class DokumenService {
       throw ArgumentError('Judul dokumen wajib diisi.');
     }
 
-    final newDoc = DokumenKepegawaian(
+    DokumenKepegawaian newDoc = DokumenKepegawaian(
       id: DateTime.now().millisecondsSinceEpoch,
       pegawaiId: pegawaiId,
       judul: judul.trim(),
@@ -169,7 +169,30 @@ class DokumenService {
       dibuatPada: tglTerbit ?? DateTime.now(),
     );
 
-    _localCache.removeWhere((d) => d.kategori == kategori && d.judul == judul);
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.storeDokumen(
+        pegawaiId: pegawaiId,
+        judul: judul.trim(),
+        kategori: kategori,
+        fileUrl: fileUrl,
+        fileNama: fileNama,
+        diunggahOleh: diunggahOleh,
+        nomor: nomor,
+        tglTerbit: tglTerbit,
+      );
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal menyimpan dokumen ke server.',
+        );
+      }
+      if (res['data'] is Map) {
+        newDoc = DokumenKepegawaian.fromRow(
+          Map<String, dynamic>.from(res['data'] as Map),
+        );
+      }
+    }
+
+    _localCache.removeWhere((d) => d.id == newDoc.id);
     _localCache.insert(0, newDoc);
 
     AuditLogService.logAction(
@@ -183,6 +206,14 @@ class DokumenService {
   }
 
   static Future<void> hapus({required int id}) async {
+    if (await ApiService.hasAuthToken()) {
+      final res = await ApiService.deleteDokumen(id);
+      if (res['success'] != true) {
+        throw Exception(
+          res['message']?.toString() ?? 'Gagal menghapus dokumen di server.',
+        );
+      }
+    }
     _localCache.removeWhere((d) => d.id == id);
     AuditLogService.logAction(
       userNik: 'SDM',

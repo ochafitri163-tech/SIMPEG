@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import '../models/user_role.dart';
 import '../services/api_service.dart';
@@ -46,8 +45,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Cek apakah ada session user yang tersimpan dan token otentikasi aktif
     final savedSession = await ApiService.getSavedUserSession();
-    final prefs = await SharedPreferences.getInstance();
-    final hasToken = (prefs.getString('auth_token') ?? '').isNotEmpty;
+    final hasToken = await ApiService.hasAuthToken();
 
     if (!mounted) return;
 

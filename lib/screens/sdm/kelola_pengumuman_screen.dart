@@ -85,7 +85,9 @@ class _KelolaPengumumanScreenState extends State<KelolaPengumumanScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Pengumuman'),
-        content: Text('Yakin ingin menghapus "${p.judul}"?'),
+        content: SingleChildScrollView(
+          child: Text('Yakin ingin menghapus "${p.judul}"?'),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

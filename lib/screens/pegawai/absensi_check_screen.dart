@@ -7,6 +7,7 @@ import '../../models/absensi_service.dart';
 import '../../models/pengaduan_model.dart' show formatTanggalJam;
 import '../../models/user_role.dart';
 import '../../widgets/feature_scaffold.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 
 /// B7 — ABSENSI ASLI: check-in / check-out dengan swafoto (selfie) &
 /// lokasi GPS (opsional bila izin lokasi tersedia).
@@ -136,25 +137,28 @@ class _AbsensiCheckScreenState extends State<AbsensiCheckScreen> {
     final c = TextEditingController();
     final ket = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ajukan Izin Hari Ini'),
-        content: SingleChildScrollView(
-          child: TextField(
-            controller: c,
-            maxLines: 3,
-            decoration: const InputDecoration(
-                hintText: 'Alasan izin (mis. sakit, keperluan keluarga)'),
+      builder: (ctx) => OnWidgetDispose(
+        onDispose: c.dispose,
+        child: AlertDialog(
+          title: const Text('Ajukan Izin Hari Ini'),
+          content: SingleChildScrollView(
+            child: TextField(
+              controller: c,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                  hintText: 'Alasan izin (mis. sakit, keperluan keluarga)'),
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('Kirim'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, c.text.trim()),
-            child: const Text('Kirim'),
-          ),
-        ],
       ),
     );
     if (ket == null || ket.isEmpty) return;

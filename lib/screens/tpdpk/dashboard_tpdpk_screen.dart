@@ -4,6 +4,7 @@ import '../../models/pengaduan_model.dart';
 import '../../models/pengaduan_service.dart';
 import '../../models/user_role.dart';
 import '../../widgets/role_guard.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/notification_bell.dart';
 import '../shared/detail_pengaduan_screen.dart';
 import '../shared/riwayat_pengaduan_screen.dart';
@@ -152,9 +153,12 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
   // ---------- 1. Pilih petugas investigasi (eksekutor = TPDPK) ----------
   Future<void> _bukaPilihPetugas(Pengaduan p) async {
     final petugasController = TextEditingController();
+    String petugasText = '';
     String? errorPetugas;
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: petugasController.dispose,
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,6 +218,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                     });
                     return;
                   }
+                  petugasText = petugasController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.badge_rounded, size: 18),
@@ -229,6 +234,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -241,7 +247,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       context: context,
       judul: 'Konfirmasi Penetapan Petugas',
       pesan:
-          'Apakah Anda yakin ingin menetapkan ${petugasController.text.trim()} sebagai petugas investigasi pengaduan No. ${p.nomorPengaduan}?',
+          'Apakah Anda yakin ingin menetapkan $petugasText sebagai petugas investigasi pengaduan No. ${p.nomorPengaduan}?',
       labelKonfirmasi: 'Ya, Tetapkan',
       warnaKonfirmasi: _navy,
       iconHeader: Icons.badge_rounded,
@@ -252,7 +258,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
       await PengaduanService.tpdpkPilihPetugas(
         pengaduanId: id,
         oleh: widget.user.name,
-        petugas: petugasController.text.trim(),
+        petugas: petugasText,
       );
 
       if (!mounted) return;
@@ -270,6 +276,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         TextEditingController(text: revisi ? (p.hasilInvestigasi ?? '') : '');
     final rekomendasiController =
         TextEditingController(text: revisi ? (p.suratRekomendasi ?? '') : '');
+    String hasilText = '';
+    String rekomendasiText = '';
     String kesimpulanInvestigasi = p.kesimpulanInvestigasi ?? 'terbukti';
     String? errorHasil;
     // Lampiran hasil investigasi berupa media (foto/video/voice/dokumen),
@@ -284,7 +292,12 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
     }
 
     final ok = await _openSheet<bool>((ctx, setSheetState) {
-      return SingleChildScrollView(
+      return OnWidgetDispose(
+        onDispose: () {
+          hasilController.dispose();
+          rekomendasiController.dispose();
+        },
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,6 +569,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                     });
                     return;
                   }
+                  hasilText = hasilController.text.trim();
+                  rekomendasiText = rekomendasiController.text.trim();
                   Navigator.pop(ctx, true);
                 },
                 icon: const Icon(Icons.send_rounded, size: 18),
@@ -571,6 +586,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
             ),
           ],
         ),
+      ),
       );
     });
 
@@ -596,8 +612,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         await PengaduanService.kirimRevisiInvestigasi(
           pengaduanId: id,
           oleh: widget.user.name,
-          hasil: hasilController.text.trim(),
-          rekomendasi: rekomendasiController.text.trim(),
+          hasil: hasilText,
+          rekomendasi: rekomendasiText,
           foto: mediaController.foto,
           video: mediaController.video,
           voice: mediaController.voice,
@@ -615,8 +631,8 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
           pengaduanId: id,
           oleh: widget.user.name,
           role: UserRole.tpdpk,
-          hasil: hasilController.text.trim(),
-          rekomendasi: rekomendasiController.text.trim(),
+          hasil: hasilText,
+          rekomendasi: rekomendasiText,
           kesimpulanInvestigasi: kesimpulanInvestigasi,
           foto: mediaController.foto,
           video: mediaController.video,
@@ -661,13 +677,16 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
 
   Future<void> _bukaSelesaikanTindakLanjut(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
 
     final konfirmasi = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Padding(
+        return OnWidgetDispose(
+          onDispose: catatanController.dispose,
+          child: Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
@@ -733,7 +752,10 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(ctx, true),
+                      onPressed: () {
+                        catatanText = catatanController.text.trim();
+                        Navigator.pop(ctx, true);
+                      },
                       icon: const Icon(Icons.task_alt_rounded, size: 18),
                       label: const Text('Tandai Selesai'),
                       style: ElevatedButton.styleFrom(
@@ -749,6 +771,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
               ),
             ),
           ),
+        ),
         );
       },
     );
@@ -774,9 +797,7 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         role: UserRole.tpdpk,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       final detail = await PengaduanService.detail(id);
@@ -1604,7 +1625,17 @@ class _DashboardTpdpkScreenState extends State<DashboardTpdpkScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _bukaDetail(p),
+                    onPressed: () {
+                      final id = p.supabaseId;
+                      if (id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PengaduanDetailScreen(
+                              user: widget.user, pengaduanId: id),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.visibility_outlined, size: 16),
                     label: const Text('Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(

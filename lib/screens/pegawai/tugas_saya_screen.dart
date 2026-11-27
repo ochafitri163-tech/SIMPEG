@@ -3,6 +3,7 @@ import '../../models/task_model.dart';
 import '../../models/user_role.dart';
 import '../../services/task_service.dart';
 import '../../widgets/media_lampiran_picker.dart';
+import '../../widgets/konfirmasi_dialog.dart';
 import '../../widgets/notification_bell.dart';
 import '../../services/theme_controller.dart';
 import '../shared/detail_pengaduan_screen.dart';
@@ -650,7 +651,9 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
+        return OnWidgetDispose(
+          onDispose: catatanController.dispose,
+          child: StatefulBuilder(
           builder: (context, setSheetState) {
             return SafeArea(
               child: Container(
@@ -1127,6 +1130,7 @@ class _TugasSayaScreenState extends State<TugasSayaScreen> {
               ),
             );
           },
+        ),
         );
       },
     );

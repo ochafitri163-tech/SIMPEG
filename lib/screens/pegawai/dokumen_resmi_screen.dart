@@ -9,6 +9,7 @@ import '../../models/dokumen_service.dart';
 import '../../models/user_role.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/lampiran_helper.dart';
 
 /// Custom Painter untuk menggambar border putus-putus (dashed border)
 /// persis seperti CSS `border: 1px dashed #CBD5E1;` pada Web SIMPEG.
@@ -124,35 +125,20 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
     return url;
   }
 
-  /// Membuat daftar URL kandidat (LAN, Emulator, Localhost) untuk menjamin konektivitas
+  /// Membuat daftar URL kandidat melalui host API aktif
   List<String> _buildCandidateUrls(DokumenKepegawaian d) {
     final urls = <String>[];
-    const lanHost = '192.168.110.74:8000';
-    const emuHost = '10.0.2.2:8000';
-    const localHost = '127.0.0.1:8000';
-
-    final hosts = [lanHost, emuHost, localHost];
 
     // 1. Download API endpoint
     if (d.id > 0) {
       urls.add('${ApiService.baseUrl}/dokumen/${d.id}/download');
-      for (final h in hosts) {
-        urls.add('http://$h/api/v1/dokumen/${d.id}/download');
-      }
     }
 
-    // 2. Direct static file URL
-    if (d.fileUrl.isNotEmpty && d.fileUrl != '#') {
+    // 2. Direct static file URL (non-data URI)
+    if (d.fileUrl.isNotEmpty &&
+        d.fileUrl != '#' &&
+        !d.fileUrl.trim().toLowerCase().startsWith('data:')) {
       urls.add(_resolveFileUrl(d.fileUrl));
-      final uri = Uri.tryParse(d.fileUrl);
-      if (uri != null) {
-        for (final h in hosts) {
-          final parts = h.split(':');
-          final host = parts[0];
-          final port = parts.length > 1 ? int.tryParse(parts[1]) : 8000;
-          urls.add(uri.replace(host: host, port: port).toString());
-        }
-      }
     }
 
     final seen = <String>{};
@@ -161,13 +147,22 @@ class _DokumenResmiScreenState extends State<DokumenResmiScreen> {
 
   /// Mengambil bytes file dari server atau fallback menghasilkan PDF resmi on-device
   Future<Uint8List> _fetchOrGenerateBytes(DokumenKepegawaian d) async {
+    final decoded = LampiranHelper.tryDecodeDataUri(d.fileUrl);
+    if (decoded != null && decoded.bytes.isNotEmpty) {
+      return decoded.bytes;
+    }
+
     final candidateUrls = _buildCandidateUrls(d);
+    final token = await ApiService.getAuthToken();
+    final headers = token.isNotEmpty
+        ? <String, String>{'Authorization': 'Bearer $token'}
+        : null;
 
     for (final fetchUrl in candidateUrls) {
       try {
         final response = await http
-            .get(Uri.parse(fetchUrl))
-            .timeout(const Duration(seconds: 3));
+            .get(Uri.parse(fetchUrl), headers: headers)
+            .timeout(const Duration(seconds: 5));
         if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
           if (response.bodyBytes.length < 300) {
             final text = utf8.decode(response.bodyBytes, allowMalformed: true);

@@ -117,6 +117,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
     const opsiKategori = ['Pelanggaran Administrasi', 'Pelanggaran Teknik'];
     final divisiSaya = widget.user.divisiKadiv;
     final catatanController = TextEditingController();
+    String catatanText = '';
     String? errorCatatan;
 
     final aksi = await showModalBottomSheet<String>(
@@ -124,7 +125,9 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return StatefulBuilder(
+        return OnWidgetDispose(
+          onDispose: catatanController.dispose,
+          child: StatefulBuilder(
           builder: (ctx, setSheetState) {
             final divisiKategori = divisiKadivDariKategori(kategoriPilihan);
             final pindahDivisi = divisiSaya != null &&
@@ -259,6 +262,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                               iconHeader: Icons.swap_horiz_rounded,
                             );
                             if (setuju && ctx.mounted) {
+                              catatanText = catatanController.text.trim();
                               Navigator.pop(ctx, 'alihkan');
                             }
                           },
@@ -296,6 +300,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                                   iconHeader: Icons.cancel_outlined,
                                 );
                                 if (setuju && ctx.mounted) {
+                                  catatanText = catatanController.text.trim();
                                   Navigator.pop(ctx, 'tolak');
                                 }
                               },
@@ -325,6 +330,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                                   iconHeader: Icons.check_circle_outline,
                                 );
                                 if (setuju && ctx.mounted) {
+                                  catatanText = catatanController.text.trim();
                                   Navigator.pop(ctx, 'terima');
                                 }
                               },
@@ -349,6 +355,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
             ),
           );
           },
+        ),
         );
       },
     );
@@ -364,7 +371,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
           oleh: widget.user.name,
           kategoriBaru: kategoriPilihan,
           nomorPengaduan: p.nomorPengaduan,
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
+          catatan: catatanText.isEmpty ? null : catatanText,
         );
         if (!mounted) return;
         _showSnack('${p.nomorPengaduan} dialihkan ke kategori $kategoriPilihan.', const Color(0xFFE67E22));
@@ -375,7 +382,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
           pengaduanId: id,
           oleh: widget.user.name,
           keputusan: keputusan,
-          catatan: catatanController.text.trim().isEmpty ? null : catatanController.text.trim(),
+          catatan: catatanText.isEmpty ? null : catatanText,
           kategoriBaru: kategoriBaru,
         );
         if (!mounted) return;
@@ -395,6 +402,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
   Future<void> _bukaKirimHasil(Pengaduan p) async {
     final hasilController = TextEditingController();
     final rekomendasiController = TextEditingController();
+    String hasilText = '';
+    String rekomendasiText = '';
     String kesimpulanInvestigasi = p.kesimpulanInvestigasi ?? 'terbukti';
     final mediaController = MediaLampiranController();
     String? errorKirim;
@@ -404,7 +413,12 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return StatefulBuilder(
+        return OnWidgetDispose(
+          onDispose: () {
+            hasilController.dispose();
+            rekomendasiController.dispose();
+          },
+          child: StatefulBuilder(
           builder: (ctx, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
@@ -699,6 +713,8 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                                   const Color(0xFFE74C3C));
                               return;
                             }
+                            hasilText = hasilController.text.trim();
+                            rekomendasiText = rekomendasiController.text.trim();
                             Navigator.pop(ctx, true);
                           },
                           icon: const Icon(Icons.send_rounded, size: 18),
@@ -717,6 +733,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               ),
             );
           },
+        ),
         );
       },
     );
@@ -742,12 +759,12 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         role: UserRole.kadivKategori,
-        hasil: hasilController.text.trim().isEmpty
+        hasil: hasilText.isEmpty
             ? (kesimpulanInvestigasi == 'terbukti'
                 ? 'Terbukti bersalah berdasarkan bukti terlampir.'
                 : 'Tidak terbukti berdasarkan bukti terlampir.')
-            : hasilController.text.trim(),
-        rekomendasi: rekomendasiController.text.trim(),
+            : hasilText,
+        rekomendasi: rekomendasiText,
         kesimpulanInvestigasi: kesimpulanInvestigasi,
         foto: mediaController.foto,
         video: mediaController.video,
@@ -765,13 +782,16 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
 
   Future<void> _bukaSelesaikanTindakLanjut(Pengaduan p) async {
     final catatanController = TextEditingController();
+    String catatanText = '';
 
     final konfirmasi = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Padding(
+        return OnWidgetDispose(
+          onDispose: catatanController.dispose,
+          child: Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
@@ -837,7 +857,10 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(ctx, true),
+                      onPressed: () {
+                        catatanText = catatanController.text.trim();
+                        Navigator.pop(ctx, true);
+                      },
                       icon: const Icon(Icons.task_alt_rounded, size: 18),
                       label: const Text('Tandai Selesai'),
                       style: ElevatedButton.styleFrom(
@@ -853,6 +876,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
               ),
             ),
           ),
+        ),
         );
       },
     );
@@ -878,9 +902,7 @@ class _DashboardKadivScreenState extends State<DashboardKadivScreen> {
         pengaduanId: id,
         oleh: widget.user.name,
         role: UserRole.kadivKategori,
-        catatan: catatanController.text.trim().isEmpty
-            ? null
-            : catatanController.text.trim(),
+        catatan: catatanText.isEmpty ? null : catatanText,
       );
 
       // Beri tahu pelapor asli (bukan seluruh role pegawai) bahwa

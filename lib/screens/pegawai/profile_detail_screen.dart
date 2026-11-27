@@ -832,13 +832,15 @@ class ProfileDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          content: Text(
-            'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary(context),
-              height: 1.5,
-              letterSpacing: 0.1,
+          content: SingleChildScrollView(
+            child: Text(
+              'Kamu akan keluar dari akun ini dan perlu login ulang untuk mengakses aplikasi.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary(context),
+                height: 1.5,
+                letterSpacing: 0.1,
+              ),
             ),
           ),
           actions: [

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/pengaduan_model.dart';
 import '../../models/sk_sanksi_service.dart';
 import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/lampiran_helper.dart';
 import '../../widgets/feature_scaffold.dart';
 
 /// =============================================================
@@ -44,27 +44,11 @@ class _SkSanksiScreenState extends State<SkSanksiScreen> {
     await _future;
   }
 
-  Future<void> _buka(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka dokumen.')),
-      );
-    }
-  }
+  Future<void> _buka(String url) =>
+      LampiranHelper.bukaLampiran(context, url, fallbackName: 'dokumen_sk');
 
-  String _namaFile(String url) {
-    final tanpaQuery = url.split('?').first;
-    var nama = tanpaQuery.split('/').last;
-    final pisah = nama.split('_');
-    if (pisah.length > 1 && int.tryParse(pisah.first) != null) {
-      nama = pisah.sublist(1).join('_');
-    }
-    return nama;
-  }
+  String _namaFile(String url) =>
+      LampiranHelper.extractFileName(url, fallback: 'Dokumen SK');
 
   String _rupiah(int n) {
     final s = n.abs().toString();

@@ -234,9 +234,11 @@ class _TerbitkanSkScreenState extends State<TerbitkanSkScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Belum divalidasi DIRUT'),
-          content: const Text(
-            'SK sebaiknya hanya diterbitkan setelah keputusan divalidasi ke '
-            'DIRUT. Tetap lanjutkan penerbitan?',
+          content: const SingleChildScrollView(
+            child: Text(
+              'SK sebaiknya hanya diterbitkan setelah keputusan divalidasi ke '
+              'DIRUT. Tetap lanjutkan penerbitan?',
+            ),
           ),
           actions: [
             TextButton(
